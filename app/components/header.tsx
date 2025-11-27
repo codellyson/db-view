@@ -61,6 +61,16 @@ export const Header: React.FC<HeaderProps> = ({
             >
               QUERY
             </button>
+            <button
+              onClick={() => router.push('/connections')}
+              className={`text-sm font-bold uppercase font-mono border-2 px-4 py-2 ${
+                pathname === '/connections'
+                  ? 'bg-blue-400 text-black border-blue-400'
+                  : 'bg-black text-white border-white hover:bg-white hover:text-black'
+              }`}
+            >
+              CONNECTIONS
+            </button>
           </nav>
         )}
       </div>

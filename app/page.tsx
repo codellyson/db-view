@@ -2,21 +2,13 @@
 
 import Image from "next/image";
 import { useConnection } from "./contexts/connection-context";
-import { ConnectionForm } from "./components/connection-form";
-import { SavedConnections } from "./components/saved-connections";
 import { Dashboard } from "./components/dashboard";
 import { Button } from "./components/ui";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const { isConnected, isConnecting, connect, error } = useConnection();
-
-  const handleConnect = async (config: any, name?: string) => {
-    try {
-      await connect(config, name);
-    } catch (err) {
-      console.error("Connection error:", err);
-    }
-  };
+  const { isConnected } = useConnection();
+  const router = useRouter();
 
   if (isConnected) {
     return <Dashboard />;
@@ -47,14 +39,14 @@ export default function Home() {
               MINIMALIST INTERFACE THAT GETS OUT OF YOUR WAY.
             </p>
           </div>
-          <a
-            href="#connection-form"
-            className=" flex items-center justify-center w-max mx-auto text-center my-8"
-          >
-            <Button variant="primary" className="w-max text-center">
+          <div className="flex items-center justify-center my-8">
+            <Button
+              variant="primary"
+              onClick={() => router.push("/connections")}
+            >
               GET STARTED
             </Button>
-          </a>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             <div className="border-2 border-black p-8">
               <h2 className="text-2xl font-bold uppercase text-black mb-4">
@@ -84,14 +76,6 @@ export default function Home() {
                 PLACE.
               </p>
             </div>
-          </div>
-
-          <div id="connection-form" className="space-y-8">
-            <SavedConnections />
-            <ConnectionForm
-              onConnect={handleConnect}
-              isConnecting={isConnecting}
-            />
           </div>
 
           <div className="mt-16 pt-8 border-t-2 border-black text-center">
