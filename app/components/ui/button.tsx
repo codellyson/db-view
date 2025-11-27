@@ -16,7 +16,7 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   ...props
 }) => {
-  const baseStyles = 'border-2 border-black rounded-none font-mono uppercase font-bold focus:outline-none focus:border-4 disabled:opacity-25 disabled:cursor-not-allowed';
+  const baseStyles = 'border-2 border-black rounded-none font-mono uppercase font-bold focus:outline-none focus:shadow-[0_0_0_2px_black] disabled:opacity-25 disabled:cursor-not-allowed';
   
   const variantStyles = {
     primary: 'bg-white text-black hover:bg-black hover:text-white active:translate-x-0.5 active:translate-y-0.5',

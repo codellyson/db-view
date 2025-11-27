@@ -4,6 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { ConnectionStatus } from './connection-status';
+import { ConnectionSelector } from './connection-selector';
 import { Button } from './ui/button';
 import { useConnection } from '../contexts/connection-context';
 
@@ -64,6 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
       <div className="flex items-center gap-4">
+        {isConnected && <ConnectionSelector />}
         <ConnectionStatus
           status={isConnected ? 'connected' : 'disconnected'}
           databaseName={databaseName}

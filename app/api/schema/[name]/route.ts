@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTableSchema, ensurePool, getPool } from "@/lib/db";
+import { sanitizeError } from "@/lib/security";
 import { cookies } from "next/headers";
 
 export async function GET(
@@ -16,9 +17,8 @@ export async function GET(
     const schema = await getTableSchema(params.name);
     return NextResponse.json({ schema });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch table schema" },
-      { status: 500 }
-    );
+    const sanitizedError = sanitizeError(error);
+    console.error("Schema fetch error:", error);
+    return NextResponse.json({ error: sanitizedError }, { status: 500 });
   }
 }

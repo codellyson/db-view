@@ -7,6 +7,14 @@ export interface DBConfig {
   ssl?: boolean | { rejectUnauthorized?: boolean };
 }
 
+export interface SavedConnection {
+  id: string;
+  name: string;
+  config: DBConfig;
+  createdAt: number;
+  lastUsed?: number;
+}
+
 export interface Column {
   name: string;
   type: string;

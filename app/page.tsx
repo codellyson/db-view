@@ -3,15 +3,16 @@
 import Image from "next/image";
 import { useConnection } from "./contexts/connection-context";
 import { ConnectionForm } from "./components/connection-form";
+import { SavedConnections } from "./components/saved-connections";
 import { Dashboard } from "./components/dashboard";
 import { Button } from "./components/ui";
 
 export default function Home() {
   const { isConnected, isConnecting, connect, error } = useConnection();
 
-  const handleConnect = async (config: any) => {
+  const handleConnect = async (config: any, name?: string) => {
     try {
-      await connect(config);
+      await connect(config, name);
     } catch (err) {
       console.error("Connection error:", err);
     }
@@ -85,7 +86,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div id="connection-form">
+          <div id="connection-form" className="space-y-8">
+            <SavedConnections />
             <ConnectionForm
               onConnect={handleConnect}
               isConnecting={isConnecting}

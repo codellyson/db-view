@@ -24,7 +24,7 @@ export const TableList: React.FC<TableListProps> = ({
         placeholder="SEARCH..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-4 py-3 mb-4 text-sm border-2 border-black rounded-none font-mono focus:outline-none focus:border-4 bg-white text-black"
+        className="w-full px-4 py-3 mb-4 text-sm border-2 border-black rounded-none font-mono focus:outline-none focus:shadow-[0_0_0_2px_black] bg-white text-black"
       />
       <ul className="space-y-2">
         {filteredTables.map((table) => (

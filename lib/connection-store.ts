@@ -35,6 +35,8 @@ export function removeConnection(sessionId: string): void {
   console.log(`Connection removed for session: ${sessionId}`);
 }
 
+import crypto from "crypto";
+
 export function generateSessionId(): string {
-  return `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  return `session_${Date.now()}_${crypto.randomBytes(16).toString("hex")}`;
 }

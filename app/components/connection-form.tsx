@@ -8,7 +8,7 @@ import { Card } from './ui/card';
 import { DBConfig } from '@/types';
 
 interface ConnectionFormProps {
-  onConnect: (config: DBConfig) => void;
+  onConnect: (config: DBConfig, name?: string) => void;
   isConnecting: boolean;
 }
 
@@ -22,6 +22,8 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [useSSL, setUseSSL] = useState(true);
+  const [connectionName, setConnectionName] = useState('');
+  const [saveConnection, setSaveConnection] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = (): boolean => {
@@ -41,6 +43,9 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
     if (!username.trim()) {
       newErrors.username = 'Username is required';
     }
+    if (saveConnection && !connectionName.trim()) {
+      newErrors.connectionName = 'Connection name is required when saving';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -49,6 +54,9 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
+      const name = saveConnection && connectionName.trim() 
+        ? connectionName.trim() 
+        : undefined;
       onConnect({
         host: host.trim(),
         port: Number(port),
@@ -56,7 +64,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         username: username.trim(),
         password: password,
         ssl: useSSL ? { rejectUnauthorized: false } : false,
-      });
+      }, name);
     }
   };
 
@@ -135,6 +143,30 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
               USE SSL (REQUIRED FOR MOST CLOUD DATABASES)
             </label>
           </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="save"
+              checked={saveConnection}
+              onChange={(e) => setSaveConnection(e.target.checked)}
+              disabled={isConnecting}
+              className="h-5 w-5 border-2 border-black rounded-none accent-black"
+            />
+            <label htmlFor="save" className="text-sm font-bold uppercase text-black">
+              SAVE CONNECTION
+            </label>
+          </div>
+          {saveConnection && (
+            <Input
+              label="CONNECTION NAME"
+              type="text"
+              value={connectionName}
+              onChange={setConnectionName}
+              placeholder="MY DATABASE"
+              error={errors.connectionName}
+              disabled={isConnecting}
+            />
+          )}
           <Button
             type="submit"
             variant="primary"

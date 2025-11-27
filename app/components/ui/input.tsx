@@ -15,9 +15,9 @@ export const Input: React.FC<InputProps> = ({
   className = '',
   ...props
 }) => {
-  const baseStyles = 'w-full px-4 py-3 border-2 border-black rounded-none font-mono focus:outline-none focus:border-4 bg-white text-black';
+  const baseStyles = 'w-full px-4 py-3 border-2 border-black rounded-none font-mono focus:outline-none focus:shadow-[0_0_0_2px_black] bg-white text-black';
   const normalStyles = 'border-black focus:border-black';
-  const errorStyles = 'border-4 border-red-500 focus:border-red-500';
+  const errorStyles = 'border-2 border-red-500 focus:border-red-500 focus:shadow-[0_0_0_2px_rgb(239,68,68)]';
   
   return (
     <div className="w-full">

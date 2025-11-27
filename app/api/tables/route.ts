@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTables, getPool, ensurePool } from "@/lib/db";
+import { sanitizeError } from "@/lib/security";
 import { cookies } from "next/headers";
 
 export async function GET() {
@@ -32,11 +33,8 @@ export async function GET() {
     console.log(`Successfully fetched ${tables.length} tables`);
     return NextResponse.json({ tables });
   } catch (error: any) {
+    const sanitizedError = sanitizeError(error);
     console.error("Error fetching tables:", error);
-    console.error("Error stack:", error.stack);
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch tables" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: sanitizedError }, { status: 500 });
   }
 }

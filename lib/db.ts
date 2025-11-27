@@ -1,6 +1,7 @@
 import { Pool, PoolClient, PoolConfig } from "pg";
 import { DBConfig } from "@/types";
 import { getConnection, storeConnection } from "./connection-store";
+import { decrypt } from "./security";
 import { cookies } from "next/headers";
 
 let pool: Pool | null = null;
@@ -63,6 +64,7 @@ export function setPool(newPool: Pool | null, config?: DBConfig): void {
       host: config.host,
       database: config.database,
       hasSSL: !!config.ssl,
+      port: config.port,
     });
   }
   if (!newPool) {
@@ -100,13 +102,11 @@ export async function ensurePool(sessionId?: string): Promise<Pool> {
 
     if (configCookie) {
       try {
-        const configJson = Buffer.from(configCookie, "base64").toString(
-          "utf-8"
-        );
+        const configJson = decrypt(configCookie);
         configFromCookie = JSON.parse(configJson) as DBConfig;
         console.log("Retrieved config from cookie");
       } catch (parseError) {
-        console.error("Failed to parse config from cookie:", parseError);
+        console.error("Failed to decrypt config from cookie:", parseError);
       }
     }
 
@@ -244,18 +244,31 @@ export async function getTableSchema(tableName: string): Promise<any[]> {
 }
 
 export async function executeQuery(
-  query: string
+  query: string,
+  timeout: number = 30000
 ): Promise<{ rows: any[]; executionTime: number }> {
   const activePool = await ensurePool();
   const client = await activePool.connect();
   const startTime = Date.now();
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      client.release();
+      reject(new Error("Query timeout exceeded"));
+    }, timeout);
+  });
+
   try {
-    const result = await client.query(query);
+    const queryPromise = client.query(query);
+    const result = await Promise.race([queryPromise, timeoutPromise]);
     const executionTime = Date.now() - startTime;
+
     return {
       rows: result.rows,
       executionTime,
     };
+  } catch (error) {
+    throw error;
   } finally {
     client.release();
   }

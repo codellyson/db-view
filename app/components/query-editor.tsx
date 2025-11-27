@@ -70,7 +70,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="SELECT * FROM users LIMIT 10;"
-            className="w-full h-48 px-4 py-3 font-mono text-sm border-2 border-black rounded-none focus:outline-none focus:border-4 bg-white text-black resize-none"
+            className="w-full h-48 px-4 py-3 font-mono text-sm border-2 border-black rounded-none focus:outline-none focus:shadow-[0_0_0_2px_black] bg-white text-black resize-none"
             disabled={isExecuting}
           />
           <div className="flex items-center justify-between">

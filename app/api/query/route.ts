@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeQuery, ensurePool, getPool } from "@/lib/db";
+import { validateQuery, sanitizeError } from "@/lib/security";
 import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
@@ -12,16 +13,19 @@ export async function POST(request: NextRequest) {
 
     const { query } = await request.json();
 
-    if (!query || typeof query !== "string") {
-      return NextResponse.json({ error: "Query is required" }, { status: 400 });
+    const validation = validateQuery(query);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error || "Invalid query" },
+        { status: 400 }
+      );
     }
 
     const result = await executeQuery(query);
     return NextResponse.json(result);
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Query execution failed" },
-      { status: 500 }
-    );
+    const sanitizedError = sanitizeError(error);
+    console.error("Query execution error:", error);
+    return NextResponse.json({ error: sanitizedError }, { status: 500 });
   }
 }

@@ -113,6 +113,48 @@ export function Dashboard() {
     setCurrentPage(1);
   };
 
+  const handleExport = () => {
+    if (!selectedTable || tableData.length === 0) {
+      return;
+    }
+
+    const csvHeaders = columns.join(",");
+    const csvRows = tableData.map((row) =>
+      columns
+        .map((col) => {
+          const value = row[col];
+          if (value === null || value === undefined) {
+            return "";
+          }
+          const stringValue = String(value);
+          if (
+            stringValue.includes(",") ||
+            stringValue.includes('"') ||
+            stringValue.includes("\n")
+          ) {
+            return `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        })
+        .join(",")
+    );
+
+    const csvContent = [csvHeaders, ...csvRows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `${selectedTable}_export_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (!isConnected) {
     return null;
   }
@@ -142,7 +184,14 @@ export function Dashboard() {
                   <h1 className="text-4xl font-bold uppercase tracking-tight text-black truncate flex-1 min-w-0">
                     {selectedTable}
                   </h1>
-                  <Button variant="secondary" className="flex-shrink-0">
+                  <Button
+                    variant="secondary"
+                    className="flex-shrink-0"
+                    onClick={handleExport}
+                    disabled={
+                      !selectedTable || tableData.length === 0 || isLoading
+                    }
+                  >
                     EXPORT
                   </Button>
                 </div>
