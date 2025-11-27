@@ -1,6 +1,7 @@
-import React from 'react';
+import React from "react";
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   label?: string;
   error?: string;
   value: string;
@@ -12,13 +13,15 @@ export const Input: React.FC<InputProps> = ({
   error,
   value,
   onChange,
-  className = '',
+  className = "",
   ...props
 }) => {
-  const baseStyles = 'w-full px-4 py-3 border-2 border-black rounded-none font-mono focus:outline-none focus:shadow-[0_0_0_2px_black] bg-white text-black';
-  const normalStyles = 'border-black focus:border-black';
-  const errorStyles = 'border-2 border-red-500 focus:border-red-500 focus:shadow-[0_0_0_2px_rgb(239,68,68)]';
-  
+  const baseStyles =
+    "w-full px-4 py-3 border-2 border-black rounded-none font-mono focus:outline-none focus:shadow-[0_0_0_2px_black] bg-white text-black";
+  const normalStyles = "border-black focus:border-black";
+  const errorStyles =
+    "border-2 border-red-500 focus:border-red-500 focus:shadow-[0_0_0_2px_rgb(239,68,68)]";
+
   return (
     <div className="w-full">
       {label && (
@@ -27,10 +30,12 @@ export const Input: React.FC<InputProps> = ({
         </label>
       )}
       <input
-        type={props.type || 'text'}
+        type={props.type || "text"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`${baseStyles} ${error ? errorStyles : normalStyles} ${className}`}
+        className={`${baseStyles} ${
+          error ? errorStyles : normalStyles
+        } ${className}`}
         {...props}
       />
       {error && (
@@ -39,4 +44,3 @@ export const Input: React.FC<InputProps> = ({
     </div>
   );
 };
-
