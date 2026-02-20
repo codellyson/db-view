@@ -3,11 +3,13 @@ import React from 'react';
 interface ConnectionStatusProps {
   status: 'connected' | 'disconnected' | 'connecting';
   databaseName?: string;
+  latency?: number | null;
 }
 
 export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   status,
   databaseName,
+  latency,
 }) => {
   const statusConfig = {
     connected: {
@@ -15,7 +17,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
       text: 'CONNECTED',
     },
     disconnected: {
-      color: 'bg-white text-black border-black',
+      color: 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white',
       text: 'DISCONNECTED',
     },
     connecting: {
@@ -35,6 +37,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
           <>
             {config.text}
             {status === 'connected' && databaseName && `: ${databaseName.toUpperCase()}`}
+            {status === 'connected' && latency != null && ` [${latency}MS]`}
           </>
         )}
       </span>

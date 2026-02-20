@@ -6,7 +6,7 @@ interface MainContentProps {
 
 export const MainContent: React.FC<MainContentProps> = ({ children }) => {
   return (
-    <main className="flex-1 bg-white p-8 overflow-auto">
+    <main className="flex-1 bg-white dark:bg-black p-8 overflow-auto">
       {children}
     </main>
   );

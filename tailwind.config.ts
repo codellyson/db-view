@@ -6,6 +6,7 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       fontFamily: {
@@ -14,6 +15,8 @@ const config: Config = {
       boxShadow: {
         'brutal': '4px 4px 0 0 black',
         'brutal-sm': '2px 2px 0 0 black',
+        'brutal-dark': '4px 4px 0 0 white',
+        'brutal-sm-dark': '2px 2px 0 0 white',
       },
     },
   },

@@ -9,16 +9,21 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@codemirror/lang-sql": "^6.10.0",
+    "@codemirror/language": "^6.12.1",
+    "@codemirror/view": "^6.39.15",
+    "@lezer/highlight": "^1.2.3",
+    "@uiw/react-codemirror": "^4.25.4",
     "next": "14.2.35",
+    "pg": "^8.11.3",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "pg": "^8.11.3"
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pg": "^8.11.0",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "@types/pg": "^8.11.0",
     "autoprefixer": "^10.4.0",
     "eslint": "^8",
     "eslint-config-next": "^14.2.0",

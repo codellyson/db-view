@@ -1,158 +1,89 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 import { MainContent } from "./main-content";
 import { DataTable } from "./data-table";
 import { TableSchema } from "./table-schema";
 import { Pagination } from "./pagination";
-import { Button } from "./ui/button";
 import { EmptyState } from "./empty-state";
+import { ErrorState } from "./error-state";
 import { ResizableSplitter } from "./resizable-splitter";
+import { MobileMenu } from "./mobile-menu";
+import { TableList } from "./table-list";
 import { Footer } from "./footer";
+import { ColumnVisibility } from "./column-visibility";
+import { ExportDropdown } from "./export-dropdown";
+import { Breadcrumb } from "./breadcrumb";
+import { RelationshipDisplay } from "./relationship-display";
 import { useConnection } from "../contexts/connection-context";
-import { ColumnInfo } from "@/types";
+import { useToast } from "../contexts/toast-context";
+import { useDashboard } from "../contexts/dashboard-context";
+import { exportCSV, exportJSON, exportSQL } from "@/lib/export-utils";
 
 export function Dashboard() {
   const { isConnected, databaseName } = useConnection();
-  const [tables, setTables] = useState<string[]>([]);
-  const [selectedTable, setSelectedTable] = useState<string | undefined>();
-  const [tableData, setTableData] = useState<any[]>([]);
-  const [columns, setColumns] = useState<string[]>([]);
-  const [schema, setSchema] = useState<ColumnInfo[]>([]);
-  const [isLoadingTables, setIsLoadingTables] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingSchema, setIsLoadingSchema] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const itemsPerPage = 100;
+  const { addToast } = useToast();
+  const {
+    tables,
+    schemas,
+    selectedSchema,
+    selectedTable,
+    tableData,
+    columns,
+    schema,
+    views,
+    materializedViews,
+    dbFunctions,
+    relationships,
+    indexes,
+    isLoadingTables,
+    isLoading,
+    isLoadingSchema,
+    currentPage,
+    totalItems,
+    countIsEstimate,
+    sortColumn,
+    sortDirection,
+    visibleColumns,
+    tableSearch,
+    error,
+    itemsPerPage,
+    setSelectedTable,
+    setCurrentPage,
+    setVisibleColumns,
+    setTableSearch,
+    loadTables,
+    loadTableData,
+    handleSchemaChange,
+    handleTableSelect,
+    handleSort,
+  } = useDashboard();
 
-  useEffect(() => {
-    if (isConnected) {
-      loadTables();
-    }
-  }, [isConnected]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    if (selectedTable) {
-      loadTableData(selectedTable, currentPage);
-      loadTableSchema(selectedTable);
-    }
-  }, [selectedTable, currentPage]);
-
-  const loadTables = async () => {
-    setIsLoadingTables(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/tables");
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to load tables");
-      }
-      const data = await response.json();
-      setTables(data.tables || []);
-    } catch (err: any) {
-      console.error("Error loading tables:", err);
-      setError(err.message || "Failed to load tables");
-    } finally {
-      setIsLoadingTables(false);
-    }
+  const onTableSelect = (table: string) => {
+    handleTableSelect(table);
+    setIsMobileMenuOpen(false);
   };
 
-  const loadTableData = async (tableName: string, page: number) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const offset = (page - 1) * itemsPerPage;
-      const response = await fetch(
-        `/api/table/${encodeURIComponent(
-          tableName
-        )}?limit=${itemsPerPage}&offset=${offset}`
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to load table data");
-      }
-      const data = await response.json();
-      setTableData(data.rows || []);
-      setTotalItems(data.total || 0);
-      if (data.rows && data.rows.length > 0) {
-        setColumns(Object.keys(data.rows[0]));
-      } else {
-        setColumns([]);
-      }
-    } catch (err: any) {
-      setError(err.message);
-      setTableData([]);
-      setColumns([]);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleExportCSV = () => {
+    if (!selectedTable || tableData.length === 0) return;
+    exportCSV(columns, tableData, selectedTable);
+    addToast("CSV EXPORTED SUCCESSFULLY", "success");
   };
 
-  const loadTableSchema = async (tableName: string) => {
-    setIsLoadingSchema(true);
-    try {
-      const response = await fetch(
-        `/api/schema/${encodeURIComponent(tableName)}`
-      );
-      if (!response.ok) throw new Error("Failed to load schema");
-      const data = await response.json();
-      setSchema(data.schema || []);
-    } catch (err: any) {
-      console.error("Failed to load schema:", err);
-    } finally {
-      setIsLoadingSchema(false);
-    }
+  const handleExportJSON = () => {
+    if (!selectedTable || tableData.length === 0) return;
+    exportJSON(columns, tableData, selectedTable);
+    addToast("JSON EXPORTED SUCCESSFULLY", "success");
   };
 
-  const handleTableSelect = (table: string) => {
-    setSelectedTable(table);
-    setCurrentPage(1);
-  };
-
-  const handleExport = () => {
-    if (!selectedTable || tableData.length === 0) {
-      return;
-    }
-
-    const csvHeaders = columns.join(",");
-    const csvRows = tableData.map((row) =>
-      columns
-        .map((col) => {
-          const value = row[col];
-          if (value === null || value === undefined) {
-            return "";
-          }
-          const stringValue = String(value);
-          if (
-            stringValue.includes(",") ||
-            stringValue.includes('"') ||
-            stringValue.includes("\n")
-          ) {
-            return `"${stringValue.replace(/"/g, '""')}"`;
-          }
-          return stringValue;
-        })
-        .join(",")
-    );
-
-    const csvContent = [csvHeaders, ...csvRows].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `${selectedTable}_export_${new Date().toISOString().split("T")[0]}.csv`
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleExportSQL = () => {
+    if (!selectedTable || tableData.length === 0) return;
+    exportSQL(columns, tableData, selectedTable);
+    addToast("SQL EXPORTED SUCCESSFULLY", "success");
   };
 
   if (!isConnected) {
@@ -160,48 +91,102 @@ export function Dashboard() {
   }
 
   return (
+    <>
+    <MobileMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)}>
+      <TableList
+        tables={tables}
+        selectedTable={selectedTable}
+        onSelect={onTableSelect}
+      />
+    </MobileMenu>
     <ResizableSplitter
       left={
         <Sidebar
           tables={tables}
           selectedTable={selectedTable}
-          onTableSelect={handleTableSelect}
+          onTableSelect={onTableSelect}
           isLoading={isLoadingTables}
+          schemas={schemas}
+          selectedSchema={selectedSchema}
+          onSchemaChange={handleSchemaChange}
+          views={views}
+          materializedViews={materializedViews}
+          functions={dbFunctions}
         />
       }
       right={
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header isConnected={isConnected} databaseName={databaseName} />
+          <Header isConnected={isConnected} databaseName={databaseName} onMenuToggle={() => setIsMobileMenuOpen(true)} />
           <MainContent>
             {error && (
-              <div className="mb-8 p-4 bg-red-500 border-2 border-black text-white font-bold uppercase">
-                {error}
-              </div>
+              <ErrorState
+                message={error}
+                onRetry={selectedTable ? () => loadTableData(selectedTable, currentPage) : loadTables}
+                className="mb-8"
+              />
             )}
             {selectedTable ? (
               <>
+                <Breadcrumb
+                  items={[
+                    { label: databaseName || 'DATABASE', onClick: () => setSelectedTable(undefined) },
+                    ...(selectedSchema !== 'public' ? [{ label: selectedSchema, onClick: () => setSelectedTable(undefined) }] : []),
+                    { label: selectedTable },
+                  ]}
+                />
                 <div className="flex justify-between items-center mb-8 gap-4">
-                  <h1 className="text-4xl font-bold uppercase tracking-tight text-black truncate flex-1 min-w-0">
+                  <h1 className="text-4xl font-bold uppercase tracking-tight text-black dark:text-white truncate flex-1 min-w-0">
                     {selectedTable}
                   </h1>
-                  <Button
-                    variant="secondary"
-                    className="flex-shrink-0"
-                    onClick={handleExport}
-                    disabled={
-                      !selectedTable || tableData.length === 0 || isLoading
-                    }
-                  >
-                    EXPORT
-                  </Button>
+                  <ExportDropdown
+                    onExportCSV={handleExportCSV}
+                    onExportJSON={handleExportJSON}
+                    onExportSQL={handleExportSQL}
+                    disabled={!selectedTable || tableData.length === 0 || isLoading}
+                  />
                 </div>
                 {!isLoadingSchema && schema.length > 0 && (
                   <TableSchema columns={schema} />
+                )}
+                <RelationshipDisplay
+                  relationships={relationships}
+                  indexes={indexes}
+                  onNavigateToTable={onTableSelect}
+                />
+                {columns.length > 0 && !isLoading && (
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <ColumnVisibility
+                      columns={columns}
+                      visibleColumns={visibleColumns}
+                      onToggle={(col) =>
+                        setVisibleColumns((prev) =>
+                          prev.includes(col)
+                            ? prev.filter((c) => c !== col)
+                            : [...prev, col]
+                        )
+                      }
+                      onShowAll={() => setVisibleColumns(columns)}
+                      onHideAll={() => setVisibleColumns([])}
+                    />
+                    <input
+                      type="text"
+                      value={tableSearch}
+                      onChange={(e) => setTableSearch(e.target.value)}
+                      placeholder="SEARCH ROWS..."
+                      className="px-4 py-2 text-sm font-bold uppercase font-mono border-2 border-black dark:border-white bg-white dark:bg-black text-black dark:text-white focus:outline-none focus:shadow-[0_0_0_2px_black] dark:focus:shadow-[0_0_0_2px_white] flex-1 min-w-[150px]"
+                      aria-label="Search table rows"
+                    />
+                  </div>
                 )}
                 <DataTable
                   columns={columns}
                   data={tableData}
                   isLoading={isLoading}
+                  onSort={handleSort}
+                  sortColumn={sortColumn || undefined}
+                  sortDirection={sortDirection}
+                  visibleColumns={visibleColumns.length > 0 ? visibleColumns : undefined}
+                  searchQuery={tableSearch}
                 />
                 {totalItems > 0 && (
                   <Pagination
@@ -210,6 +195,7 @@ export function Dashboard() {
                     onPageChange={setCurrentPage}
                     totalItems={totalItems}
                     itemsPerPage={itemsPerPage}
+                    countIsEstimate={countIsEstimate}
                   />
                 )}
               </>
@@ -224,5 +210,6 @@ export function Dashboard() {
         </div>
       }
     />
+    </>
   );
 }

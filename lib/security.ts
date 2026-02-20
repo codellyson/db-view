@@ -162,10 +162,14 @@ export function validateQuery(query: string): {
     }
   }
 
-  if (!trimmedQuery.startsWith("SELECT") && !trimmedQuery.startsWith("WITH")) {
+  if (
+    !trimmedQuery.startsWith("SELECT") &&
+    !trimmedQuery.startsWith("WITH") &&
+    !trimmedQuery.startsWith("EXPLAIN")
+  ) {
     return {
       valid: false,
-      error: "Only SELECT queries are allowed",
+      error: "Only SELECT and EXPLAIN queries are allowed",
     };
   }
 

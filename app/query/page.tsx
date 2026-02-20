@@ -5,6 +5,7 @@ import { Header } from '../components/header';
 import { Sidebar } from '../components/sidebar';
 import { MainContent } from '../components/main-content';
 import { QueryEditor } from '../components/query-editor';
+import { Breadcrumb } from '../components/breadcrumb';
 import { Footer } from '../components/footer';
 import { ResizableSplitter } from '../components/resizable-splitter';
 import { useRouter } from 'next/navigation';
@@ -59,6 +60,12 @@ export default function QueryPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header isConnected={isConnected} databaseName={databaseName} />
           <MainContent>
+            <Breadcrumb
+              items={[
+                { label: databaseName || 'DATABASE', onClick: () => router.push('/') },
+                { label: 'QUERY' },
+              ]}
+            />
             <QueryEditor />
           </MainContent>
           <Footer />

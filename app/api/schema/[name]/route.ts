@@ -14,7 +14,8 @@ export async function GET(
       await ensurePool(sessionId);
     }
 
-    const schema = await getTableSchema(params.name);
+    const schemaName = request.nextUrl.searchParams.get("schema") || "public";
+    const schema = await getTableSchema(params.name, schemaName);
     return NextResponse.json({ schema });
   } catch (error: any) {
     const sanitizedError = sanitizeError(error);

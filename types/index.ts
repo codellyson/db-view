@@ -43,3 +43,12 @@ export interface Constraint {
   columns: string[];
 }
 
+export interface QueryHistoryEntry {
+  id: string;
+  query: string;
+  executionTime: number;
+  rowCount: number;
+  timestamp: number;
+  isFavorite: boolean;
+}
+

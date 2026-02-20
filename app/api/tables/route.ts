@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getTables, getPool, ensurePool } from "@/lib/db";
 import { sanitizeError } from "@/lib/security";
 import { cookies } from "next/headers";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     let pool = getPool();
     console.log("Initial pool state:", pool ? "exists" : "null");
@@ -29,8 +29,9 @@ export async function GET() {
       }
     }
 
-    const tables = await getTables();
-    console.log(`Successfully fetched ${tables.length} tables`);
+    const schema = request.nextUrl.searchParams.get("schema") || "public";
+    const tables = await getTables(schema);
+    console.log(`Successfully fetched ${tables.length} tables from schema ${schema}`);
     return NextResponse.json({ tables });
   } catch (error: any) {
     const sanitizedError = sanitizeError(error);

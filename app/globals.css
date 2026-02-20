@@ -8,7 +8,7 @@
   }
 
   body {
-    @apply bg-white text-black;
+    @apply bg-white text-black dark:bg-black dark:text-white;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
       monospace;
   }
@@ -25,4 +25,12 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Prevent Tailwind's global dark mode color from bleeding into CodeMirror */
+.cm-editor,
+.cm-editor .cm-content,
+.cm-editor .cm-line,
+.cm-editor .cm-gutters {
+  color: inherit;
 }

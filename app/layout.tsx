@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ConnectionProvider } from "./contexts/connection-context";
+import { Providers } from "./providers";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -81,9 +81,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <ConnectionProvider>{children}</ConnectionProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

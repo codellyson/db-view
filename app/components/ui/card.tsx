@@ -12,10 +12,10 @@ export const Card: React.FC<CardProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`bg-white border-2 border-black rounded-none p-0 ${className}`}>
+    <div className={`bg-white dark:bg-black border-2 border-black dark:border-white rounded-none p-0 ${className}`}>
       {title && (
-        <div className="border-b-2 border-black p-4 bg-black">
-          <h4 className="text-base font-bold uppercase text-white">{title}</h4>
+        <div className="border-b-2 border-black dark:border-white p-4 bg-black dark:bg-white">
+          <h4 className="text-base font-bold uppercase text-white dark:text-black">{title}</h4>
         </div>
       )}
       <div className="p-8">
@@ -24,4 +24,3 @@ export const Card: React.FC<CardProps> = ({
     </div>
   );
 };
-

@@ -7,6 +7,7 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   totalItems: number;
   itemsPerPage: number;
+  countIsEstimate?: boolean;
 }
 
 export const Pagination: React.FC<PaginationProps> = ({
@@ -15,6 +16,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   onPageChange,
   totalItems,
   itemsPerPage,
+  countIsEstimate = false,
 }) => {
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
@@ -55,9 +57,9 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-between mt-8">
-      <div className="text-sm font-bold uppercase text-black font-mono">
-        SHOWING {startItem} TO {endItem} OF {totalItems} RESULTS
+    <nav aria-label="Pagination" className="flex items-center justify-between mt-8">
+      <div className="text-sm font-bold uppercase text-black dark:text-white font-mono">
+        SHOWING {startItem} TO {endItem} OF {countIsEstimate ? `~${totalItems.toLocaleString()} (ESTIMATED)` : totalItems.toLocaleString()} RESULTS
       </div>
       <div className="flex items-center gap-2">
         <Button
@@ -65,6 +67,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
+          aria-label="Go to previous page"
         >
           PREVIOUS
         </Button>
@@ -72,14 +75,16 @@ export const Pagination: React.FC<PaginationProps> = ({
           {getPageNumbers().map((page, index) => (
             <React.Fragment key={index}>
               {page === '...' ? (
-                <span className="px-2 text-black font-bold">...</span>
+                <span className="px-2 text-black dark:text-white font-bold" aria-hidden="true">...</span>
               ) : (
                 <button
                   onClick={() => onPageChange(page as number)}
+                  aria-label={`Go to page ${page}`}
+                  aria-current={currentPage === page ? 'page' : undefined}
                   className={`px-4 py-2 text-sm border-2 rounded-none font-mono font-bold uppercase ${
                     currentPage === page
                       ? 'bg-blue-400 text-black border-blue-400'
-                      : 'bg-white text-black border-black hover:bg-black hover:text-white'
+                      : 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black'
                   }`}
                 >
                   {page}
@@ -93,11 +98,12 @@ export const Pagination: React.FC<PaginationProps> = ({
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
+          aria-label="Go to next page"
         >
           NEXT
         </Button>
       </div>
-    </div>
+    </nav>
   );
 };
 

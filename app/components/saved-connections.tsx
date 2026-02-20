@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useConnection } from '../contexts/connection-context';
+import { useToast } from '../contexts/toast-context';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import { ConfirmDialog } from './ui/confirm-dialog';
 
 export const SavedConnections: React.FC = () => {
   const {
@@ -13,6 +15,8 @@ export const SavedConnections: React.FC = () => {
     deleteConnection,
     isConnecting,
   } = useConnection();
+  const { addToast } = useToast();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   if (savedConnections.length === 0) {
     return null;
@@ -21,14 +25,21 @@ export const SavedConnections: React.FC = () => {
   const handleConnect = async (connectionId: string) => {
     try {
       await connectToSaved(connectionId);
+      addToast('CONNECTED SUCCESSFULLY', 'success');
     } catch (err) {
       console.error('Failed to connect:', err);
     }
   };
 
   const handleDelete = (connectionId: string) => {
-    if (confirm('DELETE THIS CONNECTION?')) {
-      deleteConnection(connectionId);
+    setDeleteTarget(connectionId);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      deleteConnection(deleteTarget);
+      addToast('CONNECTION DELETED', 'info');
+      setDeleteTarget(null);
     }
   };
 
@@ -41,7 +52,7 @@ export const SavedConnections: React.FC = () => {
             className={`p-4 border-2 ${
               connection.id === currentConnectionId
                 ? 'bg-blue-400 text-black border-blue-400'
-                : 'bg-white text-black border-black'
+                : 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white'
             }`}
           >
             <div className="flex items-center justify-between gap-4">
@@ -66,7 +77,7 @@ export const SavedConnections: React.FC = () => {
                 )}
                 <button
                   onClick={() => handleDelete(connection.id)}
-                  className="px-3 py-2 text-sm font-bold uppercase border-2 border-black bg-white text-black hover:bg-red-500 hover:text-white hover:border-red-500"
+                  className="px-3 py-2 text-sm font-bold uppercase border-2 border-black dark:border-white bg-white dark:bg-black text-black dark:text-white hover:bg-red-500 hover:text-white hover:border-red-500"
                   disabled={isConnecting}
                 >
                   DELETE
@@ -76,6 +87,15 @@ export const SavedConnections: React.FC = () => {
           </div>
         ))}
       </div>
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+        title="DELETE CONNECTION"
+        message="ARE YOU SURE YOU WANT TO DELETE THIS CONNECTION? THIS ACTION CANNOT BE UNDONE."
+        confirmText="DELETE"
+        variant="danger"
+      />
     </Card>
   );
 };

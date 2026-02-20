@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Card } from './ui/card';
 import { DBConfig } from '@/types';
 
 interface ConnectionFormProps {
@@ -54,8 +52,8 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
-      const name = saveConnection && connectionName.trim() 
-        ? connectionName.trim() 
+      const name = saveConnection && connectionName.trim()
+        ? connectionName.trim()
         : undefined;
       onConnect({
         host: host.trim(),
@@ -69,22 +67,12 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-8">
-      <Card className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <Image
-              src="/logo.svg"
-              alt="DBView"
-              width={80}
-              height={80}
-              priority
-            />
-          </div>
-          <h1 className="text-4xl font-bold uppercase tracking-tight text-black mb-4">DBVIEW</h1>
-          <p className="text-sm uppercase font-bold text-black">POSTGRESQL CONNECTION</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="border-2 border-black dark:border-white bg-white dark:bg-black">
+      <div className="border-b-2 border-black dark:border-white px-4 py-3 bg-black dark:bg-white">
+        <h3 className="text-sm font-bold uppercase text-white dark:text-black">NEW CONNECTION</h3>
+      </div>
+      <form onSubmit={handleSubmit} className="p-4 space-y-3">
+        <div className="grid grid-cols-[1fr_120px] gap-3">
           <Input
             label="HOST"
             type="text"
@@ -103,15 +91,17 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
             error={errors.port}
             disabled={isConnecting}
           />
-          <Input
-            label="DATABASE"
-            type="text"
-            value={database}
-            onChange={setDatabase}
-            placeholder="mydb"
-            error={errors.database}
-            disabled={isConnecting}
-          />
+        </div>
+        <Input
+          label="DATABASE"
+          type="text"
+          value={database}
+          onChange={setDatabase}
+          placeholder="mydb"
+          error={errors.database}
+          disabled={isConnecting}
+        />
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="USERNAME"
             type="text"
@@ -130,55 +120,50 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
             error={errors.password}
             disabled={isConnecting}
           />
-          <div className="flex items-center gap-2">
+        </div>
+        <div className="flex items-center gap-4 flex-wrap">
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              id="ssl"
               checked={useSSL}
               onChange={(e) => setUseSSL(e.target.checked)}
               disabled={isConnecting}
-              className="h-5 w-5 border-2 border-black rounded-none accent-black"
+              className="h-4 w-4 border-2 border-black dark:border-white rounded-none accent-black dark:accent-white"
             />
-            <label htmlFor="ssl" className="text-sm font-bold uppercase text-black">
-              USE SSL (REQUIRED FOR MOST CLOUD DATABASES)
-            </label>
-          </div>
-          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase text-black dark:text-white">SSL</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              id="save"
               checked={saveConnection}
               onChange={(e) => setSaveConnection(e.target.checked)}
               disabled={isConnecting}
-              className="h-5 w-5 border-2 border-black rounded-none accent-black"
+              className="h-4 w-4 border-2 border-black dark:border-white rounded-none accent-black dark:accent-white"
             />
-            <label htmlFor="save" className="text-sm font-bold uppercase text-black">
-              SAVE CONNECTION
-            </label>
-          </div>
-          {saveConnection && (
-            <Input
-              label="CONNECTION NAME"
-              type="text"
-              value={connectionName}
-              onChange={setConnectionName}
-              placeholder="MY DATABASE"
-              error={errors.connectionName}
-              disabled={isConnecting}
-            />
-          )}
-          <Button
-            type="submit"
-            variant="primary"
-            className="w-full"
-            isLoading={isConnecting}
+            <span className="text-xs font-bold uppercase text-black dark:text-white">SAVE CONNECTION</span>
+          </label>
+        </div>
+        {saveConnection && (
+          <Input
+            label="CONNECTION NAME"
+            type="text"
+            value={connectionName}
+            onChange={setConnectionName}
+            placeholder="MY DATABASE"
+            error={errors.connectionName}
             disabled={isConnecting}
-          >
-            CONNECT DATABASE
-          </Button>
-        </form>
-      </Card>
+          />
+        )}
+        <Button
+          type="submit"
+          variant="primary"
+          className="w-full"
+          isLoading={isConnecting}
+          disabled={isConnecting}
+        >
+          CONNECT
+        </Button>
+      </form>
     </div>
   );
 };
-
