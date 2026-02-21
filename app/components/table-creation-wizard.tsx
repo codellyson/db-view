@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
 import { SqlEditor } from "./sql-editor";
@@ -17,14 +17,14 @@ interface TableCreationWizardProps {
 
 type Step = "name" | "columns" | "review";
 
-const EMPTY_COLUMN: ColumnDefinition = {
-  name: "",
-  type: "",
-  nullable: true,
-  isPrimaryKey: false,
-  isUnique: false,
-  defaultValue: "",
-};
+interface ColumnWithId extends ColumnDefinition {
+  id: string;
+}
+
+let columnIdCounter = 0;
+function nextColumnId(): string {
+  return `col_${++columnIdCounter}`;
+}
 
 export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
   isOpen,
@@ -36,28 +36,36 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
   const dialect = databaseType || "postgresql";
   const types = COLUMN_TYPES[dialect];
 
+  const makeColumn = useCallback((): ColumnWithId => ({
+    id: nextColumnId(),
+    name: "",
+    type: types[0],
+    nullable: true,
+    isPrimaryKey: false,
+    isUnique: false,
+    defaultValue: "",
+  }), [types]);
+
   const [step, setStep] = useState<Step>("name");
   const [tableName, setTableName] = useState("");
   const [tableSchema, setTableSchema] = useState(selectedSchema);
-  const [columns, setColumns] = useState<ColumnDefinition[]>([
-    { ...EMPTY_COLUMN, type: types[0] },
-  ]);
+  const [columns, setColumns] = useState<ColumnWithId[]>(() => [makeColumn()]);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const resetState = () => {
+  const resetState = useCallback(() => {
     setStep("name");
     setTableName("");
     setTableSchema(selectedSchema);
-    setColumns([{ ...EMPTY_COLUMN, type: types[0] }]);
+    setColumns([makeColumn()]);
     setError(null);
     setIsCreating(false);
-  };
+  }, [selectedSchema, makeColumn]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     resetState();
     onClose();
-  };
+  }, [resetState, onClose]);
 
   const isValidName = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName);
   const hasValidColumns = columns.some((c) => c.name.trim() !== "" && c.type.trim() !== "");
@@ -69,7 +77,7 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
   };
 
   const addColumn = () => {
-    setColumns((prev) => [...prev, { ...EMPTY_COLUMN, type: types[0] }]);
+    setColumns((prev) => [...prev, makeColumn()]);
   };
 
   const removeColumn = (index: number) => {
@@ -84,7 +92,9 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
         {
           name: tableName,
           schema: tableSchema,
-          columns: columns.filter((c) => c.name.trim() !== ""),
+          columns: columns
+            .filter((c) => c.name.trim() !== "")
+            .map(({ id, ...rest }) => rest),
         },
         dialect
       );
@@ -195,7 +205,7 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
             <div className="max-h-80 overflow-y-auto space-y-3">
               {columns.map((col, i) => (
                 <div
-                  key={i}
+                  key={col.id}
                   className="flex items-start gap-2 p-3 border border-border rounded-md bg-bg-secondary"
                 >
                   <div className="flex-1 space-y-2">

@@ -20,6 +20,12 @@ export const Modal: React.FC<ModalProps> = ({
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (isOpen) {
+      modalRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!isOpen) return;
 
     const handleEscape = (e: KeyboardEvent) => {
@@ -28,8 +34,6 @@ export const Modal: React.FC<ModalProps> = ({
 
     document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
-
-    modalRef.current?.focus();
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
