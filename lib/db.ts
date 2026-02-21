@@ -16,8 +16,8 @@ export function createPool(config: DBConfig): Pool {
     user: config.username,
     password: config.password,
     max: 20,
-    // idleTimeoutMillis: 30000,
-    // connectionTimeoutMillis: 2000,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
   };
 
   if (config.ssl !== undefined) {
@@ -43,8 +43,7 @@ export async function testConnection(config: DBConfig): Promise<boolean> {
     client.release();
     await testPool.end();
     return true;
-  } catch (error) {
-    console.error("Test connection failed:", error);
+  } catch {
     await testPool.end().catch(() => {});
     return false;
   }
@@ -62,19 +61,12 @@ export function setPool(newPool: Pool | null, config?: DBConfig): void {
   pool = newPool;
   if (config) {
     poolConfig = config;
-    console.log("Pool config stored:", {
-      host: config.host,
-      database: config.database,
-      hasSSL: !!config.ssl,
-      port: config.port,
-    });
   }
   if (newPool) {
     startHealthCheck(newPool);
   } else {
     poolConfig = null;
     resetHealthStatus();
-    console.log("Pool cleared");
   }
 }
 
@@ -83,7 +75,6 @@ export async function ensurePool(sessionId?: string): Promise<Pool> {
     return pool;
   }
   if (poolConfig) {
-    console.log("Recreating pool from stored config");
     pool = createPool(poolConfig);
     return pool;
   }
@@ -91,7 +82,6 @@ export async function ensurePool(sessionId?: string): Promise<Pool> {
   if (sessionId) {
     const config = getConnection(sessionId);
     if (config) {
-      console.log("Recreating pool from session config");
       poolConfig = config;
       pool = createPool(config);
       return pool;
@@ -109,41 +99,27 @@ export async function ensurePool(sessionId?: string): Promise<Pool> {
       try {
         const configJson = decrypt(configCookie);
         configFromCookie = JSON.parse(configJson) as DBConfig;
-        console.log("Retrieved config from cookie");
-      } catch (parseError) {
-        console.error("Failed to decrypt config from cookie:", parseError);
+      } catch {
+        // Cookie decryption failed — key may have changed after restart
       }
     }
 
     if (cookieSessionId) {
       const config = getConnection(cookieSessionId);
       if (config) {
-        console.log("Recreating pool from cookie session config");
         poolConfig = config;
         pool = createPool(config);
         return pool;
       } else if (configFromCookie) {
-        console.log("Recreating pool from cookie config (server restarted)");
         poolConfig = configFromCookie;
         pool = createPool(configFromCookie);
         storeConnection(cookieSessionId, configFromCookie);
         return pool;
-      } else {
-        console.warn(
-          "Session ID found in cookie but no config in connection store or cookie. Server may have restarted."
-        );
       }
     }
-  } catch (error) {
-    console.error("Error getting cookies:", error);
+  } catch {
+    // Cookie access may fail in some contexts
   }
-
-  console.error("Pool state:", {
-    pool: pool ? "exists" : "null",
-    poolConfig: poolConfig ? "exists" : "null",
-    sessionId,
-    cookieSessionId,
-  });
 
   const errorMessage =
     sessionId || cookieSessionId
@@ -165,7 +141,6 @@ export async function getSchemas(): Promise<string[]> {
     `);
     return result.rows.map((row) => row.schema_name);
   } catch (error: any) {
-    console.error("Error in getSchemas:", error);
     throw new Error(`Failed to fetch schemas: ${error.message}`);
   } finally {
     client.release();
@@ -187,7 +162,6 @@ export async function getTables(schema: string = "public"): Promise<string[]> {
     `, [schema]);
     return result.rows.map((row) => row.table_name);
   } catch (error: any) {
-    console.error("Error in getTables:", error);
     throw new Error(`Failed to fetch tables: ${error.message}`);
   } finally {
     if (client) {
@@ -490,7 +464,9 @@ export async function executeExplain(
   const startTime = Date.now();
 
   try {
-    const explainQuery = `EXPLAIN (ANALYZE, FORMAT JSON) ${query}`;
+    // Use EXPLAIN without ANALYZE — ANALYZE actually executes the query,
+    // which would run destructive statements if validation were bypassed.
+    const explainQuery = `EXPLAIN (FORMAT JSON) ${query}`;
     const result = await executeWithTimeout(
       activePool,
       client,

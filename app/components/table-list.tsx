@@ -34,7 +34,7 @@ export const TableList: React.FC<TableListProps> = ({
               onClick={() => onSelect(table)}
               className={`w-full text-left px-4 py-3 text-sm border-2 rounded-none font-mono uppercase font-bold truncate ${
                 selectedTable === table
-                  ? 'bg-blue-400 text-black border-blue-400'
+                  ? 'bg-accent text-black border-accent'
                   : 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black'
               }`}
               title={table}

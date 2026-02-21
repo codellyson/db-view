@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --surface: 244 244 245;
+  --ink: 24 24 27;
+  --accent: 96 165 250;
+}
+
 @layer base {
   * {
     @apply font-mono;

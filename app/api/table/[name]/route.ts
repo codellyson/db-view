@@ -15,8 +15,10 @@ export async function GET(
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "100", 10);
-    const offset = parseInt(searchParams.get("offset") || "0", 10);
+    const rawLimit = parseInt(searchParams.get("limit") || "100", 10);
+    const rawOffset = parseInt(searchParams.get("offset") || "0", 10);
+    const limit = Math.min(Math.max(isNaN(rawLimit) ? 100 : rawLimit, 1), 1000);
+    const offset = Math.max(isNaN(rawOffset) ? 0 : rawOffset, 0);
     const sortColumn = searchParams.get("sortColumn") || undefined;
     const sortDir = searchParams.get("sortDirection");
     const sortDirection = sortDir === "asc" || sortDir === "desc" ? sortDir : undefined;

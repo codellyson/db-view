@@ -7,7 +7,6 @@ import { ConnectionStatus } from './connection-status';
 import { ConnectionSelector } from './connection-selector';
 import { Button } from './ui/button';
 import { useConnection } from '../contexts/connection-context';
-import { useTheme } from '../contexts/theme-context';
 
 interface HeaderProps {
   isConnected: boolean;
@@ -23,7 +22,6 @@ export const Header: React.FC<HeaderProps> = ({
   const pathname = usePathname();
   const router = useRouter();
   const { disconnect } = useConnection();
-  const { theme, toggleTheme } = useTheme();
 
   const handleDisconnect = async () => {
     await disconnect();
@@ -63,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
               aria-current={pathname === '/' ? 'page' : undefined}
               className={`text-sm font-bold uppercase font-mono border-2 px-4 py-2 ${
                 pathname === '/'
-                  ? 'bg-blue-400 text-black border-blue-400'
+                  ? 'bg-accent text-black border-accent'
                   : 'bg-black dark:bg-white text-white dark:text-black border-white dark:border-black hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white'
               }`}
             >
@@ -74,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
               aria-current={pathname === '/query' ? 'page' : undefined}
               className={`text-sm font-bold uppercase font-mono border-2 px-4 py-2 ${
                 pathname === '/query'
-                  ? 'bg-blue-400 text-black border-blue-400'
+                  ? 'bg-accent text-black border-accent'
                   : 'bg-black dark:bg-white text-white dark:text-black border-white dark:border-black hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white'
               }`}
             >
@@ -85,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
               aria-current={pathname === '/connections' ? 'page' : undefined}
               className={`text-sm font-bold uppercase font-mono border-2 px-4 py-2 ${
                 pathname === '/connections'
-                  ? 'bg-blue-400 text-black border-blue-400'
+                  ? 'bg-accent text-black border-accent'
                   : 'bg-black dark:bg-white text-white dark:text-black border-white dark:border-black hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white'
               }`}
             >
@@ -95,13 +93,6 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
       <div className="flex items-center gap-2 md:gap-4">
-        <button
-          onClick={toggleTheme}
-          className="text-sm font-bold uppercase font-mono border-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black border-white dark:border-black hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white"
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? 'DARK' : 'LIGHT'}
-        </button>
         {isConnected && <span className="hidden md:block"><ConnectionSelector /></span>}
         <span className="hidden sm:block">
           <ConnectionStatus

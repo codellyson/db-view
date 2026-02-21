@@ -6,10 +6,8 @@ import { sql, PostgreSQL } from '@codemirror/lang-sql';
 import { keymap } from '@codemirror/view';
 import { useTheme } from '../contexts/theme-context';
 import {
-  brutalistThemeLight,
-  brutalistThemeDark,
-  brutalistHighlightLight,
-  brutalistHighlightDark,
+  createBrutalistTheme,
+  createBrutalistHighlight,
 } from '@/lib/codemirror-brutalist-theme';
 
 interface SqlEditorProps {
@@ -27,14 +25,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   disabled = false,
   placeholder = 'SELECT * FROM users LIMIT 10;',
 }) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { mode, colors } = useTheme();
+  const isDark = mode === 'dark';
 
   const extensions = useMemo(() => {
     const exts = [
       sql({ dialect: PostgreSQL }),
-      isDark ? brutalistThemeDark : brutalistThemeLight,
-      isDark ? brutalistHighlightDark : brutalistHighlightLight,
+      createBrutalistTheme(colors, isDark),
+      createBrutalistHighlight(colors, isDark),
     ];
 
     if (onExecute) {
@@ -52,12 +50,12 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     }
 
     return exts;
-  }, [isDark, onExecute]);
+  }, [isDark, onExecute, colors]);
 
   return (
     <div
       className="border-2 border-black dark:border-white overflow-hidden [&_.cm-editor]:!color-[initial]"
-      style={{ color: isDark ? '#ffffff' : '#000000' }}
+      style={{ color: isDark ? colors.surface : colors.ink }}
     >
       <CodeMirror
         value={value}

@@ -61,7 +61,7 @@ export const TableSchema: React.FC<TableSchemaProps> = ({
                     <div className="truncate flex items-center gap-2">
                       <span className="truncate">{column.name}</span>
                       {column.isPrimaryKey && (
-                        <span className="text-xs font-bold uppercase bg-blue-400 text-black px-2 py-1 border-2 border-black dark:border-white flex-shrink-0">
+                        <span className="text-xs font-bold uppercase bg-accent text-black px-2 py-1 border-2 border-black dark:border-white flex-shrink-0">
                           PK
                         </span>
                       )}

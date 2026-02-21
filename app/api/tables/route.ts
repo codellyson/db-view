@@ -6,18 +6,14 @@ import { cookies } from "next/headers";
 export async function GET(request: NextRequest) {
   try {
     let pool = getPool();
-    console.log("Initial pool state:", pool ? "exists" : "null");
 
     if (!pool) {
-      console.log("Pool is null, attempting to ensure pool from session...");
       const cookieStore = await cookies();
       const sessionId = cookieStore.get("db-session")?.value;
 
       try {
         pool = await ensurePool(sessionId);
-        console.log("Pool recreated successfully from session");
       } catch (ensureError: any) {
-        console.error("Failed to ensure pool:", ensureError.message);
         return NextResponse.json(
           {
             error:
@@ -31,11 +27,9 @@ export async function GET(request: NextRequest) {
 
     const schema = request.nextUrl.searchParams.get("schema") || "public";
     const tables = await getTables(schema);
-    console.log(`Successfully fetched ${tables.length} tables from schema ${schema}`);
     return NextResponse.json({ tables });
   } catch (error: any) {
     const sanitizedError = sanitizeError(error);
-    console.error("Error fetching tables:", error);
     return NextResponse.json({ error: sanitizedError }, { status: 500 });
   }
 }

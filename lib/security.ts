@@ -78,6 +78,59 @@ export function decrypt(encryptedText: string): string {
 const MAX_QUERY_LENGTH = 10000;
 const MAX_INPUT_LENGTH = 255;
 
+// Strip SQL comments to prevent keyword obfuscation (e.g. DE-comment-LETE).
+// Collapses whitespace so multi-space tricks don't bypass checks.
+function stripSqlComments(sql: string): string {
+  let result = sql.replace(/\/\*[\s\S]*?\*\//g, " ");
+  result = result.replace(/--[^\n]*/g, " ");
+  result = result.replace(/\s+/g, " ").trim();
+  return result;
+}
+
+/**
+ * Check if a keyword appears as a standalone SQL token (word boundaries),
+ * not as part of an identifier like "updated_at".
+ */
+function containsDangerousKeyword(strippedUpperQuery: string, keyword: string): boolean {
+  const pattern = new RegExp(`\\b${keyword}\\b`);
+  return pattern.test(strippedUpperQuery);
+}
+
+/**
+ * Detect multiple statements via semicolons outside of string literals.
+ */
+function hasMultipleStatements(query: string): boolean {
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+
+  for (let i = 0; i < query.length; i++) {
+    const char = query[i];
+
+    if (char === "'" && !inDoubleQuote) {
+      if (inSingleQuote && query[i + 1] === "'") {
+        i++;
+        continue;
+      }
+      inSingleQuote = !inSingleQuote;
+      continue;
+    }
+
+    if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      continue;
+    }
+
+    if (char === ";" && !inSingleQuote && !inDoubleQuote) {
+      const remainder = query.slice(i + 1).trim();
+      if (remainder.length > 0) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export function validateQuery(query: string): {
   valid: boolean;
   error?: string;
@@ -93,48 +146,16 @@ export function validateQuery(query: string): {
     };
   }
 
-  const trimmedQuery = query.trim().toUpperCase();
+  if (hasMultipleStatements(query)) {
+    return {
+      valid: false,
+      error: "Multiple SQL statements are not allowed. Please submit one query at a time.",
+    };
+  }
 
-  const allowedKeywords = [
-    "SELECT",
-    "WITH",
-    "FROM",
-    "WHERE",
-    "JOIN",
-    "INNER",
-    "LEFT",
-    "RIGHT",
-    "FULL",
-    "OUTER",
-    "ON",
-    "GROUP",
-    "BY",
-    "HAVING",
-    "ORDER",
-    "LIMIT",
-    "OFFSET",
-    "AS",
-    "AND",
-    "OR",
-    "NOT",
-    "IN",
-    "EXISTS",
-    "LIKE",
-    "ILIKE",
-    "IS",
-    "NULL",
-    "DISTINCT",
-    "COUNT",
-    "SUM",
-    "AVG",
-    "MAX",
-    "MIN",
-    "CASE",
-    "WHEN",
-    "THEN",
-    "ELSE",
-    "END",
-  ];
+  // Strip comments and normalize for keyword checking
+  const stripped = stripSqlComments(query);
+  const upperQuery = stripped.toUpperCase();
 
   const dangerousKeywords = [
     "DROP",
@@ -150,11 +171,25 @@ export function validateQuery(query: string): {
     "EXECUTE",
     "CALL",
     "COPY",
-    "\\COPY",
+    "IMPORT",
+    "LOCK",
+    "VACUUM",
+    "REINDEX",
+    "CLUSTER",
+    "REFRESH",
+    "REASSIGN",
+    "DO",
+    "NOTIFY",
+    "LISTEN",
+    "UNLISTEN",
+    "DISCARD",
+    "PREPARE",
+    "DEALLOCATE",
+    "COMMENT",
   ];
 
   for (const keyword of dangerousKeywords) {
-    if (trimmedQuery.includes(keyword)) {
+    if (containsDangerousKeyword(upperQuery, keyword)) {
       return {
         valid: false,
         error: `Query contains prohibited keyword: ${keyword}. Only SELECT queries are allowed.`,
@@ -163,14 +198,27 @@ export function validateQuery(query: string): {
   }
 
   if (
-    !trimmedQuery.startsWith("SELECT") &&
-    !trimmedQuery.startsWith("WITH") &&
-    !trimmedQuery.startsWith("EXPLAIN")
+    !upperQuery.startsWith("SELECT") &&
+    !upperQuery.startsWith("WITH") &&
+    !upperQuery.startsWith("EXPLAIN")
   ) {
     return {
       valid: false,
       error: "Only SELECT and EXPLAIN queries are allowed",
     };
+  }
+
+  // For EXPLAIN: ensure the inner query is SELECT/WITH only
+  if (upperQuery.startsWith("EXPLAIN")) {
+    const explainBody = upperQuery
+      .replace(/^EXPLAIN\s*(\([^)]*\))?\s*/, "")
+      .trim();
+    if (!explainBody.startsWith("SELECT") && !explainBody.startsWith("WITH")) {
+      return {
+        valid: false,
+        error: "EXPLAIN is only allowed for SELECT queries",
+      };
+    }
   }
 
   return { valid: true };

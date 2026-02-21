@@ -7,7 +7,7 @@ const borderColors: Record<ToastType, string> = {
   success: "border-l-green-400",
   error: "border-l-red-500",
   warning: "border-l-yellow-300",
-  info: "border-l-blue-400",
+  info: "border-l-accent",
 };
 
 function ToastItem({

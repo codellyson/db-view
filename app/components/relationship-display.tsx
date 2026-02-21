@@ -55,7 +55,7 @@ export const RelationshipDisplay: React.FC<RelationshipDisplayProps> = ({
                   {onNavigateToTable ? (
                     <button
                       onClick={() => onNavigateToTable(fk.target_table)}
-                      className="font-bold underline underline-offset-4 hover:text-blue-500"
+                      className="font-bold underline underline-offset-4 hover:text-accent"
                     >
                       {fk.target_table}.{fk.target_column}
                     </button>

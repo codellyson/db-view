@@ -96,14 +96,14 @@ export const DataTable: React.FC<DataTableProps> = ({
                 aria-sort={getAriaSort(column)}
                 className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white dark:text-black border-2 border-black dark:border-white font-mono max-w-xs ${
                   onSort ? 'cursor-pointer hover:bg-white/10 dark:hover:bg-black/10' : ''
-                } ${sortColumn === column ? 'bg-blue-400/20' : ''}`}
+                } ${sortColumn === column ? 'bg-accent/20' : ''}`}
                 onClick={() => onSort?.(column)}
                 title={column}
               >
                 <div className="flex items-center gap-2 truncate">
                   <span className="truncate">{column}</span>
                   {onSort && (
-                    <span className={`flex-shrink-0 ${sortColumn === column ? 'text-blue-400' : 'text-white/50 dark:text-black/50'}`}>
+                    <span className={`flex-shrink-0 ${sortColumn === column ? 'text-accent' : 'text-white/50 dark:text-black/50'}`}>
                       {getSortIndicator(column)}
                     </span>
                   )}

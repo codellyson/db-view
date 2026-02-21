@@ -1,17 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from './lib/rate-limiter';
 
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+};
+
 export function middleware(request: NextRequest) {
-  if (!request.nextUrl.pathname.startsWith('/api/')) {
-    return NextResponse.next();
+  const response = NextResponse.next();
+
+  // Apply security headers to all responses
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(key, value);
   }
 
-  const ip =
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown';
+  if (!request.nextUrl.pathname.startsWith('/api/')) {
+    return response;
+  }
 
-  const { allowed, retryAfter } = checkRateLimit(ip, request.nextUrl.pathname);
+  // Use session cookie as primary rate limit key (harder to spoof than IP headers).
+  // Fall back to x-real-ip (set by reverse proxies), then connection IP.
+  const sessionId = request.cookies.get('db-session')?.value;
+  const ip = request.headers.get('x-real-ip') || request.ip || '0.0.0.0';
+  const rateLimitKey = sessionId || ip;
+
+  const { allowed, retryAfter } = checkRateLimit(rateLimitKey, request.nextUrl.pathname);
 
   if (!allowed) {
     return NextResponse.json(
@@ -19,15 +35,16 @@ export function middleware(request: NextRequest) {
       {
         status: 429,
         headers: {
+          ...SECURITY_HEADERS,
           'Retry-After': String(retryAfter || 60),
         },
       }
     );
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

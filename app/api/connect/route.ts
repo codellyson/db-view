@@ -71,11 +71,8 @@ export async function POST(request: NextRequest) {
       maxAge: 24 * 60 * 60,
     });
 
-    console.log("Pool created and set successfully with config and session");
-
     return NextResponse.json({ success: true, database: config.database });
   } catch (error: any) {
-    console.error("Connection failed:", error);
     return NextResponse.json(
       { error: error.message || "Connection failed" },
       { status: 500 }

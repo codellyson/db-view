@@ -83,7 +83,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                   aria-current={currentPage === page ? 'page' : undefined}
                   className={`px-4 py-2 text-sm border-2 rounded-none font-mono font-bold uppercase ${
                     currentPage === page
-                      ? 'bg-blue-400 text-black border-blue-400'
+                      ? 'bg-accent text-black border-accent'
                       : 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black'
                   }`}
                 >

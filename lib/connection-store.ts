@@ -12,7 +12,6 @@ export function storeConnection(sessionId: string, config: DBConfig): void {
     config,
     timestamp: Date.now(),
   });
-  console.log(`Connection stored for session: ${sessionId}`);
 }
 
 export function getConnection(sessionId: string): DBConfig | null {
@@ -32,11 +31,10 @@ export function getConnection(sessionId: string): DBConfig | null {
 
 export function removeConnection(sessionId: string): void {
   connections.delete(sessionId);
-  console.log(`Connection removed for session: ${sessionId}`);
 }
 
 import crypto from "crypto";
 
 export function generateSessionId(): string {
-  return `session_${Date.now()}_${crypto.randomBytes(16).toString("hex")}`;
+  return crypto.randomBytes(32).toString("hex");
 }

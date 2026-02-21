@@ -90,7 +90,7 @@ export const ConnectionSelector: React.FC = () => {
                   aria-selected={connection.id === currentConnectionId}
                   className={`p-3 border-b-2 border-black dark:border-white cursor-pointer ${
                     connection.id === currentConnectionId
-                      ? 'bg-blue-400 text-black'
+                      ? 'bg-accent text-black'
                       : 'bg-white dark:bg-black text-black dark:text-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black'
                   }`}
                   onClick={() => handleSwitch(connection.id)}

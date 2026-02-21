@@ -6,6 +6,7 @@ import { ToastProvider } from "./contexts/toast-context";
 import { ThemeProvider } from "./contexts/theme-context";
 import { DashboardProvider } from "./contexts/dashboard-context";
 import { ToastContainer } from "./components/ui/toast";
+import { ThemeToggle } from "./components/theme-toggle";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <DashboardProvider>{children}</DashboardProvider>
         </ConnectionProvider>
         <ToastContainer />
+        <ThemeToggle />
       </ToastProvider>
     </ThemeProvider>
   );

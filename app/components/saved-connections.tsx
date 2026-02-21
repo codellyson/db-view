@@ -51,7 +51,7 @@ export const SavedConnections: React.FC = () => {
             key={connection.id}
             className={`p-4 border-2 ${
               connection.id === currentConnectionId
-                ? 'bg-blue-400 text-black border-blue-400'
+                ? 'bg-accent text-black border-accent'
                 : 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white'
             }`}
           >
