@@ -12,13 +12,13 @@ export const Card: React.FC<CardProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`bg-white dark:bg-black border-2 border-black dark:border-white rounded-none p-0 ${className}`}>
+    <div className={`bg-bg border border-border rounded-lg ${className}`}>
       {title && (
-        <div className="border-b-2 border-black dark:border-white p-4 bg-black dark:bg-white">
-          <h4 className="text-base font-bold uppercase text-white dark:text-black">{title}</h4>
+        <div className="border-b border-border px-5 py-3">
+          <h4 className="text-sm font-semibold text-primary">{title}</h4>
         </div>
       )}
-      <div className="p-8">
+      <div className="p-5">
         {children}
       </div>
     </div>

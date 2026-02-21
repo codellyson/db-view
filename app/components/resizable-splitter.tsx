@@ -83,19 +83,17 @@ export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
 
   return (
     <div ref={containerRef} className="flex h-screen">
-      {/* Left panel: hidden on mobile */}
       <div
         style={{ width: `${width}px` }}
         className="flex-shrink-0 hidden md:block"
       >
         {left}
       </div>
-      {/* Splitter bar: hidden on mobile */}
       <div
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
-        className={`w-2 bg-black dark:bg-white cursor-col-resize flex-shrink-0 hover:bg-black dark:hover:bg-white relative hidden md:flex ${
-          isDragging ? 'bg-black dark:bg-white' : ''
+        className={`w-1 cursor-col-resize flex-shrink-0 relative hidden md:flex transition-colors ${
+          isDragging ? 'bg-accent' : 'bg-transparent hover:bg-accent/30'
         }`}
         style={{ cursor: 'col-resize' }}
         role="separator"
@@ -109,12 +107,7 @@ export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
             setWidth((w) => Math.min(maxWidth, w + 20));
           }
         }}
-      >
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-0.5 h-12 bg-white dark:bg-black"></div>
-        </div>
-      </div>
-      {/* Right panel: full width on mobile */}
+      />
       <div className="flex-1 flex flex-col overflow-hidden">
         {right}
       </div>

@@ -13,16 +13,19 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 }) => {
   const statusConfig = {
     connected: {
-      color: 'bg-green-400 text-black border-green-400',
-      text: 'CONNECTED',
+      dotColor: 'bg-success',
+      badgeClass: 'bg-success/10 text-success',
+      text: 'Connected',
     },
     disconnected: {
-      color: 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white',
-      text: 'DISCONNECTED',
+      dotColor: 'bg-muted',
+      badgeClass: 'bg-bg-secondary text-secondary',
+      text: 'Disconnected',
     },
     connecting: {
-      color: 'bg-yellow-300 text-black border-yellow-300',
-      text: 'CONNECTING',
+      dotColor: 'bg-warning',
+      badgeClass: 'bg-warning/10 text-warning',
+      text: 'Connecting',
     },
   };
 
@@ -30,18 +33,18 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 
   return (
     <div className="flex items-center gap-2">
-      <span className={`px-3 py-1 border-2 rounded-none text-xs font-bold uppercase font-mono ${config.color}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${config.badgeClass}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${config.dotColor} ${status === 'connecting' ? 'animate-pulse' : ''}`} />
         {status === 'connecting' ? (
-          <span className="animate-pulse">{config.text}</span>
+          <span>{config.text}</span>
         ) : (
           <>
             {config.text}
-            {status === 'connected' && databaseName && `: ${databaseName.toUpperCase()}`}
-            {status === 'connected' && latency != null && ` [${latency}MS]`}
+            {status === 'connected' && databaseName && `: ${databaseName}`}
+            {status === 'connected' && latency != null && ` (${latency}ms)`}
           </>
         )}
       </span>
     </div>
   );
 };
-

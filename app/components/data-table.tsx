@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { EmptyState } from './empty-state';
 import { TableSkeleton } from './skeletons/table-skeleton';
+import { EditableCell } from './editable-cell';
+import { ColumnInfo } from '@/types';
 
 interface DataTableProps {
   columns: string[];
@@ -11,6 +13,11 @@ interface DataTableProps {
   sortDirection?: 'asc' | 'desc' | null;
   visibleColumns?: string[];
   searchQuery?: string;
+  primaryKeys?: string[];
+  columnSchema?: ColumnInfo[];
+  onCellUpdate?: (rowPks: Record<string, any>, column: string, newValue: any) => void;
+  onRowDelete?: (rowPks: Record<string, any>) => void;
+  readOnlyMode?: boolean;
 }
 
 export const DataTable: React.FC<DataTableProps> = ({
@@ -22,8 +29,18 @@ export const DataTable: React.FC<DataTableProps> = ({
   sortDirection,
   visibleColumns,
   searchQuery,
+  primaryKeys = [],
+  columnSchema = [],
+  onCellUpdate,
+  onRowDelete,
+  readOnlyMode = false,
 }) => {
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+
+  const canEdit = !readOnlyMode && primaryKeys.length > 0 && !!onCellUpdate;
+  const canDelete = !readOnlyMode && primaryKeys.length > 0 && !!onRowDelete;
 
   const displayColumns = visibleColumns
     ? columns.filter((col) => visibleColumns.includes(col))
@@ -40,6 +57,17 @@ export const DataTable: React.FC<DataTableProps> = ({
       })
     );
   }, [data, columns, searchQuery]);
+
+  const getRowPrimaryKeys = useCallback(
+    (row: any): Record<string, any> => {
+      const pks: Record<string, any> = {};
+      for (const pk of primaryKeys) {
+        pks[pk] = row[pk];
+      }
+      return pks;
+    },
+    [primaryKeys]
+  );
 
   if (isLoading) {
     return <TableSkeleton />;
@@ -81,29 +109,52 @@ export const DataTable: React.FC<DataTableProps> = ({
   };
 
   const toggleRowExpand = (rowIndex: number) => {
+    if (editingCell) return;
     setExpandedRow(expandedRow === rowIndex ? null : rowIndex);
   };
 
+  const handleCellSave = (row: any, column: string, newValue: any) => {
+    const oldValue = row[column];
+    const normalizedOld = oldValue === null || oldValue === undefined ? null : String(oldValue);
+    const normalizedNew = newValue === null ? null : String(newValue);
+
+    if (normalizedOld !== normalizedNew) {
+      onCellUpdate?.(getRowPrimaryKeys(row), column, newValue);
+    }
+    setEditingCell(null);
+  };
+
   return (
-    <div className="overflow-x-auto overflow-y-auto max-h-[600px] border-2 border-black dark:border-white relative">
+    <div className="overflow-x-auto overflow-y-auto max-h-[600px] border border-border rounded-lg relative">
+      {!readOnlyMode && primaryKeys.length === 0 && columnSchema.length > 0 && (
+        <div className="px-4 py-2 bg-warning/10 text-xs text-warning border-b border-border">
+          Editing disabled -- no primary key detected
+        </div>
+      )}
       <table className="min-w-full border-collapse">
-        <thead className="bg-black dark:bg-white sticky top-0 z-10">
+        <thead className="bg-bg-secondary sticky top-0 z-10">
           <tr>
+            {canDelete && (
+              <th className="w-10 px-2 py-2 text-xs font-medium text-muted border-b border-border" />
+            )}
             {displayColumns.map((column) => (
               <th
                 key={column}
                 scope="col"
                 aria-sort={getAriaSort(column)}
-                className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white dark:text-black border-2 border-black dark:border-white font-mono max-w-xs ${
-                  onSort ? 'cursor-pointer hover:bg-white/10 dark:hover:bg-black/10' : ''
-                } ${sortColumn === column ? 'bg-accent/20' : ''}`}
+                className={`px-4 py-2 text-left text-xs font-medium text-secondary border-b border-border max-w-xs ${
+                  onSort ? 'cursor-pointer hover:bg-bg-secondary/80' : ''
+                } ${sortColumn === column ? 'text-accent' : ''}`}
                 onClick={() => onSort?.(column)}
                 title={column}
               >
                 <div className="flex items-center gap-2 truncate">
                   <span className="truncate">{column}</span>
+                  {primaryKeys.includes(column) && (
+                    <span className="text-accent text-[10px] font-medium bg-accent/10 px-1 rounded flex-shrink-0">PK</span>
+                  )}
                   {onSort && (
-                    <span className={`flex-shrink-0 ${sortColumn === column ? 'text-accent' : 'text-white/50 dark:text-black/50'}`}>
+                    <span className={`flex-shrink-0 text-[11px] ${sortColumn === column ? 'text-accent' : 'text-muted'}`}>
                       {getSortIndicator(column)}
                     </span>
                   )}
@@ -112,44 +163,83 @@ export const DataTable: React.FC<DataTableProps> = ({
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white dark:bg-black">
+        <tbody className="bg-bg">
           {filteredData.map((row, rowIndex) => (
             <React.Fragment key={rowIndex}>
               <tr
-                className={`border-2 border-black dark:border-white cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 ${
-                  expandedRow === rowIndex ? 'bg-black/5 dark:bg-white/5' : ''
+                className={`border-b border-border cursor-pointer hover:bg-bg-secondary/50 even:bg-bg-secondary/50 ${
+                  expandedRow === rowIndex ? 'bg-bg-secondary/70' : ''
                 }`}
                 onClick={() => toggleRowExpand(rowIndex)}
+                onMouseEnter={() => setHoveredRow(rowIndex)}
+                onMouseLeave={() => setHoveredRow(null)}
               >
+                {canDelete && (
+                  <td className="px-2 py-2 text-center">
+                    {hoveredRow === rowIndex && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowDelete?.(getRowPrimaryKeys(row));
+                        }}
+                        className="text-danger hover:text-danger/80 text-xs"
+                        title="Delete row"
+                      >
+                        X
+                      </button>
+                    )}
+                  </td>
+                )}
                 {displayColumns.map((column) => (
                   <td
                     key={column}
-                    className="px-6 py-4 text-sm text-black dark:text-white border-2 border-black dark:border-white font-mono max-w-xs"
-                    title={row[column] !== null && row[column] !== undefined ? String(row[column]) : 'NULL'}
+                    className="px-4 py-2 text-sm text-primary font-mono max-w-xs"
+                    onClick={(e) => {
+                      if (editingCell?.row === rowIndex && editingCell?.col === column) {
+                        e.stopPropagation();
+                      }
+                    }}
                   >
-                    <div className="truncate">
-                      {row[column] !== null && row[column] !== undefined
-                        ? String(row[column])
-                        : (
-                            <span className="text-black dark:text-white font-bold">NULL</span>
-                          )}
-                    </div>
+                    {canEdit && !primaryKeys.includes(column) ? (
+                      <EditableCell
+                        value={row[column]}
+                        column={column}
+                        isEditing={editingCell?.row === rowIndex && editingCell?.col === column}
+                        onStartEdit={() => {
+                          setEditingCell({ row: rowIndex, col: column });
+                          setExpandedRow(null);
+                        }}
+                        onSave={(col, newValue) => handleCellSave(row, col, newValue)}
+                        onCancel={() => setEditingCell(null)}
+                      />
+                    ) : (
+                      <div
+                        className="truncate"
+                        title={row[column] !== null && row[column] !== undefined ? String(row[column]) : 'NULL'}
+                      >
+                        {row[column] !== null && row[column] !== undefined
+                          ? String(row[column])
+                          : (
+                              <span className="text-muted italic">NULL</span>
+                            )}
+                      </div>
+                    )}
                   </td>
                 ))}
               </tr>
               {expandedRow === rowIndex && (
-                <tr className="border-2 border-black dark:border-white">
-                  <td colSpan={displayColumns.length} className="p-0">
-                    <div className="bg-black/5 dark:bg-white/5 p-4 space-y-2">
-                      <div className="text-xs font-bold uppercase font-mono text-black dark:text-white mb-3 border-b-2 border-black dark:border-white pb-2">
-                        ROW DETAIL
+                <tr className="border-b border-border">
+                  <td colSpan={displayColumns.length + (canDelete ? 1 : 0)} className="p-0">
+                    <div className="bg-bg-secondary/40 p-4 space-y-1.5">
+                      <div className="text-xs font-medium text-secondary mb-3 border-b border-border pb-2">
+                        Row detail
                       </div>
                       {columns.map((column) => (
-                        <div key={column} className="flex gap-4 text-sm font-mono">
-                          <span className="font-bold uppercase text-black dark:text-white min-w-[150px] flex-shrink-0">
+                        <div key={column} className="flex gap-4 text-sm">
+                          <span className="font-medium text-secondary min-w-[150px] flex-shrink-0">
                             {column}:
                           </span>
-                          <span className="text-black dark:text-white break-all whitespace-pre-wrap">
+                          <span className="text-primary font-mono break-all whitespace-pre-wrap">
                             {row[column] !== null && row[column] !== undefined
                               ? typeof row[column] === 'object'
                                 ? JSON.stringify(row[column], null, 2)

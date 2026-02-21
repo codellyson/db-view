@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 
 interface SpinnerProps {
   size?: "sm" | "md" | "lg";
@@ -8,44 +8,34 @@ interface SpinnerProps {
   label?: string;
 }
 
-const FRAMES = ["|", "/", "-", "\\"];
-
 export const Spinner: React.FC<SpinnerProps> = ({
   size = "md",
   className = "",
-  label = "LOADING...",
+  label = "Loading...",
 }) => {
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFrame((prev) => (prev + 1) % FRAMES.length);
-    }, 150);
-    return () => clearInterval(interval);
-  }, []);
-
   const sizeStyles = {
-    sm: "text-sm",
-    md: "text-base",
-    lg: "text-lg",
+    sm: "h-4 w-4",
+    md: "h-6 w-6",
+    lg: "h-8 w-8",
   };
 
-  const spinnerSize = {
-    sm: "text-base",
-    md: "text-xl",
-    lg: "text-3xl",
+  const textSize = {
+    sm: "text-xs",
+    md: "text-sm",
+    lg: "text-base",
   };
 
   return (
     <div
-      className={`font-mono font-bold uppercase text-black dark:text-white flex flex-col items-center gap-2 ${sizeStyles[size]} ${className}`}
+      className={`flex flex-col items-center gap-2 text-secondary ${className}`}
       role="status"
       aria-label={label}
     >
-      <span className={`${spinnerSize[size]} leading-none`}>
-        {FRAMES[frame]}
-      </span>
-      <span>{label}</span>
+      <svg className={`animate-spin ${sizeStyles[size]}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+      </svg>
+      <span className={textSize[size]}>{label}</span>
     </div>
   );
 };

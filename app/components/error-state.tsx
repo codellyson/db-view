@@ -14,15 +14,15 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
 }) => {
   return (
     <div
-      className={`border-2 border-red-500 bg-white dark:bg-black p-6 ${className}`}
+      className={`border-l-4 border-danger bg-danger/5 rounded-md p-4 ${className}`}
       role="alert"
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="flex-shrink-0 text-red-500 font-bold text-lg">
+          <span className="flex-shrink-0 text-danger text-sm">
             !
           </span>
-          <p className="text-sm font-bold uppercase font-mono text-black dark:text-white truncate">
+          <p className="text-sm text-primary truncate">
             {message}
           </p>
         </div>
@@ -33,7 +33,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
             onClick={onRetry}
             className="flex-shrink-0"
           >
-            RETRY
+            Retry
           </Button>
         )}
       </div>

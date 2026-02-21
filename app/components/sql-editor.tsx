@@ -53,10 +53,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   }, [isDark, onExecute, colors]);
 
   return (
-    <div
-      className="border-2 border-black dark:border-white overflow-hidden [&_.cm-editor]:!color-[initial]"
-      style={{ color: isDark ? colors.surface : colors.ink }}
-    >
+    <div className="border border-border rounded-md overflow-hidden">
       <CodeMirror
         value={value}
         onChange={onChange}

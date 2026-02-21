@@ -21,21 +21,21 @@ export const TableList: React.FC<TableListProps> = ({
     <div>
       <input
         type="text"
-        placeholder="SEARCH..."
+        placeholder="Search tables..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-4 py-3 mb-4 text-sm border-2 border-black dark:border-white rounded-none font-mono focus:outline-none focus:shadow-[0_0_0_2px_black] dark:focus:shadow-[0_0_0_2px_white] bg-white dark:bg-black text-black dark:text-white"
+        className="w-full px-3 py-2 mb-3 text-sm border border-border rounded-md bg-bg text-primary placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
         aria-label="Search tables"
       />
-      <ul className="space-y-2" role="listbox" aria-label="Tables">
+      <ul className="space-y-0.5" role="listbox" aria-label="Tables">
         {filteredTables.map((table) => (
           <li key={table} role="option" aria-selected={selectedTable === table}>
             <button
               onClick={() => onSelect(table)}
-              className={`w-full text-left px-4 py-3 text-sm border-2 rounded-none font-mono uppercase font-bold truncate ${
+              className={`w-full text-left px-3 py-2 text-sm rounded-md truncate transition-colors ${
                 selectedTable === table
-                  ? 'bg-accent text-black border-accent'
-                  : 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black'
+                  ? 'bg-accent/10 text-accent font-medium'
+                  : 'text-primary hover:bg-bg-secondary'
               }`}
               title={table}
             >
@@ -44,12 +44,12 @@ export const TableList: React.FC<TableListProps> = ({
           </li>
         ))}
         {filteredTables.length === 0 && (
-          <li className="text-sm font-bold uppercase text-black dark:text-white px-4 py-3 border-2 border-black dark:border-white">NO TABLES FOUND</li>
+          <li className="text-sm text-muted px-3 py-2">No tables found</li>
         )}
       </ul>
-      <div className="mt-8 pt-4 border-t-2 border-black dark:border-white">
-        <p className="text-xs font-bold uppercase text-black dark:text-white">
-          {tables.length} {tables.length === 1 ? 'TABLE' : 'TABLES'}
+      <div className="mt-6 pt-3 border-t border-border">
+        <p className="text-xs text-muted">
+          {tables.length} {tables.length === 1 ? 'table' : 'tables'}
         </p>
       </div>
     </div>

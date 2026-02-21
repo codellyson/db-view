@@ -46,40 +46,40 @@ export const ColumnVisibility: React.FC<ColumnVisibilityProps> = ({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="px-4 py-2 text-sm font-bold uppercase font-mono border-2 border-black dark:border-white bg-white dark:bg-black text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+        className="px-3 py-1.5 text-sm border border-border rounded-md bg-bg text-primary hover:bg-bg-secondary transition-colors"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        COLUMNS {hiddenCount > 0 && `(${hiddenCount} HIDDEN)`}
+        Columns {hiddenCount > 0 && <span className="text-muted">({hiddenCount} hidden)</span>}
       </button>
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 z-20 bg-white dark:bg-black border-2 border-black dark:border-white shadow-[4px_4px_0_0_black] dark:shadow-[4px_4px_0_0_white] min-w-[200px] max-h-[300px] overflow-y-auto">
-          <div className="flex border-b-2 border-black dark:border-white">
+        <div className="absolute top-full left-0 mt-1 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[200px] max-h-[300px] overflow-y-auto">
+          <div className="flex border-b border-border">
             <button
               onClick={onShowAll}
-              className="flex-1 px-3 py-2 text-xs font-bold uppercase font-mono text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black border-r border-black dark:border-white"
+              className="flex-1 px-3 py-2 text-xs text-secondary hover:bg-bg-secondary transition-colors border-r border-border"
             >
-              ALL
+              Show all
             </button>
             <button
               onClick={onHideAll}
-              className="flex-1 px-3 py-2 text-xs font-bold uppercase font-mono text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+              className="flex-1 px-3 py-2 text-xs text-secondary hover:bg-bg-secondary transition-colors"
             >
-              NONE
+              Hide all
             </button>
           </div>
           {columns.map((column) => (
             <label
               key={column}
-              className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 border-b border-black/10 dark:border-white/10 last:border-b-0"
+              className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-bg-secondary/50 border-b border-border/50 last:border-b-0"
             >
               <input
                 type="checkbox"
                 checked={visibleColumns.includes(column)}
                 onChange={() => onToggle(column)}
-                className="w-4 h-4 appearance-none border-2 border-black dark:border-white checked:bg-black dark:checked:bg-white cursor-pointer"
+                className="w-3.5 h-3.5 rounded border border-border accent-accent cursor-pointer"
               />
-              <span className="text-xs font-mono font-bold uppercase text-black dark:text-white truncate">
+              <span className="text-xs text-primary font-mono truncate">
                 {column}
               </span>
             </label>

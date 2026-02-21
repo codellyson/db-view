@@ -57,9 +57,9 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
 
   return (
-    <nav aria-label="Pagination" className="flex items-center justify-between mt-8">
-      <div className="text-sm font-bold uppercase text-black dark:text-white font-mono">
-        SHOWING {startItem} TO {endItem} OF {countIsEstimate ? `~${totalItems.toLocaleString()} (ESTIMATED)` : totalItems.toLocaleString()} RESULTS
+    <nav aria-label="Pagination" className="flex items-center justify-between mt-6">
+      <div className="text-sm text-muted">
+        Showing {startItem} to {endItem} of {countIsEstimate ? `~${totalItems.toLocaleString()} (estimated)` : totalItems.toLocaleString()} results
       </div>
       <div className="flex items-center gap-2">
         <Button
@@ -69,22 +69,22 @@ export const Pagination: React.FC<PaginationProps> = ({
           disabled={currentPage === 1}
           aria-label="Go to previous page"
         >
-          PREVIOUS
+          Previous
         </Button>
         <div className="flex items-center gap-1">
           {getPageNumbers().map((page, index) => (
             <React.Fragment key={index}>
               {page === '...' ? (
-                <span className="px-2 text-black dark:text-white font-bold" aria-hidden="true">...</span>
+                <span className="px-2 text-muted" aria-hidden="true">...</span>
               ) : (
                 <button
                   onClick={() => onPageChange(page as number)}
                   aria-label={`Go to page ${page}`}
                   aria-current={currentPage === page ? 'page' : undefined}
-                  className={`px-4 py-2 text-sm border-2 rounded-none font-mono font-bold uppercase ${
+                  className={`px-3 py-1.5 text-sm rounded-md ${
                     currentPage === page
-                      ? 'bg-accent text-black border-accent'
-                      : 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black'
+                      ? 'bg-accent text-white font-medium'
+                      : 'text-secondary hover:bg-bg-secondary'
                   }`}
                 >
                   {page}
@@ -100,10 +100,9 @@ export const Pagination: React.FC<PaginationProps> = ({
           disabled={currentPage === totalPages}
           aria-label="Go to next page"
         >
-          NEXT
+          Next
         </Button>
       </div>
     </nav>
   );
 };
-

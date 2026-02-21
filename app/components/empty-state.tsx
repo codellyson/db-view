@@ -14,15 +14,15 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   action,
 }) => {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 border-2 border-black dark:border-white">
+    <div className="flex flex-col items-center justify-center py-16 px-4">
       {icon && (
-        <div className="text-black dark:text-white mb-8 text-4xl">
+        <div className="text-muted mb-6 text-3xl">
           {icon}
         </div>
       )}
-      <h3 className="text-2xl font-bold uppercase text-black dark:text-white mb-4">{title}</h3>
+      <h3 className="text-lg font-medium text-primary mb-2">{title}</h3>
       {description && (
-        <p className="text-base text-black dark:text-white text-center max-w-md mb-8 font-mono">
+        <p className="text-sm text-muted text-center max-w-md mb-6">
           {description}
         </p>
       )}

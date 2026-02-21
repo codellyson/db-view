@@ -2,19 +2,19 @@ import React from 'react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="border-t-2 border-black dark:border-white bg-white dark:bg-black p-4">
+    <footer className="border-t border-border bg-bg px-4 py-2">
       <div className="text-center">
-        <p className="text-xs font-mono text-black dark:text-white mb-1">
-          CREATED BY
-        </p>
-        <a
-          href="https://kreativekorna.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm font-bold uppercase text-black dark:text-white hover:underline inline-block"
-        >
-          KREATIVEKORNA CONCEPTS
-        </a>
+        <span className="text-xs text-muted">
+          Built by{' '}
+          <a
+            href="https://kreativekorna.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-secondary hover:text-accent transition-colors"
+          >
+            KreativeKorna Concepts
+          </a>
+        </span>
       </div>
     </footer>
   );

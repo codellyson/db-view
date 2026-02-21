@@ -6,13 +6,13 @@ export const SidebarSkeleton: React.FC = () => {
   const widths = ["90%", "70%", "80%", "60%", "85%", "75%", "65%", "90%", "55%", "80%"];
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {/* Search bar skeleton */}
-      <Skeleton height="2.5rem" className="border-2 border-black/10 dark:border-white/15 mb-4" />
+      <Skeleton height="2.25rem" className="rounded-md mb-3" />
       {/* Table list items */}
       {Array.from({ length: items }).map((_, i) => (
-        <div key={i} className="px-4 py-3 border-2 border-black/10 dark:border-white/15">
-          <Skeleton height="0.75rem" width={widths[i]} />
+        <div key={i} className="px-3 py-2">
+          <Skeleton height="0.625rem" width={widths[i]} />
         </div>
       ))}
     </div>

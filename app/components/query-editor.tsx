@@ -9,6 +9,7 @@ import { SqlEditor } from './sql-editor';
 import { ExplainPlan } from './explain-plan';
 import { useQueryHistory } from '../hooks/use-query-history';
 import { QueryHistory } from './query-history';
+import { formatSQL } from '@/lib/sql-formatter';
 
 interface QueryEditorProps {}
 
@@ -111,7 +112,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
 
   return (
     <div className="space-y-8">
-      <Card title="SQL QUERY">
+      <Card title="SQL query">
         <div className="space-y-4">
           <SqlEditor
             value={query}
@@ -127,7 +128,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
                 isLoading={isExecuting && viewMode === 'results'}
                 disabled={isExecuting || !query.trim()}
               >
-                EXECUTE
+                Execute
               </Button>
               <Button
                 variant="secondary"
@@ -135,21 +136,28 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
                 isLoading={isExecuting && viewMode === 'explain'}
                 disabled={isExecuting || !query.trim()}
               >
-                EXPLAIN
+                Explain
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setQuery(formatSQL(query))}
+                disabled={isExecuting || !query.trim()}
+              >
+                Format
               </Button>
               <Button variant="secondary" onClick={handleClear} disabled={isExecuting}>
-                CLEAR
+                Clear
               </Button>
               <Button
                 variant={showHistory ? 'primary' : 'ghost'}
                 onClick={() => setShowHistory(!showHistory)}
               >
-                HISTORY
+                History
               </Button>
             </div>
             {executionTime !== null && (
-              <span className="text-sm font-bold uppercase text-black dark:text-white font-mono">
-                {executionTime}MS
+              <span className="text-sm text-muted font-mono">
+                {executionTime}ms
               </span>
             )}
           </div>
@@ -177,34 +185,34 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
       {hasResults && (
         <Card>
           {results.length > 0 && explainPlan && (
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-1 mb-4">
               <button
                 onClick={() => setViewMode('results')}
-                className={`px-4 py-2 text-sm font-bold uppercase font-mono border-2 border-black dark:border-white ${
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   viewMode === 'results'
-                    ? 'bg-black text-white dark:bg-white dark:text-black'
-                    : 'bg-white text-black dark:bg-black dark:text-white'
+                    ? 'bg-accent/10 text-accent'
+                    : 'text-secondary hover:text-primary hover:bg-bg-secondary'
                 }`}
               >
-                RESULTS
+                Results
               </button>
               <button
                 onClick={() => setViewMode('explain')}
-                className={`px-4 py-2 text-sm font-bold uppercase font-mono border-2 border-black dark:border-white ${
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   viewMode === 'explain'
-                    ? 'bg-black text-white dark:bg-white dark:text-black'
-                    : 'bg-white text-black dark:bg-black dark:text-white'
+                    ? 'bg-accent/10 text-accent'
+                    : 'text-secondary hover:text-primary hover:bg-bg-secondary'
                 }`}
               >
-                EXPLAIN PLAN
+                Explain plan
               </button>
             </div>
           )}
 
           {viewMode === 'results' && results.length > 0 && (
             <>
-              <div className="mb-4 text-sm font-bold uppercase text-black dark:text-white font-mono">
-                {results.length} {results.length === 1 ? 'ROW' : 'ROWS'} RETURNED
+              <div className="mb-4 text-sm text-muted">
+                {results.length} {results.length === 1 ? 'row' : 'rows'} returned
               </div>
               <DataTable columns={columns} data={results} isLoading={false} />
             </>
@@ -218,8 +226,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
 
       {results.length === 0 && !explainPlan && !error && executionTime !== null && (
         <Card>
-          <div className="text-center py-8 text-black dark:text-white font-bold uppercase font-mono">
-            QUERY EXECUTED SUCCESSFULLY. NO ROWS RETURNED.
+          <div className="text-center py-8 text-muted">
+            Query executed successfully. No rows returned.
           </div>
         </Card>
       )}

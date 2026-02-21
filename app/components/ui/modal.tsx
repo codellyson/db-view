@@ -29,7 +29,6 @@ export const Modal: React.FC<ModalProps> = ({
     document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
 
-    // Focus the modal on open
     modalRef.current?.focus();
 
     return () => {
@@ -48,33 +47,35 @@ export const Modal: React.FC<ModalProps> = ({
       aria-labelledby={title ? "modal-title" : undefined}
     >
       <div
-        className="fixed inset-0 bg-black/80"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
         ref={modalRef}
         tabIndex={-1}
-        className={`relative z-10 bg-white dark:bg-black border-2 border-black dark:border-white w-full max-w-md shadow-[4px_4px_0_0_black] dark:shadow-[4px_4px_0_0_white] ${className}`}
+        className={`relative z-10 bg-bg border border-border rounded-lg shadow-lg w-full max-w-md ${className}`}
       >
         {title && (
-          <div className="flex items-center justify-between border-b-2 border-black dark:border-white p-4 bg-black dark:bg-white">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h3
               id="modal-title"
-              className="text-base font-bold uppercase text-white dark:text-black"
+              className="text-base font-semibold text-primary"
             >
               {title}
             </h3>
             <button
               onClick={onClose}
-              className="text-white dark:text-black hover:text-red-500 font-bold text-lg focus:outline-none"
+              className="text-muted hover:text-primary rounded-md p-1 transition-colors focus:outline-none"
               aria-label="Close modal"
             >
-              X
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
             </button>
           </div>
         )}
-        <div className="p-8">{children}</div>
+        <div className="p-5">{children}</div>
       </div>
     </div>
   );

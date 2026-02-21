@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 import { MainContent } from "./main-content";
@@ -17,10 +18,17 @@ import { ColumnVisibility } from "./column-visibility";
 import { ExportDropdown } from "./export-dropdown";
 import { Breadcrumb } from "./breadcrumb";
 import { RelationshipDisplay } from "./relationship-display";
+import { MutationConfirmation } from "./mutation-confirmation";
+import { RowEditor } from "./row-editor";
+import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
+import { TableStats } from "./table-stats";
+import { Button } from "./ui/button";
 import { useConnection } from "../contexts/connection-context";
 import { useToast } from "../contexts/toast-context";
 import { useDashboard } from "../contexts/dashboard-context";
+import { useKeyboardShortcuts, type Shortcut } from "../hooks/use-keyboard-shortcuts";
 import { exportCSV, exportJSON, exportSQL } from "@/lib/export-utils";
+import { buildDisplaySQL, type MutationRequest } from "@/lib/mutation";
 
 export function Dashboard() {
   const { isConnected, databaseName } = useConnection();
@@ -59,9 +67,20 @@ export function Dashboard() {
     handleSchemaChange,
     handleTableSelect,
     handleSort,
+    readOnlyMode,
+    primaryKeys,
+    mutateRow,
+    tableStats,
+    isLoadingStats,
   } = useDashboard();
 
+  const router = useRouter();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [pendingMutation, setPendingMutation] = useState<MutationRequest | null>(null);
+  const [isMutating, setIsMutating] = useState(false);
+  const [isRowEditorOpen, setIsRowEditorOpen] = useState(false);
+  const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
 
   const onTableSelect = (table: string) => {
     handleTableSelect(table);
@@ -71,19 +90,115 @@ export function Dashboard() {
   const handleExportCSV = () => {
     if (!selectedTable || tableData.length === 0) return;
     exportCSV(columns, tableData, selectedTable);
-    addToast("CSV EXPORTED SUCCESSFULLY", "success");
+    addToast("CSV exported successfully", "success");
   };
 
   const handleExportJSON = () => {
     if (!selectedTable || tableData.length === 0) return;
     exportJSON(columns, tableData, selectedTable);
-    addToast("JSON EXPORTED SUCCESSFULLY", "success");
+    addToast("JSON exported successfully", "success");
   };
 
   const handleExportSQL = () => {
     if (!selectedTable || tableData.length === 0) return;
     exportSQL(columns, tableData, selectedTable);
-    addToast("SQL EXPORTED SUCCESSFULLY", "success");
+    addToast("SQL exported successfully", "success");
+  };
+
+  const shortcuts: Shortcut[] = useMemo(() => [
+    {
+      key: 'k', meta: true, description: 'Focus table search',
+      category: 'Navigation',
+      action: () => searchInputRef.current?.focus(),
+    },
+    {
+      key: 'j', meta: true, description: 'Toggle sidebar',
+      category: 'Navigation',
+      action: () => setIsMobileMenuOpen((prev) => !prev),
+    },
+    {
+      key: '/', meta: true, description: 'Show keyboard shortcuts',
+      category: 'General',
+      action: () => setIsShortcutsHelpOpen((prev) => !prev),
+    },
+    {
+      key: 'q', meta: true, shift: true, description: 'Go to query page',
+      category: 'Navigation',
+      action: () => router.push('/query'),
+    },
+    {
+      key: 't', meta: true, shift: true, description: 'Go to tables page',
+      category: 'Navigation',
+      action: () => router.push('/'),
+    },
+    {
+      key: 'n', meta: true, description: 'Add new row',
+      category: 'Editing',
+      action: () => {
+        if (!readOnlyMode && primaryKeys.length > 0 && selectedTable) {
+          setIsRowEditorOpen(true);
+        }
+      },
+    },
+    {
+      key: 'Escape', description: 'Close modal / cancel',
+      category: 'General',
+      action: () => {
+        if (pendingMutation) setPendingMutation(null);
+        else if (isRowEditorOpen) setIsRowEditorOpen(false);
+        else if (isShortcutsHelpOpen) setIsShortcutsHelpOpen(false);
+      },
+    },
+  ], [readOnlyMode, primaryKeys, selectedTable, pendingMutation, isRowEditorOpen, isShortcutsHelpOpen, router]);
+
+  useKeyboardShortcuts(shortcuts);
+
+  const handleCellUpdate = (rowPks: Record<string, any>, column: string, newValue: any) => {
+    if (!selectedTable) return;
+    const request: MutationRequest = {
+      type: "UPDATE",
+      schema: selectedSchema,
+      table: selectedTable,
+      values: { [column]: newValue },
+      where: rowPks,
+    };
+    setPendingMutation(request);
+  };
+
+  const handleRowDelete = (rowPks: Record<string, any>) => {
+    if (!selectedTable) return;
+    const request: MutationRequest = {
+      type: "DELETE",
+      schema: selectedSchema,
+      table: selectedTable,
+      where: rowPks,
+    };
+    setPendingMutation(request);
+  };
+
+  const handleRowInsert = (values: Record<string, any>) => {
+    if (!selectedTable) return;
+    const request: MutationRequest = {
+      type: "INSERT",
+      schema: selectedSchema,
+      table: selectedTable,
+      values,
+    };
+    setPendingMutation(request);
+    setIsRowEditorOpen(false);
+  };
+
+  const handleConfirmMutation = async () => {
+    if (!pendingMutation) return;
+    setIsMutating(true);
+    try {
+      await mutateRow(pendingMutation);
+      setPendingMutation(null);
+    } catch (err: any) {
+      addToast(err.message || "Mutation failed", "error");
+    } finally {
+      setIsMutating(false);
+    }
   };
 
   if (!isConnected) {
@@ -116,7 +231,7 @@ export function Dashboard() {
       }
       right={
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header isConnected={isConnected} databaseName={databaseName} onMenuToggle={() => setIsMobileMenuOpen(true)} />
+          <Header isConnected={isConnected} databaseName={databaseName} onMenuToggle={() => setIsMobileMenuOpen(true)} onShortcutsHelp={() => setIsShortcutsHelpOpen(true)} />
           <MainContent>
             {error && (
               <ErrorState
@@ -129,21 +244,33 @@ export function Dashboard() {
               <>
                 <Breadcrumb
                   items={[
-                    { label: databaseName || 'DATABASE', onClick: () => setSelectedTable(undefined) },
+                    { label: databaseName || 'Database', onClick: () => setSelectedTable(undefined) },
                     ...(selectedSchema !== 'public' ? [{ label: selectedSchema, onClick: () => setSelectedTable(undefined) }] : []),
                     { label: selectedTable },
                   ]}
                 />
                 <div className="flex justify-between items-center mb-8 gap-4">
-                  <h1 className="text-4xl font-bold uppercase tracking-tight text-black dark:text-white truncate flex-1 min-w-0">
+                  <h1 className="text-2xl font-semibold tracking-tight text-primary truncate flex-1 min-w-0">
                     {selectedTable}
                   </h1>
-                  <ExportDropdown
-                    onExportCSV={handleExportCSV}
-                    onExportJSON={handleExportJSON}
-                    onExportSQL={handleExportSQL}
-                    disabled={!selectedTable || tableData.length === 0 || isLoading}
-                  />
+                  <div className="flex gap-2 flex-shrink-0">
+                    {!readOnlyMode && primaryKeys.length > 0 && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setIsRowEditorOpen(true)}
+                        disabled={isLoading}
+                      >
+                        + Add row
+                      </Button>
+                    )}
+                    <ExportDropdown
+                      onExportCSV={handleExportCSV}
+                      onExportJSON={handleExportJSON}
+                      onExportSQL={handleExportSQL}
+                      disabled={!selectedTable || tableData.length === 0 || isLoading}
+                    />
+                  </div>
                 </div>
                 {!isLoadingSchema && schema.length > 0 && (
                   <TableSchema columns={schema} />
@@ -153,6 +280,7 @@ export function Dashboard() {
                   indexes={indexes}
                   onNavigateToTable={onTableSelect}
                 />
+                <TableStats stats={tableStats} isLoading={isLoadingStats} />
                 {columns.length > 0 && !isLoading && (
                   <div className="flex flex-wrap items-center gap-2 mb-4">
                     <ColumnVisibility
@@ -169,11 +297,12 @@ export function Dashboard() {
                       onHideAll={() => setVisibleColumns([])}
                     />
                     <input
+                      ref={searchInputRef}
                       type="text"
                       value={tableSearch}
                       onChange={(e) => setTableSearch(e.target.value)}
-                      placeholder="SEARCH ROWS..."
-                      className="px-4 py-2 text-sm font-bold uppercase font-mono border-2 border-black dark:border-white bg-white dark:bg-black text-black dark:text-white focus:outline-none focus:shadow-[0_0_0_2px_black] dark:focus:shadow-[0_0_0_2px_white] flex-1 min-w-[150px]"
+                      placeholder="Search rows..."
+                      className="px-3 py-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent flex-1 min-w-[150px] placeholder:text-muted"
                       aria-label="Search table rows"
                     />
                   </div>
@@ -187,6 +316,11 @@ export function Dashboard() {
                   sortDirection={sortDirection}
                   visibleColumns={visibleColumns.length > 0 ? visibleColumns : undefined}
                   searchQuery={tableSearch}
+                  primaryKeys={primaryKeys}
+                  columnSchema={schema}
+                  onCellUpdate={handleCellUpdate}
+                  onRowDelete={handleRowDelete}
+                  readOnlyMode={readOnlyMode}
                 />
                 {totalItems > 0 && (
                   <Pagination
@@ -209,6 +343,30 @@ export function Dashboard() {
           <Footer />
         </div>
       }
+    />
+    {pendingMutation && (
+      <MutationConfirmation
+        isOpen={!!pendingMutation}
+        type={pendingMutation.type}
+        sql={buildDisplaySQL(pendingMutation)}
+        onConfirm={handleConfirmMutation}
+        onCancel={() => setPendingMutation(null)}
+        isLoading={isMutating}
+      />
+    )}
+    {selectedTable && (
+      <RowEditor
+        isOpen={isRowEditorOpen}
+        onClose={() => setIsRowEditorOpen(false)}
+        onInsert={handleRowInsert}
+        columns={schema}
+        isLoading={isMutating}
+      />
+    )}
+    <KeyboardShortcutsHelp
+      isOpen={isShortcutsHelpOpen}
+      onClose={() => setIsShortcutsHelpOpen(false)}
+      shortcuts={shortcuts}
     />
     </>
   );

@@ -4,12 +4,12 @@ import React, { useState } from 'react';
 import { useTheme, ALL_PALETTES, PALETTE_LABELS, type Palette } from '../contexts/theme-context';
 
 const PALETTE_PREVIEW: Record<Palette, string> = {
-  gray: '#9ca3af',
-  sepia: '#d97706',
-  ocean: '#38bdf8',
-  forest: '#4ade80',
-  rose: '#fb7185',
-  midnight: '#a78bfa',
+  indigo: '#6366f1',
+  blue: '#3b82f6',
+  emerald: '#10b981',
+  rose: '#f43f5e',
+  amber: '#f59e0b',
+  violet: '#8b5cf6',
 };
 
 export const ThemeToggle: React.FC = () => {
@@ -25,20 +25,20 @@ export const ThemeToggle: React.FC = () => {
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
-          <div className="relative z-50 border-2 border-black dark:border-white bg-white dark:bg-black p-3 space-y-3 shadow-brutal dark:shadow-brutal-dark">
-            <div className="text-xs font-bold uppercase font-mono text-black dark:text-white border-b-2 border-black dark:border-white pb-2">
-              THEME
+          <div className="relative z-50 border border-border bg-bg rounded-lg p-4 space-y-3 shadow-lg w-64">
+            <div className="text-xs font-medium text-muted border-b border-border pb-2">
+              Theme
             </div>
 
             <button
               onClick={toggleMode}
-              className="w-full text-left px-3 py-2 text-xs font-bold uppercase font-mono border-2 border-black dark:border-white text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+              className="w-full text-left px-3 py-2 text-sm font-medium rounded-md border border-border text-primary hover:bg-bg-secondary transition-colors"
             >
-              {mode === 'light' ? 'SWITCH TO DARK' : 'SWITCH TO LIGHT'}
+              {mode === 'light' ? 'Switch to dark' : 'Switch to light'}
             </button>
 
-            <div className="text-xs font-bold uppercase font-mono text-black dark:text-white border-b-2 border-black dark:border-white pb-2 pt-1">
-              PALETTE
+            <div className="text-xs font-medium text-muted border-b border-border pb-2 pt-1">
+              Palette
             </div>
 
             <div className="grid grid-cols-3 gap-2">
@@ -49,15 +49,15 @@ export const ThemeToggle: React.FC = () => {
                     setPalette(p);
                     setIsOpen(false);
                   }}
-                  className={`flex flex-col items-center gap-1.5 p-2 border-2 text-xs font-bold uppercase font-mono ${
+                  className={`flex flex-col items-center gap-1.5 p-2 rounded-md border text-xs font-medium transition-colors ${
                     palette === p
-                      ? 'border-accent bg-accent/10 text-black dark:text-white'
-                      : 'border-black dark:border-white text-black dark:text-white hover:bg-black/5 dark:hover:bg-white/5'
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-border text-secondary hover:bg-bg-secondary'
                   }`}
                   title={PALETTE_LABELS[p]}
                 >
                   <span
-                    className="w-6 h-6 border-2 border-black dark:border-white"
+                    className="w-6 h-6 rounded-full"
                     style={{ backgroundColor: PALETTE_PREVIEW[p] }}
                   />
                   <span className="text-[10px] leading-none">{PALETTE_LABELS[p]}</span>
@@ -70,9 +70,9 @@ export const ThemeToggle: React.FC = () => {
 
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative z-50 w-10 h-10 border-2 border-black dark:border-white bg-black dark:bg-white text-white dark:text-black font-bold text-lg font-mono flex items-center justify-center hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white transition-colors"
+        className="relative z-50 w-10 h-10 rounded-lg border border-border bg-bg text-primary shadow-md flex items-center justify-center hover:bg-bg-secondary transition-colors"
         aria-label="Open theme settings"
-        title="THEME SETTINGS"
+        title="Theme settings"
       >
         {isOpen ? '\u00d7' : '\u25d1'}
       </button>

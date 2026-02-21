@@ -10,20 +10,27 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        surface: "rgb(var(--surface) / <alpha-value>)",
-        ink: "rgb(var(--ink) / <alpha-value>)",
+        bg: "rgb(var(--bg) / <alpha-value>)",
+        "bg-secondary": "rgb(var(--bg-secondary) / <alpha-value>)",
+        border: "rgb(var(--border) / <alpha-value>)",
+        primary: "rgb(var(--text-primary) / <alpha-value>)",
+        secondary: "rgb(var(--text-secondary) / <alpha-value>)",
+        muted: "rgb(var(--text-muted) / <alpha-value>)",
         accent: "rgb(var(--accent) / <alpha-value>)",
-        white: "rgb(var(--surface) / <alpha-value>)",
-        black: "rgb(var(--ink) / <alpha-value>)",
+        "accent-hover": "rgb(var(--accent-hover) / <alpha-value>)",
+        danger: "rgb(var(--danger) / <alpha-value>)",
+        success: "rgb(var(--success) / <alpha-value>)",
+        warning: "rgb(var(--warning) / <alpha-value>)",
       },
       fontFamily: {
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
-      boxShadow: {
-        'brutal': '4px 4px 0 0 rgb(var(--ink))',
-        'brutal-sm': '2px 2px 0 0 rgb(var(--ink))',
-        'brutal-dark': '4px 4px 0 0 rgb(var(--surface))',
-        'brutal-sm-dark': '2px 2px 0 0 rgb(var(--surface))',
+      borderRadius: {
+        sm: '4px',
+        md: '6px',
+        lg: '8px',
+        xl: '12px',
       },
     },
   },

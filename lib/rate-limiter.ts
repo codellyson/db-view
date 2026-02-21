@@ -8,6 +8,7 @@ const RATE_LIMITS: Record<string, { maxRequests: number; windowMs: number }> = {
   '/api/connect': { maxRequests: 5, windowMs: 60_000 },
   '/api/query': { maxRequests: 30, windowMs: 60_000 },
   '/api/explain': { maxRequests: 20, windowMs: 60_000 },
+  '/api/mutate': { maxRequests: 20, windowMs: 60_000 },
   default: { maxRequests: 100, windowMs: 60_000 },
 };
 

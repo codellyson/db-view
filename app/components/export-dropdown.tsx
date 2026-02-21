@@ -48,31 +48,31 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        className="px-8 py-4 text-base font-bold uppercase font-mono border-2 border-black dark:border-white bg-white dark:bg-black text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black disabled:opacity-25 disabled:cursor-not-allowed"
+        className="px-3 py-1.5 text-sm border border-border rounded-md bg-bg text-primary hover:bg-bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        EXPORT
+        Export
       </button>
       {isOpen && (
-        <div className="absolute top-full right-0 mt-1 z-20 bg-white dark:bg-black border-2 border-black dark:border-white shadow-[4px_4px_0_0_black] dark:shadow-[4px_4px_0_0_white] min-w-[160px]">
+        <div className="absolute top-full right-0 mt-1 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[140px]">
           <button
             onClick={() => handleExport(onExportCSV)}
-            className="w-full px-4 py-3 text-sm font-bold uppercase font-mono text-left text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black border-b border-black dark:border-white"
+            className="w-full px-3 py-2 text-sm text-left text-primary hover:bg-bg-secondary transition-colors rounded-t-lg border-b border-border/50"
           >
             CSV
           </button>
           <button
             onClick={() => handleExport(onExportJSON)}
-            className="w-full px-4 py-3 text-sm font-bold uppercase font-mono text-left text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black border-b border-black dark:border-white"
+            className="w-full px-3 py-2 text-sm text-left text-primary hover:bg-bg-secondary transition-colors border-b border-border/50"
           >
             JSON
           </button>
           <button
             onClick={() => handleExport(onExportSQL)}
-            className="w-full px-4 py-3 text-sm font-bold uppercase font-mono text-left text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+            className="w-full px-3 py-2 text-sm text-left text-primary hover:bg-bg-secondary transition-colors rounded-b-lg"
           >
-            SQL INSERT
+            SQL Insert
           </button>
         </div>
       )}

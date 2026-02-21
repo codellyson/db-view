@@ -21,7 +21,7 @@ export default function ConnectionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black flex flex-col">
+    <div className="min-h-screen bg-bg flex flex-col">
       {isConnected && (
         <Header isConnected={isConnected} databaseName={databaseName} />
       )}
@@ -39,26 +39,26 @@ export default function ConnectionsPage() {
                     priority
                   />
                 </div>
-                <h1 className="text-4xl font-bold uppercase tracking-tight text-black dark:text-white mb-3">
-                  DBVIEW
+                <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">
+                  DBView
                 </h1>
-                <p className="text-sm font-mono text-black dark:text-white mb-2">
-                  BRUTALIST POSTGRESQL DATABASE EXPLORER
+                <p className="text-sm text-secondary mb-1">
+                  PostgreSQL database explorer
                 </p>
-                <p className="text-xs font-mono text-black/60 dark:text-white/60 max-w-md mx-auto">
-                  RAW. FUNCTIONAL. NO BULLSHIT. EXPLORE YOUR DATABASE WITH A
-                  MINIMALIST INTERFACE THAT GETS OUT OF YOUR WAY.
+                <p className="text-xs text-muted max-w-md mx-auto">
+                  A clean, functional interface for browsing tables, running queries,
+                  and exploring your database.
                 </p>
               </div>
             )}
 
             {isConnected && (
               <div className="mb-6">
-                <h2 className="text-2xl font-bold uppercase tracking-tight text-black dark:text-white mb-1">
-                  CONNECTIONS
+                <h2 className="text-2xl font-semibold text-primary mb-1">
+                  Connections
                 </h2>
-                <p className="text-xs font-mono text-black/60 dark:text-white/60">
-                  MANAGE SAVED CONNECTIONS OR CONNECT TO A NEW DATABASE.
+                <p className="text-sm text-muted">
+                  Manage saved connections or connect to a new database.
                 </p>
               </div>
             )}
@@ -72,21 +72,21 @@ export default function ConnectionsPage() {
             </div>
 
             {error && (
-              <div className="mt-6 p-3 bg-red-500 border-2 border-black dark:border-white text-white text-sm font-bold uppercase">
+              <div className="mt-6 p-3 bg-danger/10 border border-danger/20 rounded-md text-danger text-sm">
                 {error}
               </div>
             )}
 
             {!isConnected && (
-              <div className="mt-10 pt-6 border-t-2 border-black dark:border-white text-center">
-                <p className="text-xs font-mono text-black/60 dark:text-white/60 mb-1">CREATED BY</p>
+              <div className="mt-10 pt-6 border-t border-border text-center">
+                <p className="text-xs text-muted mb-1">Created by</p>
                 <a
                   href="https://kreativekorna.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-bold uppercase text-black dark:text-white hover:underline"
+                  className="text-sm font-medium text-primary hover:text-accent transition-colors"
                 >
-                  KREATIVEKORNA CONCEPTS
+                  KreativeKorna Concepts
                 </a>
               </div>
             )}

@@ -12,12 +12,14 @@ interface HeaderProps {
   isConnected: boolean;
   databaseName?: string;
   onMenuToggle?: () => void;
+  onShortcutsHelp?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   isConnected,
   databaseName,
   onMenuToggle,
+  onShortcutsHelp,
 }) => {
   const pathname = usePathname();
   const router = useRouter();
@@ -28,71 +30,56 @@ export const Header: React.FC<HeaderProps> = ({
     router.push('/');
   };
 
+  const navItems = [
+    { label: 'Tables', path: '/' },
+    { label: 'Query', path: '/query' },
+    { label: 'Connections', path: '/connections' },
+  ];
+
   return (
-    <header className="h-16 bg-black dark:bg-white border-b-2 border-black dark:border-white flex items-center justify-between px-4 md:px-8">
-      <div className="flex items-center gap-4 md:gap-8">
-        {/* Hamburger menu button - mobile only */}
+    <header className="h-14 bg-bg border-b border-border flex items-center justify-between px-4 md:px-6">
+      <div className="flex items-center gap-3 md:gap-6">
         {isConnected && onMenuToggle && (
           <button
             onClick={onMenuToggle}
-            className="md:hidden flex flex-col gap-1 p-1"
+            className="md:hidden p-1.5 rounded-md text-secondary hover:text-primary hover:bg-bg-secondary transition-colors"
             aria-label="Open sidebar menu"
           >
-            <span className="block w-5 h-0.5 bg-white dark:bg-black" />
-            <span className="block w-5 h-0.5 bg-white dark:bg-black" />
-            <span className="block w-5 h-0.5 bg-white dark:bg-black" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </button>
         )}
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-2">
           <Image
             src="/logo.svg"
             alt="DBView"
-            width={32}
-            height={32}
+            width={28}
+            height={28}
             priority
-            className="md:w-10 md:h-10"
           />
-          <h1 className="text-lg md:text-2xl font-bold uppercase text-white dark:text-black">DBVIEW</h1>
+          <span className="text-base font-semibold text-primary">DBView</span>
         </div>
         {isConnected && (
-          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-4">
-            <button
-              onClick={() => router.push('/')}
-              aria-current={pathname === '/' ? 'page' : undefined}
-              className={`text-sm font-bold uppercase font-mono border-2 px-4 py-2 ${
-                pathname === '/'
-                  ? 'bg-accent text-black border-accent'
-                  : 'bg-black dark:bg-white text-white dark:text-black border-white dark:border-black hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white'
-              }`}
-            >
-              TABLES
-            </button>
-            <button
-              onClick={() => router.push('/query')}
-              aria-current={pathname === '/query' ? 'page' : undefined}
-              className={`text-sm font-bold uppercase font-mono border-2 px-4 py-2 ${
-                pathname === '/query'
-                  ? 'bg-accent text-black border-accent'
-                  : 'bg-black dark:bg-white text-white dark:text-black border-white dark:border-black hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white'
-              }`}
-            >
-              QUERY
-            </button>
-            <button
-              onClick={() => router.push('/connections')}
-              aria-current={pathname === '/connections' ? 'page' : undefined}
-              className={`text-sm font-bold uppercase font-mono border-2 px-4 py-2 ${
-                pathname === '/connections'
-                  ? 'bg-accent text-black border-accent'
-                  : 'bg-black dark:bg-white text-white dark:text-black border-white dark:border-black hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white'
-              }`}
-            >
-              CONNECTIONS
-            </button>
+          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => (
+              <button
+                key={item.path}
+                onClick={() => router.push(item.path)}
+                aria-current={pathname === item.path ? 'page' : undefined}
+                className={`text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
+                  pathname === item.path
+                    ? 'bg-accent/10 text-accent'
+                    : 'text-secondary hover:text-primary hover:bg-bg-secondary'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
           </nav>
         )}
       </div>
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center gap-2 md:gap-3">
         {isConnected && <span className="hidden md:block"><ConnectionSelector /></span>}
         <span className="hidden sm:block">
           <ConnectionStatus
@@ -100,9 +87,20 @@ export const Header: React.FC<HeaderProps> = ({
             databaseName={databaseName}
           />
         </span>
+        {isConnected && onShortcutsHelp && (
+          <button
+            onClick={onShortcutsHelp}
+            className="hidden md:flex items-center justify-center w-8 h-8 rounded-md text-secondary hover:text-primary hover:bg-bg-secondary transition-colors"
+            title="Keyboard shortcuts"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        )}
         {isConnected && (
           <Button variant="ghost" size="sm" onClick={handleDisconnect}>
-            DISCONNECT
+            Disconnect
           </Button>
         )}
       </div>

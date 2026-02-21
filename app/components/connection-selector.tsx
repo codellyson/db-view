@@ -31,10 +31,10 @@ export const ConnectionSelector: React.FC = () => {
     try {
       await connectToSaved(connectionId);
       setIsOpen(false);
-      addToast('CONNECTION SWITCHED', 'success');
+      addToast('Connection switched', 'success');
     } catch (err) {
       console.error('Failed to switch connection:', err);
-      addToast('FAILED TO SWITCH CONNECTION', 'error');
+      addToast('Failed to switch connection', 'error');
     }
   };
 
@@ -46,7 +46,7 @@ export const ConnectionSelector: React.FC = () => {
   const confirmDelete = () => {
     if (deleteTarget) {
       deleteConnection(deleteTarget);
-      addToast('CONNECTION DELETED', 'info');
+      addToast('Connection deleted', 'info');
       setDeleteTarget(null);
     }
   };
@@ -62,13 +62,13 @@ export const ConnectionSelector: React.FC = () => {
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-sm font-bold uppercase font-mono border-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black border-white dark:border-black hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white"
+        className="text-sm font-medium rounded-md border border-border px-3 py-1.5 bg-bg text-primary hover:bg-bg-secondary transition-colors"
         disabled={isConnecting}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        {currentConnection ? currentConnection.name.toUpperCase() : 'CONNECTIONS'}
-        <span className="ml-2" aria-hidden="true">{isOpen ? '▲' : '▼'}</span>
+        {currentConnection ? currentConnection.name : 'Connections'}
+        <span className="ml-2 text-muted" aria-hidden="true">{isOpen ? '\u25b2' : '\u25bc'}</span>
       </button>
 
       {isOpen && (
@@ -78,9 +78,9 @@ export const ConnectionSelector: React.FC = () => {
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute top-full right-0 mt-2 z-20 bg-white dark:bg-black border-2 border-black dark:border-white min-w-[200px]" role="listbox" aria-label="Saved connections">
-            <div className="p-2 border-b-2 border-black dark:border-white">
-              <p className="text-xs font-bold uppercase text-black dark:text-white">SAVED CONNECTIONS</p>
+          <div className="absolute top-full right-0 mt-2 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[220px] overflow-hidden" role="listbox" aria-label="Saved connections">
+            <div className="px-3 py-2 border-b border-border bg-bg-secondary">
+              <p className="text-xs font-medium text-muted">Saved connections</p>
             </div>
             <div className="max-h-64 overflow-y-auto">
               {savedConnections.map((connection) => (
@@ -88,28 +88,28 @@ export const ConnectionSelector: React.FC = () => {
                   key={connection.id}
                   role="option"
                   aria-selected={connection.id === currentConnectionId}
-                  className={`p-3 border-b-2 border-black dark:border-white cursor-pointer ${
+                  className={`px-3 py-2.5 border-b border-border last:border-b-0 cursor-pointer transition-colors ${
                     connection.id === currentConnectionId
-                      ? 'bg-accent text-black'
-                      : 'bg-white dark:bg-black text-black dark:text-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black'
+                      ? 'bg-accent/10 text-accent'
+                      : 'text-primary hover:bg-bg-secondary'
                   }`}
                   onClick={() => handleSwitch(connection.id)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold uppercase truncate">
+                      <p className="text-sm font-medium truncate">
                         {connection.name}
                       </p>
-                      <p className="text-xs font-mono truncate">
+                      <p className="text-xs font-mono text-muted truncate">
                         {connection.config.host}:{connection.config.port}/{connection.config.database}
                       </p>
                     </div>
                     <button
                       onClick={(e) => handleDelete(e, connection.id)}
-                      className="ml-2 px-2 py-1 text-xs font-bold uppercase border-2 border-black dark:border-white bg-white dark:bg-black text-black dark:text-white hover:bg-red-500 hover:text-white hover:border-red-500"
+                      className="ml-2 px-1.5 py-0.5 text-xs rounded text-muted hover:text-danger hover:bg-danger/10 transition-colors"
                       aria-label={`Delete connection ${connection.name}`}
                     >
-                      ×
+                      &times;
                     </button>
                   </div>
                 </div>
@@ -122,9 +122,9 @@ export const ConnectionSelector: React.FC = () => {
         isOpen={deleteTarget !== null}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
-        title="DELETE CONNECTION"
-        message="ARE YOU SURE YOU WANT TO DELETE THIS CONNECTION?"
-        confirmText="DELETE"
+        title="Delete connection"
+        message="Are you sure you want to delete this connection?"
+        confirmText="Delete"
         variant="danger"
       />
     </div>

@@ -49,22 +49,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="w-full bg-white dark:bg-black h-screen overflow-y-auto" aria-label="Database sidebar">
-      <div className="p-8">
+    <aside className="w-full bg-bg h-screen overflow-y-auto border-r border-border" aria-label="Database sidebar">
+      <div className="p-4">
         {schemas && schemas.length > 1 && onSchemaChange && (
-          <div className="mb-6">
-            <label className="block text-xs font-bold uppercase text-black dark:text-white mb-2 font-mono">
-              SCHEMA
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-secondary mb-1.5">
+              Schema
             </label>
             <select
               value={selectedSchema}
               onChange={(e) => onSchemaChange(e.target.value)}
-              className="w-full px-3 py-2 text-sm font-bold uppercase font-mono border-2 border-black dark:border-white bg-white dark:bg-black text-black dark:text-white focus:outline-none focus:shadow-[0_0_0_2px_black] dark:focus:shadow-[0_0_0_2px_white] appearance-none cursor-pointer"
+              className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent appearance-none cursor-pointer"
               aria-label="Select database schema"
             >
               {schemas.map((schema) => (
                 <option key={schema} value={schema}>
-                  {schema.toUpperCase()}
+                  {schema}
                 </option>
               ))}
             </select>
@@ -74,9 +74,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {isLoading ? (
           <SidebarSkeleton />
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <SidebarSection
-              title={`[T] TABLES (${tables.length})`}
+              title="Tables"
+              count={tables.length}
+              icon="T"
               isExpanded={expandedSections.tables}
               onToggle={() => toggleSection('tables')}
             >
@@ -89,7 +91,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {views.length > 0 && (
               <SidebarSection
-                title={`[V] VIEWS (${views.length})`}
+                title="Views"
+                count={views.length}
+                icon="V"
                 isExpanded={expandedSections.views}
                 onToggle={() => toggleSection('views')}
               >
@@ -103,7 +107,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {materializedViews.length > 0 && (
               <SidebarSection
-                title={`[MV] MAT. VIEWS (${materializedViews.length})`}
+                title="Mat. Views"
+                count={materializedViews.length}
+                icon="MV"
                 isExpanded={expandedSections.matviews}
                 onToggle={() => toggleSection('matviews')}
               >
@@ -117,18 +123,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {functions.length > 0 && (
               <SidebarSection
-                title={`[F] FUNCTIONS (${functions.length})`}
+                title="Functions"
+                count={functions.length}
+                icon="F"
                 isExpanded={expandedSections.functions}
                 onToggle={() => toggleSection('functions')}
               >
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {functions.map((fn, i) => (
                     <div
                       key={i}
-                      className="px-4 py-2 text-sm font-mono text-black dark:text-white border-b border-black/10 dark:border-white/10 last:border-b-0"
+                      className="px-3 py-1.5 text-sm rounded-md hover:bg-bg-secondary"
                     >
-                      <div className="font-bold truncate">{fn.name}</div>
-                      <div className="text-xs text-black/60 dark:text-white/60 truncate">
+                      <div className="font-medium text-primary truncate">{fn.name}</div>
+                      <div className="text-xs text-muted font-mono truncate">
                         ({fn.arguments}) &rarr; {fn.return_type}
                       </div>
                     </div>
@@ -145,18 +153,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
 const SidebarSection: React.FC<{
   title: string;
+  count: number;
+  icon: string;
   isExpanded: boolean;
   onToggle: () => void;
   children: React.ReactNode;
-}> = ({ title, isExpanded, onToggle, children }) => (
+}> = ({ title, count, icon, isExpanded, onToggle, children }) => (
   <div>
     <button
       onClick={onToggle}
-      className="w-full flex items-center justify-between py-2 text-sm font-bold uppercase text-black dark:text-white font-mono hover:bg-black/5 dark:hover:bg-white/5 px-2"
+      className="w-full flex items-center justify-between py-1.5 px-2 text-xs font-medium text-secondary hover:text-primary rounded-md hover:bg-bg-secondary transition-colors"
       aria-expanded={isExpanded}
     >
-      <span>{title}</span>
-      <span>{isExpanded ? '\u2212' : '+'}</span>
+      <span className="flex items-center gap-1.5">
+        <span className="text-muted font-mono text-[10px] w-5">{icon}</span>
+        <span>{title}</span>
+        <span className="text-muted">({count})</span>
+      </span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className={`h-3.5 w-3.5 text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
     </button>
     {isExpanded && <div className="mt-1">{children}</div>}
   </div>

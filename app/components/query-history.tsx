@@ -17,11 +17,11 @@ function formatTimestamp(ts: number): string {
   const now = new Date();
   const diff = now.getTime() - ts;
 
-  if (diff < 60000) return "JUST NOW";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}M AGO`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}H AGO`;
-  if (date.toDateString() === now.toDateString()) return "TODAY";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+  if (diff < 60000) return "Just now";
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  if (date.toDateString() === now.toDateString()) return "Today";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export const QueryHistory: React.FC<QueryHistoryProps> = ({
@@ -33,49 +33,49 @@ export const QueryHistory: React.FC<QueryHistoryProps> = ({
 }) => {
   if (entries.length === 0) {
     return (
-      <div className="border-2 border-black dark:border-white p-6">
-        <p className="text-sm font-bold uppercase font-mono text-black dark:text-white text-center">
-          NO QUERY HISTORY
+      <div className="border border-border rounded-lg p-6">
+        <p className="text-sm text-muted text-center">
+          No query history
         </p>
       </div>
     );
   }
 
   return (
-    <div className="border-2 border-black dark:border-white">
-      <div className="flex items-center justify-between p-3 bg-black dark:bg-white border-b-2 border-black dark:border-white">
-        <span className="text-xs font-bold uppercase text-white dark:text-black">
-          HISTORY ({entries.length})
+    <div className="border border-border rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 bg-bg-secondary border-b border-border">
+        <span className="text-xs font-medium text-secondary">
+          History ({entries.length})
         </span>
         <button
           onClick={onClear}
-          className="text-xs font-bold uppercase text-white dark:text-black hover:text-red-500 dark:hover:text-red-500"
+          className="text-xs font-medium text-secondary hover:text-danger transition-colors"
         >
-          CLEAR ALL
+          Clear all
         </button>
       </div>
       <div className="max-h-80 overflow-y-auto">
         {entries.map((entry) => (
           <div
             key={entry.id}
-            className="p-3 border-b-2 border-black dark:border-white last:border-b-0 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer group"
+            className="px-3 py-2.5 border-b border-border last:border-b-0 hover:bg-bg-secondary cursor-pointer group transition-colors"
             onClick={() => onSelect(entry.query)}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-mono text-black dark:text-white truncate">
+                <p className="text-xs font-mono text-primary truncate">
                   {entry.query.length > 80
                     ? entry.query.substring(0, 80) + "..."
                     : entry.query}
                 </p>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-xs font-bold text-black/50 dark:text-white/50">
-                    {entry.executionTime}MS
+                  <span className="text-xs text-muted">
+                    {entry.executionTime}ms
                   </span>
-                  <span className="text-xs font-bold text-black/50 dark:text-white/50">
-                    {entry.rowCount} {entry.rowCount === 1 ? "ROW" : "ROWS"}
+                  <span className="text-xs text-muted">
+                    {entry.rowCount} {entry.rowCount === 1 ? "row" : "rows"}
                   </span>
-                  <span className="text-xs font-bold text-black/50 dark:text-white/50">
+                  <span className="text-xs text-muted">
                     {formatTimestamp(entry.timestamp)}
                   </span>
                 </div>
@@ -88,8 +88,8 @@ export const QueryHistory: React.FC<QueryHistoryProps> = ({
                   }}
                   className={`px-1 text-sm ${
                     entry.isFavorite
-                      ? "text-yellow-300"
-                      : "text-black/30 dark:text-white/30 hover:text-yellow-300"
+                      ? "text-warning"
+                      : "text-muted hover:text-warning"
                   }`}
                   aria-label={entry.isFavorite ? "Unfavorite query" : "Favorite query"}
                 >
@@ -100,16 +100,16 @@ export const QueryHistory: React.FC<QueryHistoryProps> = ({
                     e.stopPropagation();
                     onDelete(entry.id);
                   }}
-                  className="px-1 text-sm text-black/30 dark:text-white/30 hover:text-red-500"
+                  className="px-1 text-sm text-muted hover:text-danger transition-colors"
                   aria-label="Delete query from history"
                 >
-                  X
+                  &times;
                 </button>
               </div>
             </div>
             {entry.isFavorite && (
-              <span className="inline-block mt-1 text-xs font-bold text-yellow-300">
-                FAVORITE
+              <span className="inline-block mt-1 text-xs text-warning">
+                Favorite
               </span>
             )}
           </div>

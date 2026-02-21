@@ -13,7 +13,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 }) => {
   return (
     <div
-      className={`bg-black/10 dark:bg-white/10 animate-pulse rounded-none ${className}`}
+      className={`bg-border/50 animate-pulse rounded-md ${className}`}
       style={{ width, height }}
     />
   );

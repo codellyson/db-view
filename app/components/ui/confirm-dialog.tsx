@@ -18,17 +18,17 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   isOpen,
   onConfirm,
   onCancel,
-  title = "CONFIRM",
+  title = "Confirm",
   message,
-  confirmText = "DELETE",
+  confirmText = "Delete",
   variant = "danger",
 }) => {
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title={title}>
-      <p className="text-sm font-mono uppercase mb-8">{message}</p>
-      <div className="flex items-center justify-end gap-4">
+      <p className="text-sm text-secondary mb-6">{message}</p>
+      <div className="flex items-center justify-end gap-3">
         <Button variant="secondary" size="sm" onClick={onCancel}>
-          CANCEL
+          Cancel
         </Button>
         <Button variant={variant} size="sm" onClick={onConfirm}>
           {confirmText}

@@ -249,10 +249,10 @@ export async function getTableSchema(tableName: string, schema: string = "public
     const result = await client.query(
       `
       SELECT
-        column_name,
-        data_type,
-        is_nullable,
-        column_default,
+        c.column_name,
+        c.data_type,
+        c.is_nullable,
+        c.column_default,
         CASE
           WHEN pk.column_name IS NOT NULL THEN true
           ELSE false
@@ -409,6 +409,48 @@ export async function getFunctions(schema: string = "public"): Promise<any[]> {
       [schema]
     );
     return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getTableStats(
+  tableName: string,
+  schema: string = "public"
+): Promise<any> {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+    throw new Error("Invalid table name");
+  }
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
+    throw new Error("Invalid schema name");
+  }
+
+  const activePool = await ensurePool();
+  const client = await activePool.connect();
+  try {
+    const result = await client.query(
+      `
+      SELECT
+        pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size,
+        pg_size_pretty(pg_relation_size(c.oid)) AS table_size,
+        pg_size_pretty(pg_indexes_size(c.oid)) AS index_size,
+        c.reltuples::bigint AS estimated_rows,
+        s.seq_scan,
+        s.idx_scan,
+        s.n_live_tup AS live_rows,
+        s.n_dead_tup AS dead_rows,
+        s.last_vacuum,
+        s.last_autovacuum,
+        s.last_analyze,
+        s.last_autoanalyze
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
+      WHERE c.relname = $1 AND n.nspname = $2
+      `,
+      [tableName, schema]
+    );
+    return result.rows[0] || null;
   } finally {
     client.release();
   }

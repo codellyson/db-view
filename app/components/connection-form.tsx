@@ -4,6 +4,9 @@ import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { DBConfig } from '@/types';
+import { parseConnectionURL, isConnectionURL } from '@/lib/connection-url';
+
+type InputMode = 'url' | 'fields';
 
 interface ConnectionFormProps {
   onConnect: (config: DBConfig, name?: string) => void;
@@ -14,6 +17,8 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   onConnect,
   isConnecting,
 }) => {
+  const [mode, setMode] = useState<InputMode>('url');
+  const [connectionUrl, setConnectionUrl] = useState('');
   const [host, setHost] = useState('');
   const [port, setPort] = useState('5432');
   const [database, setDatabase] = useState('');
@@ -24,23 +29,58 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   const [saveConnection, setSaveConnection] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const parseUrl = (url: string) => {
+    setConnectionUrl(url);
+    if (!url.trim()) return;
+
+    try {
+      if (isConnectionURL(url)) {
+        const parsed = parseConnectionURL(url);
+        setHost(parsed.host);
+        setPort(String(parsed.port));
+        setDatabase(parsed.database);
+        setUsername(parsed.username);
+        setPassword(parsed.password);
+        if (parsed.ssl !== undefined) {
+          setUseSSL(parsed.ssl !== false);
+        }
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.connectionUrl;
+          return next;
+        });
+      }
+    } catch (err: any) {
+      setErrors((prev) => ({ ...prev, connectionUrl: err.message }));
+    }
+  };
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!host.trim()) {
-      newErrors.host = 'Host is required';
+    if (mode === 'url') {
+      if (!connectionUrl.trim()) {
+        newErrors.connectionUrl = 'Connection URL is required';
+      } else if (!isConnectionURL(connectionUrl)) {
+        newErrors.connectionUrl = 'Invalid URL format. Use postgresql://user:pass@host:port/db';
+      } else {
+        try {
+          parseConnectionURL(connectionUrl);
+        } catch (err: any) {
+          newErrors.connectionUrl = err.message;
+        }
+      }
+    } else {
+      if (!host.trim()) newErrors.host = 'Host is required';
+      if (!port.trim()) {
+        newErrors.port = 'Port is required';
+      } else if (isNaN(Number(port)) || Number(port) < 1 || Number(port) > 65535) {
+        newErrors.port = 'Port must be between 1 and 65535';
+      }
+      if (!database.trim()) newErrors.database = 'Database name is required';
+      if (!username.trim()) newErrors.username = 'Username is required';
     }
-    if (!port.trim()) {
-      newErrors.port = 'Port is required';
-    } else if (isNaN(Number(port)) || Number(port) < 1 || Number(port) > 65535) {
-      newErrors.port = 'Port must be a valid number between 1 and 65535';
-    }
-    if (!database.trim()) {
-      newErrors.database = 'Database name is required';
-    }
-    if (!username.trim()) {
-      newErrors.username = 'Username is required';
-    }
+
     if (saveConnection && !connectionName.trim()) {
       newErrors.connectionName = 'Connection name is required when saving';
     }
@@ -51,76 +91,142 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) {
-      const name = saveConnection && connectionName.trim()
-        ? connectionName.trim()
-        : undefined;
-      onConnect({
+    if (!validate()) return;
+
+    let config: DBConfig;
+
+    if (mode === 'url') {
+      const parsed = parseConnectionURL(connectionUrl);
+      config = {
+        host: parsed.host,
+        port: parsed.port,
+        database: parsed.database,
+        username: parsed.username,
+        password: parsed.password,
+        ssl: parsed.ssl ?? (useSSL ? { rejectUnauthorized: false } : false),
+      };
+    } else {
+      config = {
         host: host.trim(),
         port: Number(port),
         database: database.trim(),
         username: username.trim(),
         password: password,
         ssl: useSSL ? { rejectUnauthorized: false } : false,
-      }, name);
+      };
     }
+
+    const name = saveConnection && connectionName.trim()
+      ? connectionName.trim()
+      : undefined;
+    onConnect(config, name);
   };
 
   return (
-    <div className="border-2 border-black dark:border-white bg-white dark:bg-black">
-      <div className="border-b-2 border-black dark:border-white px-4 py-3 bg-black dark:bg-white">
-        <h3 className="text-sm font-bold uppercase text-white dark:text-black">NEW CONNECTION</h3>
+    <div className="border border-border rounded-lg bg-bg shadow-sm">
+      <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-primary">New connection</h3>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => setMode('url')}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              mode === 'url'
+                ? 'bg-accent/10 text-accent'
+                : 'text-secondary hover:text-primary hover:bg-bg-secondary'
+            }`}
+          >
+            URL
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('fields')}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              mode === 'fields'
+                ? 'bg-accent/10 text-accent'
+                : 'text-secondary hover:text-primary hover:bg-bg-secondary'
+            }`}
+          >
+            Fields
+          </button>
+        </div>
       </div>
       <form onSubmit={handleSubmit} className="p-4 space-y-3">
-        <div className="grid grid-cols-[1fr_120px] gap-3">
-          <Input
-            label="HOST"
-            type="text"
-            value={host}
-            onChange={setHost}
-            placeholder="localhost"
-            error={errors.host}
-            disabled={isConnecting}
-          />
-          <Input
-            label="PORT"
-            type="number"
-            value={port}
-            onChange={setPort}
-            placeholder="5432"
-            error={errors.port}
-            disabled={isConnecting}
-          />
-        </div>
-        <Input
-          label="DATABASE"
-          type="text"
-          value={database}
-          onChange={setDatabase}
-          placeholder="mydb"
-          error={errors.database}
-          disabled={isConnecting}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="USERNAME"
-            type="text"
-            value={username}
-            onChange={setUsername}
-            placeholder="postgres"
-            error={errors.username}
-            disabled={isConnecting}
-          />
-          <Input
-            label="PASSWORD"
-            type="password"
-            value={password}
-            onChange={setPassword}
-            placeholder="••••••••"
-            error={errors.password}
-            disabled={isConnecting}
-          />
-        </div>
+        {mode === 'url' ? (
+          <div>
+            <label className="block text-xs font-medium text-secondary mb-1">
+              Connection URL
+            </label>
+            <input
+              type="text"
+              value={connectionUrl}
+              onChange={(e) => parseUrl(e.target.value)}
+              placeholder="postgresql://user:password@localhost:5432/mydb"
+              disabled={isConnecting}
+              className="w-full px-3 py-2 text-sm border border-border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent bg-bg text-primary placeholder:text-muted"
+            />
+            {errors.connectionUrl && (
+              <p className="mt-1 text-xs text-danger">{errors.connectionUrl}</p>
+            )}
+            {connectionUrl && !errors.connectionUrl && isConnectionURL(connectionUrl) && (
+              <p className="mt-1 text-xs font-mono text-muted">
+                {host}:{port}/{database} as {username}
+              </p>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-[1fr_120px] gap-3">
+              <Input
+                label="Host"
+                type="text"
+                value={host}
+                onChange={setHost}
+                placeholder="localhost"
+                error={errors.host}
+                disabled={isConnecting}
+              />
+              <Input
+                label="Port"
+                type="number"
+                value={port}
+                onChange={setPort}
+                placeholder="5432"
+                error={errors.port}
+                disabled={isConnecting}
+              />
+            </div>
+            <Input
+              label="Database"
+              type="text"
+              value={database}
+              onChange={setDatabase}
+              placeholder="mydb"
+              error={errors.database}
+              disabled={isConnecting}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Username"
+                type="text"
+                value={username}
+                onChange={setUsername}
+                placeholder="postgres"
+                error={errors.username}
+                disabled={isConnecting}
+              />
+              <Input
+                label="Password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                placeholder="••••••••"
+                error={errors.password}
+                disabled={isConnecting}
+              />
+            </div>
+          </>
+        )}
         <div className="flex items-center gap-4 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -128,9 +234,9 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
               checked={useSSL}
               onChange={(e) => setUseSSL(e.target.checked)}
               disabled={isConnecting}
-              className="h-4 w-4 border-2 border-black dark:border-white rounded-none accent-black dark:accent-white"
+              className="h-4 w-4 border border-border rounded-md accent-accent"
             />
-            <span className="text-xs font-bold uppercase text-black dark:text-white">SSL</span>
+            <span className="text-xs font-medium text-primary">SSL</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -138,18 +244,18 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
               checked={saveConnection}
               onChange={(e) => setSaveConnection(e.target.checked)}
               disabled={isConnecting}
-              className="h-4 w-4 border-2 border-black dark:border-white rounded-none accent-black dark:accent-white"
+              className="h-4 w-4 border border-border rounded-md accent-accent"
             />
-            <span className="text-xs font-bold uppercase text-black dark:text-white">SAVE CONNECTION</span>
+            <span className="text-xs font-medium text-primary">Save connection</span>
           </label>
         </div>
         {saveConnection && (
           <Input
-            label="CONNECTION NAME"
+            label="Connection name"
             type="text"
             value={connectionName}
             onChange={setConnectionName}
-            placeholder="MY DATABASE"
+            placeholder="My database"
             error={errors.connectionName}
             disabled={isConnecting}
           />
@@ -161,7 +267,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
           isLoading={isConnecting}
           disabled={isConnecting}
         >
-          CONNECT
+          Connect
         </Button>
       </form>
     </div>

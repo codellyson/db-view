@@ -17,71 +17,71 @@ export const TableSchema: React.FC<TableSchemaProps> = ({
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
-    <div className="mb-8 border-2 border-black dark:border-white">
+    <div className="mb-8 border border-border rounded-lg overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 flex items-center justify-between bg-black dark:bg-white hover:bg-white dark:hover:bg-black border-b-2 border-black dark:border-white group"
+        className="w-full px-4 py-3 flex items-center justify-between bg-bg-secondary hover:bg-bg-secondary/80 transition-colors"
         aria-expanded={isExpanded}
         aria-controls="schema-table"
         aria-label={isExpanded ? "Collapse table schema" : "Expand table schema"}
       >
-        <h3 className="text-base font-bold uppercase text-white dark:text-black group-hover:text-black dark:group-hover:text-white">
-          TABLE SCHEMA
+        <h3 className="text-sm font-medium text-primary">
+          Table schema
         </h3>
-        <span className="text-white dark:text-black group-hover:text-black dark:group-hover:text-white font-bold" aria-hidden="true">
-          {isExpanded ? "▼" : "▶"}
+        <span className="text-muted text-xs" aria-hidden="true">
+          {isExpanded ? "\u25BC" : "\u25B6"}
         </span>
       </button>
       {isExpanded && (
         <div id="schema-table" className="p-0 overflow-x-auto">
           <table className="min-w-full border-collapse">
-            <thead className="bg-black dark:bg-white">
+            <thead className="bg-bg-secondary">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase text-white dark:text-black border-2 border-black dark:border-white font-mono max-w-xs">
-                  COLUMN
+                <th className="px-4 py-2 text-left text-xs font-medium text-secondary border-b border-border max-w-xs">
+                  Column
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase text-white dark:text-black border-2 border-black dark:border-white font-mono max-w-xs">
-                  TYPE
+                <th className="px-4 py-2 text-left text-xs font-medium text-secondary border-b border-border max-w-xs">
+                  Type
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase text-white dark:text-black border-2 border-black dark:border-white font-mono">
-                  NULL
+                <th className="px-4 py-2 text-left text-xs font-medium text-secondary border-b border-border">
+                  Nullable
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase text-white dark:text-black border-2 border-black dark:border-white font-mono max-w-xs">
-                  DEFAULT
+                <th className="px-4 py-2 text-left text-xs font-medium text-secondary border-b border-border max-w-xs">
+                  Default
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-black">
+            <tbody className="bg-bg">
               {columns.map((column, index) => (
-                <tr key={index} className="border-2 border-black dark:border-white">
+                <tr key={index} className="border-b border-border last:border-b-0 hover:bg-bg-secondary/30">
                   <td
-                    className="px-4 py-3 text-sm text-black dark:text-white border-2 border-black dark:border-white font-mono max-w-xs"
+                    className="px-4 py-2 text-sm text-primary font-mono max-w-xs"
                     title={column.name}
                   >
                     <div className="truncate flex items-center gap-2">
                       <span className="truncate">{column.name}</span>
                       {column.isPrimaryKey && (
-                        <span className="text-xs font-bold uppercase bg-accent text-black px-2 py-1 border-2 border-black dark:border-white flex-shrink-0">
+                        <span className="text-[10px] font-medium bg-accent/10 text-accent px-1.5 py-0.5 rounded flex-shrink-0">
                           PK
                         </span>
                       )}
                     </div>
                   </td>
                   <td
-                    className="px-4 py-3 text-sm text-black dark:text-white border-2 border-black dark:border-white font-mono max-w-xs"
+                    className="px-4 py-2 text-sm text-primary font-mono max-w-xs"
                     title={column.type}
                   >
                     <div className="truncate">{column.type}</div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-black dark:text-white border-2 border-black dark:border-white font-mono font-bold uppercase">
-                    {column.nullable ? "YES" : "NO"}
+                  <td className="px-4 py-2 text-sm text-secondary">
+                    {column.nullable ? "Yes" : "No"}
                   </td>
                   <td
-                    className="px-4 py-3 text-sm text-black dark:text-white border-2 border-black dark:border-white font-mono max-w-xs"
-                    title={column.default || "—"}
+                    className="px-4 py-2 text-sm text-primary font-mono max-w-xs"
+                    title={column.default || "\u2014"}
                   >
                     <div className="truncate">
-                      {column.default || <span className="font-bold">—</span>}
+                      {column.default || <span className="text-muted">\u2014</span>}
                     </div>
                   </td>
                 </tr>

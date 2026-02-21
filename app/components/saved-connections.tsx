@@ -25,7 +25,7 @@ export const SavedConnections: React.FC = () => {
   const handleConnect = async (connectionId: string) => {
     try {
       await connectToSaved(connectionId);
-      addToast('CONNECTED SUCCESSFULLY', 'success');
+      addToast('Connected successfully', 'success');
     } catch (err) {
       console.error('Failed to connect:', err);
     }
@@ -38,29 +38,29 @@ export const SavedConnections: React.FC = () => {
   const confirmDelete = () => {
     if (deleteTarget) {
       deleteConnection(deleteTarget);
-      addToast('CONNECTION DELETED', 'info');
+      addToast('Connection deleted', 'info');
       setDeleteTarget(null);
     }
   };
 
   return (
-    <Card title="SAVED CONNECTIONS" className="mb-8">
+    <Card title="Saved connections" className="mb-8">
       <div className="space-y-2">
         {savedConnections.map((connection) => (
           <div
             key={connection.id}
-            className={`p-4 border-2 ${
+            className={`p-4 border rounded-md transition-colors ${
               connection.id === currentConnectionId
-                ? 'bg-accent text-black border-accent'
-                : 'bg-white dark:bg-black text-black dark:text-white border-black dark:border-white'
+                ? 'bg-accent/10 border-accent text-primary'
+                : 'bg-bg border-border text-primary hover:bg-bg-secondary'
             }`}
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="text-base font-bold uppercase truncate mb-1">
+                <p className="text-sm font-medium truncate mb-0.5">
                   {connection.name}
                 </p>
-                <p className="text-sm font-mono truncate">
+                <p className="text-xs font-mono text-muted truncate">
                   {connection.config.host}:{connection.config.port}/{connection.config.database}
                 </p>
               </div>
@@ -72,15 +72,15 @@ export const SavedConnections: React.FC = () => {
                     onClick={() => handleConnect(connection.id)}
                     disabled={isConnecting}
                   >
-                    CONNECT
+                    Connect
                   </Button>
                 )}
                 <button
                   onClick={() => handleDelete(connection.id)}
-                  className="px-3 py-2 text-sm font-bold uppercase border-2 border-black dark:border-white bg-white dark:bg-black text-black dark:text-white hover:bg-red-500 hover:text-white hover:border-red-500"
+                  className="px-3 py-1.5 text-xs font-medium rounded-md border border-border text-secondary hover:bg-danger/10 hover:text-danger hover:border-danger transition-colors"
                   disabled={isConnecting}
                 >
-                  DELETE
+                  Delete
                 </button>
               </div>
             </div>
@@ -91,12 +91,11 @@ export const SavedConnections: React.FC = () => {
         isOpen={deleteTarget !== null}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
-        title="DELETE CONNECTION"
-        message="ARE YOU SURE YOU WANT TO DELETE THIS CONNECTION? THIS ACTION CANNOT BE UNDONE."
-        confirmText="DELETE"
+        title="Delete connection"
+        message="Are you sure you want to delete this connection? This action cannot be undone."
+        confirmText="Delete"
         variant="danger"
       />
     </Card>
   );
 };
-

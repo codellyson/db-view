@@ -5,50 +5,47 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 type Mode = "light" | "dark";
 
 export type Palette =
-  | "gray"
-  | "sepia"
-  | "ocean"
-  | "forest"
+  | "indigo"
+  | "blue"
+  | "emerald"
   | "rose"
-  | "midnight";
+  | "amber"
+  | "violet";
 
 export interface PaletteColors {
-  surface: string;
-  ink: string;
   accent: string;
+  accentHover: string;
   accentText: string;
 }
 
-// RGB triplets for CSS variables (supports Tailwind opacity modifiers)
-const PALETTE_RGB: Record<Palette, { surface: string; ink: string; accent: string }> = {
-  gray:     { surface: "244 244 245", ink: "24 24 27",   accent: "96 165 250"  },
-  sepia:    { surface: "250 246 241", ink: "44 29 14",   accent: "217 119 6"   },
-  ocean:    { surface: "236 246 254", ink: "12 25 41",   accent: "56 189 248"  },
-  forest:   { surface: "240 249 240", ink: "20 46 20",   accent: "74 222 128"  },
-  rose:     { surface: "253 242 244", ink: "45 16 22",   accent: "251 113 133" },
-  midnight: { surface: "232 232 237", ink: "18 18 26",   accent: "167 139 250" },
+const PALETTE_RGB: Record<Palette, { accent: string; accentHover: string }> = {
+  indigo:  { accent: "99 102 241",  accentHover: "79 70 229"   },
+  blue:    { accent: "59 130 246",  accentHover: "37 99 235"   },
+  emerald: { accent: "16 185 129",  accentHover: "5 150 105"   },
+  rose:    { accent: "244 63 94",   accentHover: "225 29 72"   },
+  amber:   { accent: "245 158 11",  accentHover: "217 119 6"   },
+  violet:  { accent: "139 92 246",  accentHover: "124 58 237"  },
 };
 
-// Hex values for CodeMirror and other JS-based color needs
 const PALETTE_HEX: Record<Palette, PaletteColors> = {
-  gray:     { surface: "#f4f4f5", ink: "#18181b", accent: "#60a5fa", accentText: "#18181b" },
-  sepia:    { surface: "#faf6f1", ink: "#2c1d0e", accent: "#d97706", accentText: "#2c1d0e" },
-  ocean:    { surface: "#ecf6fe", ink: "#0c1929", accent: "#38bdf8", accentText: "#0c1929" },
-  forest:   { surface: "#f0f9f0", ink: "#142e14", accent: "#4ade80", accentText: "#142e14" },
-  rose:     { surface: "#fdf2f4", ink: "#2d1016", accent: "#fb7185", accentText: "#2d1016" },
-  midnight: { surface: "#e8e8ed", ink: "#12121a", accent: "#a78bfa", accentText: "#12121a" },
+  indigo:  { accent: "#6366f1", accentHover: "#4f46e5", accentText: "#ffffff" },
+  blue:    { accent: "#3b82f6", accentHover: "#2563eb", accentText: "#ffffff" },
+  emerald: { accent: "#10b981", accentHover: "#059669", accentText: "#ffffff" },
+  rose:    { accent: "#f43f5e", accentHover: "#e11d48", accentText: "#ffffff" },
+  amber:   { accent: "#f59e0b", accentHover: "#d97706", accentText: "#000000" },
+  violet:  { accent: "#8b5cf6", accentHover: "#7c3aed", accentText: "#ffffff" },
 };
 
 export const PALETTE_LABELS: Record<Palette, string> = {
-  gray: "GRAY",
-  sepia: "SEPIA",
-  ocean: "OCEAN",
-  forest: "FOREST",
-  rose: "ROSE",
-  midnight: "MIDNIGHT",
+  indigo: "Indigo",
+  blue: "Blue",
+  emerald: "Emerald",
+  rose: "Rose",
+  amber: "Amber",
+  violet: "Violet",
 };
 
-export const ALL_PALETTES: Palette[] = ["gray", "sepia", "ocean", "forest", "rose", "midnight"];
+export const ALL_PALETTES: Palette[] = ["indigo", "blue", "emerald", "rose", "amber", "violet"];
 
 interface ThemeContextType {
   mode: Mode;
@@ -65,7 +62,7 @@ const PALETTE_KEY = "dbview-palette";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<Mode>("light");
-  const [palette, setPaletteState] = useState<Palette>("gray");
+  const [palette, setPaletteState] = useState<Palette>("indigo");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -101,9 +98,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
     const rgb = PALETTE_RGB[palette];
 
-    root.style.setProperty("--surface", rgb.surface);
-    root.style.setProperty("--ink", rgb.ink);
     root.style.setProperty("--accent", rgb.accent);
+    root.style.setProperty("--accent-hover", rgb.accentHover);
     root.dataset.palette = palette;
 
     localStorage.setItem(PALETTE_KEY, palette);

@@ -16,19 +16,19 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   ...props
 }) => {
-  const baseStyles = 'border-2 border-black dark:border-white rounded-none font-mono uppercase font-bold focus:outline-none focus:shadow-[0_0_0_2px_black] dark:focus:shadow-[0_0_0_2px_white] disabled:opacity-25 disabled:cursor-not-allowed';
+  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantStyles = {
-    primary: 'bg-white text-black dark:bg-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black active:translate-x-0.5 active:translate-y-0.5',
-    secondary: 'bg-white text-black dark:bg-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black active:translate-x-0.5 active:translate-y-0.5',
-    danger: 'bg-white text-black dark:bg-black dark:text-white border-red-500 hover:bg-red-500 hover:text-white active:translate-x-0.5 active:translate-y-0.5',
-    ghost: 'bg-white text-black dark:bg-black dark:text-white border-black dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black active:translate-x-0.5 active:translate-y-0.5',
+    primary: 'bg-accent text-white hover:bg-accent-hover',
+    secondary: 'border border-border bg-bg text-primary hover:bg-bg-secondary',
+    danger: 'bg-danger text-white hover:bg-danger/90',
+    ghost: 'text-secondary hover:bg-bg-secondary hover:text-primary',
   };
 
   const sizeStyles = {
-    sm: 'px-4 py-2 text-sm',
-    md: 'px-8 py-4 text-base',
-    lg: 'px-12 py-6 text-lg',
+    sm: 'px-3 py-1.5 text-sm',
+    md: 'px-4 py-2 text-sm',
+    lg: 'px-6 py-3 text-base',
   };
 
   return (
@@ -39,7 +39,11 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {isLoading ? (
         <span className="flex items-center gap-2">
-          <span className="animate-pulse">LOADING...</span>
+          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span>Loading...</span>
         </span>
       ) : (
         children

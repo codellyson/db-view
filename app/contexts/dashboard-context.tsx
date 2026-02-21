@@ -1,9 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useConnection } from './connection-context';
 import { useToast } from './toast-context';
 import { ColumnInfo } from '@/types';
+import { buildDisplaySQL, type MutationRequest } from '@/lib/mutation';
+import { type TableStatsData } from '../components/table-stats';
 
 interface DashboardContextType {
   tables: string[];
@@ -30,6 +32,10 @@ interface DashboardContextType {
   tableSearch: string;
   error: string | null;
   itemsPerPage: number;
+  readOnlyMode: boolean;
+  primaryKeys: string[];
+  tableStats: TableStatsData | null;
+  isLoadingStats: boolean;
   setSelectedSchema: (schema: string) => void;
   setSelectedTable: (table: string | undefined) => void;
   setCurrentPage: (page: number) => void;
@@ -44,6 +50,8 @@ interface DashboardContextType {
   handleSchemaChange: (schema: string) => void;
   handleTableSelect: (table: string) => void;
   handleSort: (column: string) => void;
+  mutateRow: (request: MutationRequest) => Promise<void>;
+  refreshTableData: () => Promise<void>;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -76,6 +84,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [materializedViews, setMaterializedViews] = useState<string[]>([]);
   const [dbFunctions, setDbFunctions] = useState<any[]>([]);
   const [countIsEstimate, setCountIsEstimate] = useState(false);
+  const [readOnlyMode, setReadOnlyMode] = useState(false);
+  const [tableStats, setTableStats] = useState<TableStatsData | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+
+  const primaryKeys = useMemo(() => {
+    return schema.filter((col) => col.isPrimaryKey).map((col) => col.name);
+  }, [schema]);
 
   // Track whether initial data has been loaded for the current connection
   const hasLoadedRef = useRef(false);
@@ -177,7 +192,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       );
       if (!response.ok) throw new Error('Failed to load schema');
       const data = await response.json();
-      setSchema(data.schema || []);
+      const mapped: ColumnInfo[] = (data.schema || []).map((row: any) => ({
+        name: row.column_name ?? row.name,
+        type: row.data_type ?? row.type,
+        nullable: row.is_nullable === 'YES' || row.nullable === true,
+        default: row.column_default ?? row.default ?? null,
+        isPrimaryKey: row.is_primary_key ?? row.isPrimaryKey ?? false,
+      }));
+      setSchema(mapped);
     } catch (err: any) {
       console.error('Failed to load schema:', err);
     } finally {
@@ -199,6 +221,48 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to load relationships:', err);
     }
   }, [selectedSchema]);
+
+  const loadTableStats = useCallback(async (tableName: string) => {
+    setIsLoadingStats(true);
+    try {
+      const response = await fetch(
+        `/api/table-stats/${encodeURIComponent(tableName)}?schema=${encodeURIComponent(selectedSchema)}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setTableStats(data.stats || null);
+      }
+    } catch (err) {
+      console.error('Failed to load table stats:', err);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [selectedSchema]);
+
+  const refreshTableData = useCallback(async () => {
+    if (selectedTable) {
+      await loadTableData(selectedTable, currentPage);
+    }
+  }, [selectedTable, currentPage, loadTableData]);
+
+  const mutateRow = useCallback(async (request: MutationRequest) => {
+    const response = await fetch('/api/mutate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 403) {
+        setReadOnlyMode(true);
+      }
+      throw new Error(data.error || 'Mutation failed');
+    }
+
+    addToast(`${request.type} SUCCESSFUL`, 'success');
+    await refreshTableData();
+  }, [addToast, refreshTableData]);
 
   const handleSchemaChange = useCallback((newSchema: string) => {
     setSelectedSchema(newSchema);
@@ -264,8 +328,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       loadTableData(selectedTable, currentPage);
       loadTableSchema(selectedTable);
       loadRelationships(selectedTable);
+      loadTableStats(selectedTable);
+    } else {
+      setTableStats(null);
     }
-  }, [selectedTable, currentPage, sortColumn, sortDirection, loadTableData, loadTableSchema, loadRelationships]);
+  }, [selectedTable, currentPage, sortColumn, sortDirection, loadTableData, loadTableSchema, loadRelationships, loadTableStats]);
 
   return (
     <DashboardContext.Provider
@@ -294,6 +361,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         tableSearch,
         error,
         itemsPerPage,
+        readOnlyMode,
+        primaryKeys,
+        tableStats,
+        isLoadingStats,
         setSelectedSchema,
         setSelectedTable,
         setCurrentPage,
@@ -308,6 +379,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         handleSchemaChange,
         handleTableSelect,
         handleSort,
+        mutateRow,
+        refreshTableData,
       }}
     >
       {children}

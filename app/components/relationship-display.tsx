@@ -37,32 +37,32 @@ export const RelationshipDisplay: React.FC<RelationshipDisplayProps> = ({
   return (
     <div className="space-y-4 mb-8">
       {relationships.length > 0 && (
-        <div className="border-2 border-black dark:border-white">
+        <div className="border border-border rounded-lg overflow-hidden">
           <button
             onClick={() => setShowRelationships(!showRelationships)}
-            className="w-full flex items-center justify-between p-4 bg-black dark:bg-white text-white dark:text-black font-bold uppercase font-mono text-sm"
+            className="w-full flex items-center justify-between px-4 py-3 bg-bg-secondary hover:bg-bg-secondary/80 transition-colors text-sm"
             aria-expanded={showRelationships}
           >
-            <span>FOREIGN KEYS ({relationships.length})</span>
-            <span>{showRelationships ? '−' : '+'}</span>
+            <span className="font-medium text-primary">Foreign keys ({relationships.length})</span>
+            <span className="text-muted text-xs">{showRelationships ? '\u2212' : '+'}</span>
           </button>
           {showRelationships && (
             <div className="p-4 space-y-2">
               {relationships.map((fk, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm font-mono text-black dark:text-white">
-                  <span className="font-bold">{fk.source_column}</span>
-                  <span className="text-black/40 dark:text-white/40">&rarr;</span>
+                <div key={i} className="flex items-center gap-2 text-sm text-primary">
+                  <span className="font-mono font-medium">{fk.source_column}</span>
+                  <span className="text-muted">&rarr;</span>
                   {onNavigateToTable ? (
                     <button
                       onClick={() => onNavigateToTable(fk.target_table)}
-                      className="font-bold underline underline-offset-4 hover:text-accent"
+                      className="font-mono font-medium text-accent hover:text-accent/80 underline underline-offset-4"
                     >
                       {fk.target_table}.{fk.target_column}
                     </button>
                   ) : (
-                    <span className="font-bold">{fk.target_table}.{fk.target_column}</span>
+                    <span className="font-mono font-medium">{fk.target_table}.{fk.target_column}</span>
                   )}
-                  <span className="text-xs text-black/40 dark:text-white/40 ml-2">
+                  <span className="text-xs text-muted ml-2">
                     ({fk.constraint_name})
                   </span>
                 </div>
@@ -73,35 +73,35 @@ export const RelationshipDisplay: React.FC<RelationshipDisplayProps> = ({
       )}
 
       {indexes.length > 0 && (
-        <div className="border-2 border-black dark:border-white">
+        <div className="border border-border rounded-lg overflow-hidden">
           <button
             onClick={() => setShowIndexes(!showIndexes)}
-            className="w-full flex items-center justify-between p-4 bg-black dark:bg-white text-white dark:text-black font-bold uppercase font-mono text-sm"
+            className="w-full flex items-center justify-between px-4 py-3 bg-bg-secondary hover:bg-bg-secondary/80 transition-colors text-sm"
             aria-expanded={showIndexes}
           >
-            <span>INDEXES ({indexes.length})</span>
-            <span>{showIndexes ? '−' : '+'}</span>
+            <span className="font-medium text-primary">Indexes ({indexes.length})</span>
+            <span className="text-muted text-xs">{showIndexes ? '\u2212' : '+'}</span>
           </button>
           {showIndexes && (
             <div className="p-4 space-y-2">
               {indexes.map((idx, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm font-mono text-black dark:text-white flex-wrap">
-                  <span className="font-bold">{idx.index_name}</span>
-                  <span className="text-xs px-2 py-0.5 border border-black dark:border-white uppercase">
+                <div key={i} className="flex items-center gap-2 text-sm text-primary flex-wrap">
+                  <span className="font-mono font-medium">{idx.index_name}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-secondary text-secondary border border-border">
                     {idx.index_type}
                   </span>
                   {idx.is_primary && (
-                    <span className="text-xs px-2 py-0.5 bg-black text-white dark:bg-white dark:text-black uppercase font-bold">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-medium">
                       PK
                     </span>
                   )}
                   {idx.is_unique && !idx.is_primary && (
-                    <span className="text-xs px-2 py-0.5 bg-black text-white dark:bg-white dark:text-black uppercase font-bold">
-                      UNIQUE
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-medium">
+                      Unique
                     </span>
                   )}
-                  <span className="text-black/60 dark:text-white/60">
-                    ({idx.columns.join(', ')})
+                  <span className="text-muted font-mono text-xs">
+                    ({Array.isArray(idx.columns) ? idx.columns.join(', ') : String(idx.columns)})
                   </span>
                 </div>
               ))}

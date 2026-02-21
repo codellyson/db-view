@@ -15,7 +15,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
+    <div className="min-h-screen bg-bg">
       <div className="container mx-auto px-8 py-16">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
@@ -28,15 +28,15 @@ export default function Home() {
                 priority
               />
             </div>
-            <h1 className="text-6xl font-bold uppercase tracking-tight text-black dark:text-white mb-6">
-              DBVIEW
+            <h1 className="text-5xl font-bold tracking-tight text-primary mb-4">
+              DBView
             </h1>
-            <p className="text-xl font-mono text-black dark:text-white mb-4">
-              BRUTALIST POSTGRESQL DATABASE EXPLORER
+            <p className="text-lg text-secondary mb-3">
+              PostgreSQL database explorer
             </p>
-            <p className="text-base font-mono text-black dark:text-white max-w-2xl mx-auto">
-              RAW. FUNCTIONAL. NO BULLSHIT. EXPLORE YOUR DATABASE WITH A
-              MINIMALIST INTERFACE THAT GETS OUT OF YOUR WAY.
+            <p className="text-sm text-muted max-w-2xl mx-auto">
+              A clean, functional interface for browsing tables, running queries,
+              and exploring your database.
             </p>
           </div>
           <div className="flex items-center justify-center my-8">
@@ -44,49 +44,49 @@ export default function Home() {
               variant="primary"
               onClick={() => router.push("/connections")}
             >
-              GET STARTED
+              Get started
             </Button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-            <div className="border-2 border-black dark:border-white p-8">
-              <h2 className="text-2xl font-bold uppercase text-black dark:text-white mb-4">
-                BROWSE TABLES
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+            <div className="border border-border rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-primary mb-2">
+                Browse tables
               </h2>
-              <p className="text-base font-mono text-black dark:text-white">
-                VIEW ALL TABLES IN YOUR DATABASE. NAVIGATE WITH SHARP BORDERS
-                AND HIGH CONTRAST.
+              <p className="text-sm text-secondary">
+                View all tables in your database with schema details, relationships,
+                and statistics.
               </p>
             </div>
 
-            <div className="border-2 border-black dark:border-white p-8">
-              <h2 className="text-2xl font-bold uppercase text-black dark:text-white mb-4">
-                EXECUTE QUERIES
+            <div className="border border-border rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-primary mb-2">
+                Execute queries
               </h2>
-              <p className="text-base font-mono text-black dark:text-white">
-                RUN SQL QUERIES DIRECTLY. MONOSPACE FONT. INSTANT RESULTS. NO
-                DISTRACTIONS.
+              <p className="text-sm text-secondary">
+                Run SQL queries with syntax highlighting, auto-completion,
+                and explain plans.
               </p>
             </div>
-            <div className="border-2 border-black dark:border-white p-8">
-              <h2 className="text-2xl font-bold uppercase text-black dark:text-white mb-4">
-                VIEW SCHEMA
+            <div className="border border-border rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-primary mb-2">
+                View schema
               </h2>
-              <p className="text-base font-mono text-black dark:text-white">
-                INSPECT TABLE STRUCTURES. COLUMN TYPES. CONSTRAINTS. ALL IN ONE
-                PLACE.
+              <p className="text-sm text-secondary">
+                Inspect table structures, column types, constraints, and
+                foreign key relationships.
               </p>
             </div>
           </div>
 
-          <div className="mt-16 pt-8 border-t-2 border-black dark:border-white text-center">
-            <p className="text-sm font-mono text-black dark:text-white mb-2">CREATED BY</p>
+          <div className="mt-16 pt-8 border-t border-border text-center">
+            <p className="text-xs text-muted mb-1">Created by</p>
             <a
               href="https://kreativekorna.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-base font-bold uppercase text-black dark:text-white hover:underline inline-block"
+              className="text-sm font-medium text-primary hover:text-accent transition-colors inline-block"
             >
-              KREATIVEKORNA CONCEPTS
+              KreativeKorna Concepts
             </a>
           </div>
         </div>

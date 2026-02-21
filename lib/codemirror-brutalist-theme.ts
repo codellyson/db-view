@@ -4,14 +4,14 @@ import { tags } from '@lezer/highlight';
 import type { PaletteColors } from '@/app/contexts/theme-context';
 
 export function createBrutalistTheme(colors: PaletteColors, isDark: boolean) {
-  const bg = isDark ? colors.ink : colors.surface;
-  const fg = isDark ? colors.surface : colors.ink;
-  const fgAlpha20 = `${fg}20`;
-  const fgAlpha08 = `${fg}08`;
-  const fgAlpha60 = `${fg}60`;
-  const gutterBg = isDark ? colors.surface : colors.ink;
-  const gutterFg = isDark ? colors.ink : colors.surface;
-  const activeGutter = isDark ? '#d4d4d8' : '#3f3f46';
+  const bg = isDark ? '#0f1117' : '#f9fafb';
+  const fg = isDark ? '#f9fafb' : '#111827';
+  const fgMuted = isDark ? '#6b7280' : '#9ca3af';
+  const selectionBg = isDark ? 'rgba(249,250,251,0.08)' : 'rgba(17,24,39,0.08)';
+  const activeLineBg = isDark ? 'rgba(249,250,251,0.04)' : 'rgba(17,24,39,0.04)';
+  const gutterBg = isDark ? '#1f2937' : '#f3f4f6';
+  const gutterFg = isDark ? '#9ca3af' : '#6b7280';
+  const borderColor = isDark ? '#374151' : '#e5e7eb';
 
   return EditorView.theme(
     {
@@ -22,7 +22,7 @@ export function createBrutalistTheme(colors: PaletteColors, isDark: boolean) {
         fontSize: '14px',
       },
       '.cm-content': {
-        caretColor: fg,
+        caretColor: colors.accent,
         color: fg,
         padding: '12px 0',
       },
@@ -30,30 +30,31 @@ export function createBrutalistTheme(colors: PaletteColors, isDark: boolean) {
         color: fg,
       },
       '.cm-cursor, .cm-dropCursor': {
-        borderLeftColor: fg,
+        borderLeftColor: colors.accent,
         borderLeftWidth: '2px',
       },
       '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-        backgroundColor: fgAlpha20,
+        backgroundColor: selectionBg,
       },
       '.cm-gutters': {
         backgroundColor: gutterBg,
         color: gutterFg,
         border: 'none',
-        fontWeight: 'bold',
+        borderRight: `1px solid ${borderColor}`,
       },
       '.cm-activeLineGutter': {
-        backgroundColor: activeGutter,
+        backgroundColor: isDark ? '#374151' : '#e5e7eb',
       },
       '.cm-activeLine': {
-        backgroundColor: fgAlpha08,
+        backgroundColor: activeLineBg,
       },
       '.cm-matchingBracket': {
-        backgroundColor: fgAlpha20,
-        outline: `2px solid ${fg}`,
+        backgroundColor: selectionBg,
+        outline: `1px solid ${fgMuted}`,
+        borderRadius: '2px',
       },
       '.cm-placeholder': {
-        color: fgAlpha60,
+        color: fgMuted,
       },
     },
     { dark: isDark }
@@ -61,20 +62,20 @@ export function createBrutalistTheme(colors: PaletteColors, isDark: boolean) {
 }
 
 export function createBrutalistHighlight(colors: PaletteColors, isDark: boolean) {
-  const fg = isDark ? colors.surface : colors.ink;
-  const fgAlpha60 = `${fg}60`;
+  const fg = isDark ? '#f9fafb' : '#111827';
+  const fgMuted = isDark ? '#6b7280' : '#9ca3af';
   const greenStr = isDark ? '#4ade80' : '#16a34a';
   const blueNum = isDark ? '#60a5fa' : '#2563eb';
   const redNull = isDark ? '#f87171' : '#dc2626';
 
   return syntaxHighlighting(
     HighlightStyle.define([
-      { tag: tags.keyword, color: fg, fontWeight: 'bold', textTransform: 'uppercase' as any },
+      { tag: tags.keyword, color: colors.accent, fontWeight: 'bold' },
       { tag: tags.string, color: greenStr },
       { tag: tags.number, color: blueNum },
-      { tag: tags.comment, color: fgAlpha60, fontStyle: 'italic' },
+      { tag: tags.comment, color: fgMuted, fontStyle: 'italic' },
       { tag: tags.operator, color: fg, fontWeight: 'bold' },
-      { tag: tags.typeName, color: fg, fontWeight: 'bold' },
+      { tag: tags.typeName, color: colors.accent },
       { tag: tags.propertyName, color: fg },
       { tag: tags.function(tags.variableName), color: fg, fontWeight: 'bold' },
       { tag: tags.null, color: redNull, fontWeight: 'bold' },
