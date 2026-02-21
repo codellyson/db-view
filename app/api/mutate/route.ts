@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensurePool, getPool } from "@/lib/db";
+import { ensurePool, getPool, getProvider, getDatabaseType } from "@/lib/db";
 import {
   buildUpdateQuery,
   buildInsertQuery,
@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const activePool = getPool();
-    if (!activePool) {
+    const provider = getProvider();
+    if (!provider) {
       return NextResponse.json(
         { error: "Not connected to a database" },
         { status: 401 }
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const dialect = getDatabaseType();
     let sql: string;
     let params: any[];
 
@@ -58,7 +59,8 @@ export async function POST(request: NextRequest) {
           body.schema,
           body.table,
           body.values,
-          body.where
+          body.where,
+          dialect
         ));
         break;
       case "INSERT":
@@ -71,7 +73,8 @@ export async function POST(request: NextRequest) {
         ({ sql, params } = buildInsertQuery(
           body.schema,
           body.table,
-          body.values
+          body.values,
+          dialect
         ));
         break;
       case "DELETE":
@@ -84,7 +87,8 @@ export async function POST(request: NextRequest) {
         ({ sql, params } = buildDeleteQuery(
           body.schema,
           body.table,
-          body.where
+          body.where,
+          dialect
         ));
         break;
       default:
@@ -94,17 +98,12 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    const client = await activePool.connect();
-    try {
-      const result = await client.query(sql, params);
-      return NextResponse.json({
-        success: true,
-        affectedRows: result.rowCount,
-        rows: result.rows,
-      });
-    } finally {
-      client.release();
-    }
+    const result = await provider.query(sql, params);
+    return NextResponse.json({
+      success: true,
+      affectedRows: result.rowCount,
+      rows: result.rows,
+    });
   } catch (error: any) {
     const message = sanitizeError(error);
     return NextResponse.json({ error: message }, { status: 500 });

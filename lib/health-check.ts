@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { DatabaseProvider } from "./db-provider";
 
 interface HealthStatus {
   healthy: boolean;
@@ -21,22 +21,21 @@ let healthStatus: HealthStatus = {
 let healthInterval: NodeJS.Timeout | null = null;
 const MAX_FAILURES = 3;
 
-export function startHealthCheck(pool: Pool): void {
+export function startHealthCheck(provider: DatabaseProvider): void {
   stopHealthCheck();
 
   const check = async () => {
     const start = Date.now();
     try {
-      const client = await pool.connect();
-      await client.query("SELECT 1");
-      client.release();
+      await provider.healthPing();
       const latency = Date.now() - start;
+      const info = provider.getHealthInfo();
 
       healthStatus = {
         healthy: true,
         latency,
-        activeConnections: pool.totalCount - pool.idleCount,
-        idleConnections: pool.idleCount,
+        activeConnections: info.totalCount - info.idleCount,
+        idleConnections: info.idleCount,
         failureCount: 0,
         lastCheck: Date.now(),
       };
@@ -50,8 +49,9 @@ export function startHealthCheck(pool: Pool): void {
       }
 
       try {
-        healthStatus.activeConnections = pool.totalCount - pool.idleCount;
-        healthStatus.idleConnections = pool.idleCount;
+        const info = provider.getHealthInfo();
+        healthStatus.activeConnections = info.totalCount - info.idleCount;
+        healthStatus.idleConnections = info.idleCount;
       } catch {
         // pool may be ended
       }

@@ -43,7 +43,7 @@ export default function ConnectionsPage() {
                   DBView
                 </h1>
                 <p className="text-sm text-secondary mb-1">
-                  PostgreSQL database explorer
+                  Database explorer
                 </p>
                 <p className="text-xs text-muted max-w-md mx-auto">
                   A clean, functional interface for browsing tables, running queries,

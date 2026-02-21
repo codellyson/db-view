@@ -32,7 +32,7 @@ export default function Home() {
               DBView
             </h1>
             <p className="text-lg text-secondary mb-3">
-              PostgreSQL database explorer
+              Database explorer
             </p>
             <p className="text-sm text-muted max-w-2xl mx-auto">
               A clean, functional interface for browsing tables, running queries,

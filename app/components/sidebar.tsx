@@ -23,6 +23,7 @@ interface SidebarProps {
   views?: string[];
   materializedViews?: string[];
   functions?: FunctionInfo[];
+  onCreateTable?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -36,6 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   views = [],
   materializedViews = [],
   functions = [],
+  onCreateTable,
 }) => {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     tables: true,
@@ -81,6 +83,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               icon="T"
               isExpanded={expandedSections.tables}
               onToggle={() => toggleSection('tables')}
+              onAction={onCreateTable}
+              actionLabel="Create table"
             >
               <TableList
                 tables={tables}
@@ -158,29 +162,45 @@ const SidebarSection: React.FC<{
   isExpanded: boolean;
   onToggle: () => void;
   children: React.ReactNode;
-}> = ({ title, count, icon, isExpanded, onToggle, children }) => (
+  onAction?: () => void;
+  actionLabel?: string;
+}> = ({ title, count, icon, isExpanded, onToggle, children, onAction, actionLabel }) => (
   <div>
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between py-1.5 px-2 text-xs font-medium text-secondary hover:text-primary rounded-md hover:bg-bg-secondary transition-colors"
-      aria-expanded={isExpanded}
-    >
-      <span className="flex items-center gap-1.5">
-        <span className="text-muted font-mono text-[10px] w-5">{icon}</span>
-        <span>{title}</span>
-        <span className="text-muted">({count})</span>
-      </span>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className={`h-3.5 w-3.5 text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
+    <div className="flex items-center">
+      <button
+        onClick={onToggle}
+        className="flex-1 flex items-center justify-between py-1.5 px-2 text-xs font-medium text-secondary hover:text-primary rounded-md hover:bg-bg-secondary transition-colors"
+        aria-expanded={isExpanded}
       >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-      </svg>
-    </button>
+        <span className="flex items-center gap-1.5">
+          <span className="text-muted font-mono text-[10px] w-5">{icon}</span>
+          <span>{title}</span>
+          <span className="text-muted">({count})</span>
+        </span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className={`h-3.5 w-3.5 text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+      {onAction && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onAction(); }}
+          className="p-1 text-muted hover:text-accent rounded transition-colors"
+          title={actionLabel || "Add"}
+          aria-label={actionLabel || "Add"}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      )}
+    </div>
     {isExpanded && <div className="mt-1">{children}</div>}
   </div>
 );

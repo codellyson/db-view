@@ -8,12 +8,19 @@ import { ErrorState } from './error-state';
 import { SqlEditor } from './sql-editor';
 import { ExplainPlan } from './explain-plan';
 import { useQueryHistory } from '../hooks/use-query-history';
+import { useSavedQueries } from '../hooks/use-saved-queries';
 import { QueryHistory } from './query-history';
+import { SavedQueriesPanel } from './saved-queries-panel';
+import { SaveQueryDialog } from './save-query-dialog';
 import { formatSQL } from '@/lib/sql-formatter';
+import { useConnection } from '../contexts/connection-context';
+import { useDashboard } from '../contexts/dashboard-context';
 
 interface QueryEditorProps {}
 
 export const QueryEditor: React.FC<QueryEditorProps> = () => {
+  const { databaseType } = useConnection();
+  const { schemaMap } = useDashboard();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
@@ -21,9 +28,12 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const [error, setError] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSavedQueries, setShowSavedQueries] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [explainPlan, setExplainPlan] = useState<any[] | null>(null);
   const [viewMode, setViewMode] = useState<'results' | 'explain'>('results');
   const { history, addQuery, favoriteQuery, deleteQuery, clearHistory } = useQueryHistory();
+  const { savedQueries, saveQuery, deleteQuery: deleteSavedQuery, clearAll: clearSavedQueries } = useSavedQueries();
 
   const handleExecute = async () => {
     if (!query.trim()) return;
@@ -119,6 +129,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
             onChange={setQuery}
             onExecute={!isExecuting && query.trim() ? handleExecute : undefined}
             disabled={isExecuting}
+            schema={schemaMap}
           />
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -140,7 +151,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
               </Button>
               <Button
                 variant="secondary"
-                onClick={() => setQuery(formatSQL(query))}
+                onClick={() => setQuery(formatSQL(query, databaseType))}
                 disabled={isExecuting || !query.trim()}
               >
                 Format
@@ -149,8 +160,21 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
                 Clear
               </Button>
               <Button
+                variant="ghost"
+                onClick={() => setIsSaveDialogOpen(true)}
+                disabled={!query.trim()}
+              >
+                Save
+              </Button>
+              <Button
+                variant={showSavedQueries ? 'primary' : 'ghost'}
+                onClick={() => { setShowSavedQueries(!showSavedQueries); setShowHistory(false); }}
+              >
+                Saved
+              </Button>
+              <Button
                 variant={showHistory ? 'primary' : 'ghost'}
-                onClick={() => setShowHistory(!showHistory)}
+                onClick={() => { setShowHistory(!showHistory); setShowSavedQueries(false); }}
               >
                 History
               </Button>
@@ -179,8 +203,25 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
               onClear={clearHistory}
             />
           )}
+          {showSavedQueries && (
+            <SavedQueriesPanel
+              queries={savedQueries}
+              onSelect={(sql) => {
+                setQuery(sql);
+                setShowSavedQueries(false);
+              }}
+              onDelete={deleteSavedQuery}
+              onClear={clearSavedQueries}
+            />
+          )}
         </div>
       </Card>
+      <SaveQueryDialog
+        isOpen={isSaveDialogOpen}
+        onClose={() => setIsSaveDialogOpen(false)}
+        onSave={(name, tags) => saveQuery(name, query, tags)}
+        query={query}
+      />
 
       {hasResults && (
         <Card>

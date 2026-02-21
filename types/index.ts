@@ -5,6 +5,7 @@ export interface DBConfig {
   username: string;
   password: string;
   ssl?: boolean | { rejectUnauthorized?: boolean };
+  type?: "postgresql" | "mysql";
 }
 
 export interface SavedConnection {
@@ -50,5 +51,29 @@ export interface QueryHistoryEntry {
   rowCount: number;
   timestamp: number;
   isFavorite: boolean;
+}
+
+export interface SavedQuery {
+  id: string;
+  name: string;
+  query: string;
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ColumnDefinition {
+  name: string;
+  type: string;
+  nullable: boolean;
+  defaultValue?: string;
+  isPrimaryKey: boolean;
+  isUnique: boolean;
+}
+
+export interface TableDefinition {
+  name: string;
+  schema: string;
+  columns: ColumnDefinition[];
 }
 

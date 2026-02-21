@@ -6,19 +6,19 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
   title: {
-    default: "DBView - PostgreSQL Database Explorer",
+    default: "DBView - Database Explorer",
     template: "%s | DBView",
   },
-  description: "A brutalist, no-nonsense PostgreSQL database explorer. Browse tables, execute queries, and explore your database with a raw, functional interface.",
+  description: "A clean, functional database explorer for PostgreSQL and MySQL. Browse tables, execute queries, and explore your database.",
   keywords: [
     "PostgreSQL",
+    "MySQL",
     "database explorer",
     "database viewer",
     "SQL query",
     "database management",
-    "PostgreSQL client",
+    "database client",
     "database browser",
-    "brutalist UI",
   ],
   authors: [{ name: "KreativeKorna Concepts", url: "https://kreativekorna.com" }],
   creator: "KreativeKorna Concepts",
@@ -33,8 +33,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    title: "DBView - PostgreSQL Database Explorer",
-    description: "A brutalist, no-nonsense PostgreSQL database explorer. Browse tables, execute queries, and explore your database.",
+    title: "DBView - Database Explorer",
+    description: "A clean, functional database explorer for PostgreSQL and MySQL. Browse tables, execute queries, and explore your database.",
     siteName: "DBView",
     images: [
       {
@@ -47,8 +47,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "DBView - PostgreSQL Database Explorer",
-    description: "A brutalist, no-nonsense PostgreSQL database explorer.",
+    title: "DBView - Database Explorer",
+    description: "A clean, functional database explorer for PostgreSQL and MySQL.",
     images: ["/logo.svg"],
   },
   robots: {

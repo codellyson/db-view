@@ -5,6 +5,7 @@ export interface ParsedConnectionURL {
   username: string;
   password: string;
   ssl?: boolean | { rejectUnauthorized?: boolean };
+  type: "postgresql" | "mysql";
 }
 
 export function parseConnectionURL(url: string): ParsedConnectionURL {
@@ -47,7 +48,10 @@ export function parseConnectionURL(url: string): ParsedConnectionURL {
     ssl = false;
   }
 
-  return { host, port, database, username, password, ssl };
+  const type: "postgresql" | "mysql" =
+    schemeMatch[1].toLowerCase() === "mysql" ? "mysql" : "postgresql";
+
+  return { host, port, database, username, password, ssl, type };
 }
 
 export function isConnectionURL(input: string): boolean {

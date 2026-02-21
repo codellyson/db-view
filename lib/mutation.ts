@@ -1,3 +1,5 @@
+export type Dialect = "postgresql" | "mysql";
+
 export interface MutationRequest {
   type: "INSERT" | "UPDATE" | "DELETE";
   schema: string;
@@ -6,21 +8,33 @@ export interface MutationRequest {
   where?: Record<string, any>;
 }
 
-function validateIdentifier(name: string): void {
+export function validateIdentifier(name: string): void {
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
     throw new Error(`Invalid identifier: ${name}`);
   }
+}
+
+export function escapeIdentifier(name: string, dialect: Dialect): string {
+  if (dialect === "mysql") return `\`${name.replace(/`/g, "``")}\``;
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
+export function placeholder(index: number, dialect: Dialect): string {
+  if (dialect === "mysql") return "?";
+  return `$${index}`;
 }
 
 export function buildUpdateQuery(
   schema: string,
   table: string,
   values: Record<string, any>,
-  primaryKeys: Record<string, any>
+  primaryKeys: Record<string, any>,
+  dialect: Dialect = "postgresql"
 ): { sql: string; params: any[] } {
   validateIdentifier(schema);
   validateIdentifier(table);
 
+  const esc = (name: string) => escapeIdentifier(name, dialect);
   const setClauses: string[] = [];
   const whereClauses: string[] = [];
   const params: any[] = [];
@@ -28,14 +42,14 @@ export function buildUpdateQuery(
 
   for (const [col, val] of Object.entries(values)) {
     validateIdentifier(col);
-    setClauses.push(`"${col}" = $${paramIndex}`);
+    setClauses.push(`${esc(col)} = ${placeholder(paramIndex, dialect)}`);
     params.push(val === "" ? null : val);
     paramIndex++;
   }
 
   for (const [col, val] of Object.entries(primaryKeys)) {
     validateIdentifier(col);
-    whereClauses.push(`"${col}" = $${paramIndex}`);
+    whereClauses.push(`${esc(col)} = ${placeholder(paramIndex, dialect)}`);
     params.push(val);
     paramIndex++;
   }
@@ -47,18 +61,20 @@ export function buildUpdateQuery(
     throw new Error("UPDATE requires at least one primary key condition");
   }
 
-  const sql = `UPDATE "${schema}"."${table}" SET ${setClauses.join(", ")} WHERE ${whereClauses.join(" AND ")}`;
+  const sql = `UPDATE ${esc(schema)}.${esc(table)} SET ${setClauses.join(", ")} WHERE ${whereClauses.join(" AND ")}`;
   return { sql, params };
 }
 
 export function buildInsertQuery(
   schema: string,
   table: string,
-  values: Record<string, any>
+  values: Record<string, any>,
+  dialect: Dialect = "postgresql"
 ): { sql: string; params: any[] } {
   validateIdentifier(schema);
   validateIdentifier(table);
 
+  const esc = (name: string) => escapeIdentifier(name, dialect);
   const columns: string[] = [];
   const placeholders: string[] = [];
   const params: any[] = [];
@@ -67,8 +83,8 @@ export function buildInsertQuery(
   for (const [col, val] of Object.entries(values)) {
     if (val === "" || val === undefined) continue;
     validateIdentifier(col);
-    columns.push(`"${col}"`);
-    placeholders.push(`$${paramIndex}`);
+    columns.push(esc(col));
+    placeholders.push(placeholder(paramIndex, dialect));
     params.push(val === "NULL" ? null : val);
     paramIndex++;
   }
@@ -77,25 +93,30 @@ export function buildInsertQuery(
     throw new Error("INSERT requires at least one value");
   }
 
-  const sql = `INSERT INTO "${schema}"."${table}" (${columns.join(", ")}) VALUES (${placeholders.join(", ")}) RETURNING *`;
+  let sql = `INSERT INTO ${esc(schema)}.${esc(table)} (${columns.join(", ")}) VALUES (${placeholders.join(", ")})`;
+  if (dialect === "postgresql") {
+    sql += " RETURNING *";
+  }
   return { sql, params };
 }
 
 export function buildDeleteQuery(
   schema: string,
   table: string,
-  primaryKeys: Record<string, any>
+  primaryKeys: Record<string, any>,
+  dialect: Dialect = "postgresql"
 ): { sql: string; params: any[] } {
   validateIdentifier(schema);
   validateIdentifier(table);
 
+  const esc = (name: string) => escapeIdentifier(name, dialect);
   const whereClauses: string[] = [];
   const params: any[] = [];
   let paramIndex = 1;
 
   for (const [col, val] of Object.entries(primaryKeys)) {
     validateIdentifier(col);
-    whereClauses.push(`"${col}" = $${paramIndex}`);
+    whereClauses.push(`${esc(col)} = ${placeholder(paramIndex, dialect)}`);
     params.push(val);
     paramIndex++;
   }
@@ -104,11 +125,14 @@ export function buildDeleteQuery(
     throw new Error("DELETE requires at least one primary key condition");
   }
 
-  const sql = `DELETE FROM "${schema}"."${table}" WHERE ${whereClauses.join(" AND ")}`;
+  const sql = `DELETE FROM ${esc(schema)}.${esc(table)} WHERE ${whereClauses.join(" AND ")}`;
   return { sql, params };
 }
 
-export function buildDisplaySQL(request: MutationRequest): string {
+export function buildDisplaySQL(
+  request: MutationRequest,
+  dialect: Dialect = "postgresql"
+): string {
   try {
     let result: { sql: string; params: any[] };
     switch (request.type) {
@@ -117,35 +141,51 @@ export function buildDisplaySQL(request: MutationRequest): string {
           request.schema,
           request.table,
           request.values!,
-          request.where!
+          request.where!,
+          dialect
         );
         break;
       case "INSERT":
         result = buildInsertQuery(
           request.schema,
           request.table,
-          request.values!
+          request.values!,
+          dialect
         );
         break;
       case "DELETE":
         result = buildDeleteQuery(
           request.schema,
           request.table,
-          request.where!
+          request.where!,
+          dialect
         );
         break;
     }
-    // Replace $N placeholders with quoted values for display
+    // Replace placeholders with quoted values for display
     let display = result.sql;
-    result.params.forEach((param, i) => {
-      const val =
-        param === null
-          ? "NULL"
-          : typeof param === "number"
-            ? String(param)
-            : `'${String(param).replace(/'/g, "''")}'`;
-      display = display.replace(`$${i + 1}`, val);
-    });
+    if (dialect === "mysql") {
+      // Replace ? placeholders left-to-right
+      result.params.forEach((param) => {
+        const val =
+          param === null
+            ? "NULL"
+            : typeof param === "number"
+              ? String(param)
+              : `'${String(param).replace(/'/g, "''")}'`;
+        display = display.replace("?", val);
+      });
+    } else {
+      result.params.forEach((param, i) => {
+        const val =
+          param === null
+            ? "NULL"
+            : typeof param === "number"
+              ? String(param)
+              : `'${String(param).replace(/'/g, "''")}'`;
+        display = display.replace(`$${i + 1}`, val);
+      });
+    }
     return display;
   } catch {
     return "-- Unable to generate preview --";

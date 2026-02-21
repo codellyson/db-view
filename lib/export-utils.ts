@@ -23,7 +23,17 @@ export function exportJSON(columns: string[], data: any[], tableName: string): v
   downloadBlob(jsonContent, `${tableName}_${dateStamp()}.json`, 'application/json;charset=utf-8;');
 }
 
-export function exportSQL(columns: string[], data: any[], tableName: string): void {
+export function exportSQL(
+  columns: string[],
+  data: any[],
+  tableName: string,
+  dialect: 'postgresql' | 'mysql' = 'postgresql'
+): void {
+  const quoteId = (name: string) =>
+    dialect === 'mysql'
+      ? `\`${name.replace(/`/g, '``')}\``
+      : `"${name.replace(/"/g, '""')}"`;
+
   const lines = data.map((row) => {
     const values = columns.map((col) => {
       const value = row[col];
@@ -33,15 +43,11 @@ export function exportSQL(columns: string[], data: any[], tableName: string): vo
       const escaped = String(value).replace(/'/g, "''");
       return `'${escaped}'`;
     });
-    return `INSERT INTO ${quoteIdentifier(tableName)} (${columns.map(quoteIdentifier).join(', ')}) VALUES (${values.join(', ')});`;
+    return `INSERT INTO ${quoteId(tableName)} (${columns.map(quoteId).join(', ')}) VALUES (${values.join(', ')});`;
   });
 
   const sqlContent = lines.join('\n');
   downloadBlob(sqlContent, `${tableName}_${dateStamp()}.sql`, 'text/sql;charset=utf-8;');
-}
-
-function quoteIdentifier(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
 }
 
 function dateStamp(): string {

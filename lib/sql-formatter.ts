@@ -1,9 +1,12 @@
 import { format } from 'sql-formatter';
 
-export function formatSQL(query: string): string {
+export function formatSQL(
+  query: string,
+  dialect: 'postgresql' | 'mysql' = 'postgresql'
+): string {
   try {
     return format(query, {
-      language: 'postgresql',
+      language: dialect === 'mysql' ? 'mysql' : 'postgresql',
       keywordCase: 'upper',
       indentStyle: 'standard',
       tabWidth: 2,

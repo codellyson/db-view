@@ -36,6 +36,7 @@ interface DashboardContextType {
   primaryKeys: string[];
   tableStats: TableStatsData | null;
   isLoadingStats: boolean;
+  schemaMap: Record<string, string[]>;
   setSelectedSchema: (schema: string) => void;
   setSelectedTable: (table: string | undefined) => void;
   setCurrentPage: (page: number) => void;
@@ -57,7 +58,7 @@ interface DashboardContextType {
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
-  const { isConnected } = useConnection();
+  const { isConnected, databaseType, databaseName } = useConnection();
   const { addToast } = useToast();
   const itemsPerPage = 100;
 
@@ -87,6 +88,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [readOnlyMode, setReadOnlyMode] = useState(false);
   const [tableStats, setTableStats] = useState<TableStatsData | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [schemaMap, setSchemaMap] = useState<Record<string, string[]>>({});
 
   const primaryKeys = useMemo(() => {
     return schema.filter((col) => col.isPrimaryKey).map((col) => col.name);
@@ -106,6 +108,19 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to load schemas:', err);
     }
   }, []);
+
+  const loadSchemaMap = useCallback(async (schemaName?: string) => {
+    const s = schemaName || selectedSchema;
+    try {
+      const response = await fetch(`/api/schema-map?schema=${encodeURIComponent(s)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSchemaMap(data.schemaMap || {});
+      }
+    } catch (err) {
+      console.error('Failed to load schema map:', err);
+    }
+  }, [selectedSchema]);
 
   const loadViewsAndFunctions = useCallback(async (schemaName?: string) => {
     const s = schemaName || selectedSchema;
@@ -271,7 +286,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setColumns([]);
     loadTables(newSchema);
     loadViewsAndFunctions(newSchema);
-  }, [loadTables, loadViewsAndFunctions]);
+    loadSchemaMap(newSchema);
+  }, [loadTables, loadViewsAndFunctions, loadSchemaMap]);
 
   const handleTableSelect = useCallback((table: string) => {
     setSelectedTable(table);
@@ -301,9 +317,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isConnected && !hasLoadedRef.current) {
       hasLoadedRef.current = true;
+      // MySQL uses database name as schema; PostgreSQL defaults to "public"
+      const defaultSchema = databaseType === 'mysql' && databaseName ? databaseName : 'public';
+      setSelectedSchema(defaultSchema);
       loadSchemas();
-      loadTables();
-      loadViewsAndFunctions();
+      loadTables(defaultSchema);
+      loadViewsAndFunctions(defaultSchema);
+      loadSchemaMap(defaultSchema);
     }
     if (!isConnected) {
       hasLoadedRef.current = false;
@@ -318,9 +338,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setDbFunctions([]);
       setRelationships([]);
       setIndexes([]);
+      setSchemaMap({});
       setError(null);
     }
-  }, [isConnected, loadSchemas, loadTables, loadViewsAndFunctions]);
+  }, [isConnected, databaseType, databaseName, loadSchemas, loadTables, loadViewsAndFunctions, loadSchemaMap]);
 
   // Load table data when selected table or pagination/sort changes
   useEffect(() => {
@@ -365,6 +386,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         primaryKeys,
         tableStats,
         isLoadingStats,
+        schemaMap,
         setSelectedSchema,
         setSelectedTable,
         setCurrentPage,

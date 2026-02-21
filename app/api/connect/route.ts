@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { testConnection, createPool, setPool } from "@/lib/db";
+import { testConnection, createPool } from "@/lib/db";
 import { storeConnection, generateSessionId } from "@/lib/connection-store";
 import { encrypt, validateInput } from "@/lib/security";
 import { DBConfig } from "@/types";
@@ -40,16 +40,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = await testConnection(config);
-    if (!isValid) {
+    const dbType = config.type || "postgresql";
+    try {
+      await testConnection(config, dbType);
+    } catch (connErr: any) {
       return NextResponse.json(
-        { error: "Failed to connect to database" },
+        { error: connErr.message || "Failed to connect to database" },
         { status: 400 }
       );
     }
 
-    const pool = createPool(config);
-    setPool(pool, config);
+    createPool(config, dbType);
 
     const sessionId = generateSessionId();
     storeConnection(sessionId, config);
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       maxAge: 24 * 60 * 60,
     });
 
-    return NextResponse.json({ success: true, database: config.database });
+    return NextResponse.json({ success: true, database: config.database, type: dbType });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Connection failed" },

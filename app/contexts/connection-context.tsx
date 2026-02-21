@@ -7,6 +7,7 @@ interface ConnectionContextType {
   isConnected: boolean;
   isConnecting: boolean;
   databaseName?: string;
+  databaseType: "postgresql" | "mysql";
   currentConnectionId?: string;
   savedConnections: SavedConnection[];
   connect: (config: DBConfig, name?: string) => Promise<void>;
@@ -28,6 +29,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   const [databaseName, setDatabaseName] = useState<string | undefined>();
   const [currentConnectionId, setCurrentConnectionId] = useState<string | undefined>();
   const [savedConnections, setSavedConnections] = useState<SavedConnection[]>([]);
+  const [databaseType, setDatabaseType] = useState<"postgresql" | "mysql">("postgresql");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -90,7 +92,8 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       const data = await response.json();
       setIsConnected(true);
       setDatabaseName(data.database || config.database);
-      
+      setDatabaseType(data.type || config.type || "postgresql");
+
       if (name && typeof window !== 'undefined') {
         const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         const newConnection: SavedConnection = {
@@ -138,6 +141,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       const data = await response.json();
       setIsConnected(true);
       setDatabaseName(data.database || connection.config.database);
+      setDatabaseType(data.type || connection.config.type || "postgresql");
       setCurrentConnectionId(connectionId);
       
       if (typeof window !== 'undefined') {
@@ -164,6 +168,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       await fetch('/api/disconnect', { method: 'POST' });
       setIsConnected(false);
       setDatabaseName(undefined);
+      setDatabaseType("postgresql");
       setCurrentConnectionId(undefined);
       if (typeof window !== 'undefined') {
         localStorage.removeItem(CURRENT_CONNECTION_KEY);
@@ -200,6 +205,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         isConnected,
         isConnecting,
         databaseName,
+        databaseType,
         currentConnectionId,
         savedConnections,
         connect,

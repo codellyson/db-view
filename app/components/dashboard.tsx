@@ -22,6 +22,8 @@ import { MutationConfirmation } from "./mutation-confirmation";
 import { RowEditor } from "./row-editor";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { TableStats } from "./table-stats";
+import { CSVImportDialog } from "./csv-import-dialog";
+import { TableCreationWizard } from "./table-creation-wizard";
 import { Button } from "./ui/button";
 import { useConnection } from "../contexts/connection-context";
 import { useToast } from "../contexts/toast-context";
@@ -31,7 +33,7 @@ import { exportCSV, exportJSON, exportSQL } from "@/lib/export-utils";
 import { buildDisplaySQL, type MutationRequest } from "@/lib/mutation";
 
 export function Dashboard() {
-  const { isConnected, databaseName } = useConnection();
+  const { isConnected, databaseName, databaseType } = useConnection();
   const { addToast } = useToast();
   const {
     tables,
@@ -70,6 +72,7 @@ export function Dashboard() {
     readOnlyMode,
     primaryKeys,
     mutateRow,
+    refreshTableData,
     tableStats,
     isLoadingStats,
   } = useDashboard();
@@ -81,6 +84,8 @@ export function Dashboard() {
   const [isMutating, setIsMutating] = useState(false);
   const [isRowEditorOpen, setIsRowEditorOpen] = useState(false);
   const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
+  const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
+  const [isCreateTableOpen, setIsCreateTableOpen] = useState(false);
 
   const onTableSelect = (table: string) => {
     handleTableSelect(table);
@@ -101,7 +106,7 @@ export function Dashboard() {
 
   const handleExportSQL = () => {
     if (!selectedTable || tableData.length === 0) return;
-    exportSQL(columns, tableData, selectedTable);
+    exportSQL(columns, tableData, selectedTable, databaseType);
     addToast("SQL exported successfully", "success");
   };
 
@@ -227,6 +232,7 @@ export function Dashboard() {
           views={views}
           materializedViews={materializedViews}
           functions={dbFunctions}
+          onCreateTable={() => setIsCreateTableOpen(true)}
         />
       }
       right={
@@ -262,6 +268,16 @@ export function Dashboard() {
                         disabled={isLoading}
                       >
                         + Add row
+                      </Button>
+                    )}
+                    {!readOnlyMode && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setIsCSVImportOpen(true)}
+                        disabled={isLoading || schema.length === 0}
+                      >
+                        Import CSV
                       </Button>
                     )}
                     <ExportDropdown
@@ -348,7 +364,7 @@ export function Dashboard() {
       <MutationConfirmation
         isOpen={!!pendingMutation}
         type={pendingMutation.type}
-        sql={buildDisplaySQL(pendingMutation)}
+        sql={buildDisplaySQL(pendingMutation, databaseType)}
         onConfirm={handleConfirmMutation}
         onCancel={() => setPendingMutation(null)}
         isLoading={isMutating}
@@ -367,6 +383,21 @@ export function Dashboard() {
       isOpen={isShortcutsHelpOpen}
       onClose={() => setIsShortcutsHelpOpen(false)}
       shortcuts={shortcuts}
+    />
+    {selectedTable && (
+      <CSVImportDialog
+        isOpen={isCSVImportOpen}
+        onClose={() => setIsCSVImportOpen(false)}
+        tableName={selectedTable}
+        schema={selectedSchema}
+        columns={schema}
+        onComplete={refreshTableData}
+      />
+    )}
+    <TableCreationWizard
+      isOpen={isCreateTableOpen}
+      onClose={() => setIsCreateTableOpen(false)}
+      onComplete={() => loadTables()}
     />
     </>
   );

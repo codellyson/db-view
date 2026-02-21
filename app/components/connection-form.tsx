@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { DBConfig } from '@/types';
-import { parseConnectionURL, isConnectionURL } from '@/lib/connection-url';
+import { parseConnectionURL, isConnectionURL, detectDatabaseType } from '@/lib/connection-url';
 
 type InputMode = 'url' | 'fields';
+type DbType = 'postgresql' | 'mysql';
 
 interface ConnectionFormProps {
   onConnect: (config: DBConfig, name?: string) => void;
@@ -17,6 +18,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   onConnect,
   isConnecting,
 }) => {
+  const [dbType, setDbType] = useState<DbType>('postgresql');
   const [mode, setMode] = useState<InputMode>('url');
   const [connectionUrl, setConnectionUrl] = useState('');
   const [host, setHost] = useState('');
@@ -28,6 +30,11 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   const [connectionName, setConnectionName] = useState('');
   const [saveConnection, setSaveConnection] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleDbTypeChange = (type: DbType) => {
+    setDbType(type);
+    setPort(type === 'mysql' ? '3306' : '5432');
+  };
 
   const parseUrl = (url: string) => {
     setConnectionUrl(url);
@@ -41,6 +48,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         setDatabase(parsed.database);
         setUsername(parsed.username);
         setPassword(parsed.password);
+        setDbType(parsed.type);
         if (parsed.ssl !== undefined) {
           setUseSSL(parsed.ssl !== false);
         }
@@ -62,7 +70,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       if (!connectionUrl.trim()) {
         newErrors.connectionUrl = 'Connection URL is required';
       } else if (!isConnectionURL(connectionUrl)) {
-        newErrors.connectionUrl = 'Invalid URL format. Use postgresql://user:pass@host:port/db';
+        newErrors.connectionUrl = 'Invalid URL format. Use postgresql:// or mysql://user:pass@host:port/db';
       } else {
         try {
           parseConnectionURL(connectionUrl);
@@ -104,6 +112,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         username: parsed.username,
         password: parsed.password,
         ssl: parsed.ssl ?? (useSSL ? { rejectUnauthorized: false } : false),
+        type: parsed.type,
       };
     } else {
       config = {
@@ -113,6 +122,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         username: username.trim(),
         password: password,
         ssl: useSSL ? { rejectUnauthorized: false } : false,
+        type: dbType,
       };
     }
 
@@ -151,6 +161,30 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
           </button>
         </div>
       </div>
+      <div className="px-4 pt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => handleDbTypeChange('postgresql')}
+          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md border transition-colors ${
+            dbType === 'postgresql'
+              ? 'border-accent bg-accent/10 text-accent'
+              : 'border-border text-secondary hover:text-primary hover:bg-bg-secondary'
+          }`}
+        >
+          PostgreSQL
+        </button>
+        <button
+          type="button"
+          onClick={() => handleDbTypeChange('mysql')}
+          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md border transition-colors ${
+            dbType === 'mysql'
+              ? 'border-accent bg-accent/10 text-accent'
+              : 'border-border text-secondary hover:text-primary hover:bg-bg-secondary'
+          }`}
+        >
+          MySQL
+        </button>
+      </div>
       <form onSubmit={handleSubmit} className="p-4 space-y-3">
         {mode === 'url' ? (
           <div>
@@ -161,7 +195,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
               type="text"
               value={connectionUrl}
               onChange={(e) => parseUrl(e.target.value)}
-              placeholder="postgresql://user:password@localhost:5432/mydb"
+              placeholder={dbType === 'mysql' ? 'mysql://user:password@localhost:3306/mydb' : 'postgresql://user:password@localhost:5432/mydb'}
               disabled={isConnecting}
               className="w-full px-3 py-2 text-sm border border-border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent bg-bg text-primary placeholder:text-muted"
             />
