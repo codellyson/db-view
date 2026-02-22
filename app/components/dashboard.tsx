@@ -24,6 +24,7 @@ import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { TableStats } from "./table-stats";
 import { CSVImportDialog } from "./csv-import-dialog";
 import { TableCreationWizard } from "./table-creation-wizard";
+import { BatchExportModal } from "./batch-export-modal";
 import { Button } from "./ui/button";
 import { useConnection } from "../contexts/connection-context";
 import { useToast } from "../contexts/toast-context";
@@ -31,6 +32,7 @@ import { useDashboard } from "../contexts/dashboard-context";
 import { useKeyboardShortcuts, type Shortcut } from "../hooks/use-keyboard-shortcuts";
 import { exportCSV, exportJSON, exportSQL } from "@/lib/export-utils";
 import { buildDisplaySQL, type MutationRequest } from "@/lib/mutation";
+import { usePlugins } from "../hooks/use-plugins";
 
 export function Dashboard() {
   const { isConnected, databaseName, databaseType } = useConnection();
@@ -77,8 +79,17 @@ export function Dashboard() {
     isLoadingStats,
   } = useDashboard();
 
+  const { allFormatters } = usePlugins();
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const columnTypes = useMemo(() => {
+    const types: Record<string, string> = {};
+    for (const col of schema) {
+      types[col.name] = col.type;
+    }
+    return types;
+  }, [schema]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [pendingMutation, setPendingMutation] = useState<MutationRequest | null>(null);
   const [isMutating, setIsMutating] = useState(false);
@@ -86,6 +97,7 @@ export function Dashboard() {
   const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
   const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
   const [isCreateTableOpen, setIsCreateTableOpen] = useState(false);
+  const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
 
   const onTableSelect = (table: string) => {
     handleTableSelect(table);
@@ -286,6 +298,14 @@ export function Dashboard() {
                       onExportSQL={handleExportSQL}
                       disabled={!selectedTable || tableData.length === 0 || isLoading}
                     />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsBatchExportOpen(true)}
+                      disabled={tables.length === 0}
+                    >
+                      Batch Export
+                    </Button>
                   </div>
                 </div>
                 {!isLoadingSchema && schema.length > 0 && (
@@ -337,6 +357,8 @@ export function Dashboard() {
                   onCellUpdate={handleCellUpdate}
                   onRowDelete={handleRowDelete}
                   readOnlyMode={readOnlyMode}
+                  columnTypes={columnTypes}
+                  activeFormatters={allFormatters}
                 />
                 {totalItems > 0 && (
                   <Pagination
@@ -398,6 +420,13 @@ export function Dashboard() {
       isOpen={isCreateTableOpen}
       onClose={() => setIsCreateTableOpen(false)}
       onComplete={() => loadTables()}
+    />
+    <BatchExportModal
+      isOpen={isBatchExportOpen}
+      onClose={() => setIsBatchExportOpen(false)}
+      tables={tables}
+      schema={selectedSchema}
+      databaseType={databaseType}
     />
     </>
   );

@@ -77,3 +77,12 @@ export interface TableDefinition {
   columns: ColumnDefinition[];
 }
 
+export interface PinnedResult {
+  id: string;
+  query: string;
+  columns: string[];
+  data: any[];
+  executionTime: number;
+  pinnedAt: number;
+}
+

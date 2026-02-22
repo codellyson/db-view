@@ -2,7 +2,10 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { EmptyState } from './empty-state';
 import { TableSkeleton } from './skeletons/table-skeleton';
 import { EditableCell } from './editable-cell';
+import { FormattedCell } from './formatted-cell';
 import { ColumnInfo } from '@/types';
+import type { ColumnFormatter } from '@/lib/plugin-types';
+import { applyFormatter } from '@/lib/formatter-presets';
 
 interface DataTableProps {
   columns: string[];
@@ -18,6 +21,8 @@ interface DataTableProps {
   onCellUpdate?: (rowPks: Record<string, any>, column: string, newValue: any) => void;
   onRowDelete?: (rowPks: Record<string, any>) => void;
   readOnlyMode?: boolean;
+  columnTypes?: Record<string, string>;
+  activeFormatters?: ColumnFormatter[];
 }
 
 export const DataTable: React.FC<DataTableProps> = ({
@@ -34,6 +39,8 @@ export const DataTable: React.FC<DataTableProps> = ({
   onCellUpdate,
   onRowDelete,
   readOnlyMode = false,
+  columnTypes = {},
+  activeFormatters = [],
 }) => {
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
@@ -41,6 +48,29 @@ export const DataTable: React.FC<DataTableProps> = ({
 
   const canEdit = !readOnlyMode && primaryKeys.length > 0 && !!onCellUpdate;
   const canDelete = !readOnlyMode && primaryKeys.length > 0 && !!onRowDelete;
+
+  const findFormatter = useCallback(
+    (column: string): ColumnFormatter | undefined => {
+      if (activeFormatters.length === 0) return undefined;
+      const colType = (columnTypes[column] || '').toLowerCase();
+      return activeFormatters.find((f) => {
+        const val = f.matcher.value.toLowerCase();
+        switch (f.matcher.type) {
+          case 'data-type':
+            return colType.startsWith(val);
+          case 'column-name':
+            return column.toLowerCase() === val;
+          case 'column-name-pattern':
+            try {
+              return new RegExp(f.matcher.value, 'i').test(column);
+            } catch { return false; }
+          default:
+            return false;
+        }
+      });
+    },
+    [activeFormatters, columnTypes]
+  );
 
   const displayColumns = visibleColumns
     ? columns.filter((col) => visibleColumns.includes(col))
@@ -212,18 +242,25 @@ export const DataTable: React.FC<DataTableProps> = ({
                         onSave={(col, newValue) => handleCellSave(row, col, newValue)}
                         onCancel={() => setEditingCell(null)}
                       />
-                    ) : (
-                      <div
-                        className="truncate"
-                        title={row[column] !== null && row[column] !== undefined ? String(row[column]) : 'NULL'}
-                      >
-                        {row[column] !== null && row[column] !== undefined
-                          ? String(row[column])
-                          : (
-                              <span className="text-muted italic">NULL</span>
-                            )}
-                      </div>
-                    )}
+                    ) : (() => {
+                      const formatter = findFormatter(column);
+                      if (formatter) {
+                        const formatted = applyFormatter(row[column], formatter.preset);
+                        return <FormattedCell formatted={formatted} rawValue={row[column]} />;
+                      }
+                      return (
+                        <div
+                          className="truncate"
+                          title={row[column] !== null && row[column] !== undefined ? String(row[column]) : 'NULL'}
+                        >
+                          {row[column] !== null && row[column] !== undefined
+                            ? String(row[column])
+                            : (
+                                <span className="text-muted italic">NULL</span>
+                              )}
+                        </div>
+                      );
+                    })()}
                   </td>
                 ))}
               </tr>

@@ -15,12 +15,18 @@ import { SaveQueryDialog } from './save-query-dialog';
 import { formatSQL } from '@/lib/sql-formatter';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
+import { TemplateBrowser } from './template-browser';
+import { TemplateEditor } from './template-editor';
+import { QueryDiffView } from './query-diff-view';
+import { usePlugins } from '../hooks/use-plugins';
+import type { PinnedResult } from '@/types';
 
 interface QueryEditorProps {}
 
 export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const { databaseType } = useConnection();
   const { schemaMap } = useDashboard();
+  const { addTemplate } = usePlugins();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
@@ -29,9 +35,13 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showSavedQueries, setShowSavedQueries] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [explainPlan, setExplainPlan] = useState<any[] | null>(null);
   const [viewMode, setViewMode] = useState<'results' | 'explain'>('results');
+  const [pinnedResult, setPinnedResult] = useState<PinnedResult | null>(null);
+  const [showDiff, setShowDiff] = useState(false);
   const { history, addQuery, favoriteQuery, deleteQuery, clearHistory } = useQueryHistory();
   const { savedQueries, saveQuery, deleteQuery: deleteSavedQuery, clearAll: clearSavedQueries } = useSavedQueries();
 
@@ -173,6 +183,12 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
                 Saved
               </Button>
               <Button
+                variant="ghost"
+                onClick={() => setShowTemplates(true)}
+              >
+                Templates
+              </Button>
+              <Button
                 variant={showHistory ? 'primary' : 'ghost'}
                 onClick={() => { setShowHistory(!showHistory); setShowSavedQueries(false); }}
               >
@@ -222,6 +238,17 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
         onSave={(name, tags) => saveQuery(name, query, tags)}
         query={query}
       />
+      <TemplateBrowser
+        isOpen={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        onInsert={(sql) => setQuery(sql)}
+        dialect={databaseType || 'postgresql'}
+      />
+      <TemplateEditor
+        isOpen={isTemplateEditorOpen}
+        onClose={() => setIsTemplateEditorOpen(false)}
+        onSave={addTemplate}
+      />
 
       {hasResults && (
         <Card>
@@ -250,13 +277,70 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
             </div>
           )}
 
-          {viewMode === 'results' && results.length > 0 && (
+          {viewMode === 'results' && results.length > 0 && !showDiff && (
             <>
-              <div className="mb-4 text-sm text-muted">
-                {results.length} {results.length === 1 ? 'row' : 'rows'} returned
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm text-muted">
+                  {results.length} {results.length === 1 ? 'row' : 'rows'} returned
+                </span>
+                <div className="flex items-center gap-2">
+                  {pinnedResult && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowDiff(true)}
+                    >
+                      Compare with Pinned
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setPinnedResult({
+                        id: `pin_${Date.now()}`,
+                        query,
+                        columns,
+                        data: results,
+                        executionTime: executionTime || 0,
+                        pinnedAt: Date.now(),
+                      });
+                      setShowDiff(false);
+                    }}
+                  >
+                    {pinnedResult ? 'Re-pin' : 'Pin Result'}
+                  </Button>
+                </div>
               </div>
+              {pinnedResult && (
+                <div className="flex items-center gap-2 mb-3 px-2.5 py-1.5 bg-bg-secondary rounded-md text-xs text-muted">
+                  <span>Pinned: {pinnedResult.query.slice(0, 50)}{pinnedResult.query.length > 50 ? '...' : ''}</span>
+                  <span>({pinnedResult.data.length} rows)</span>
+                  <button
+                    onClick={() => { setPinnedResult(null); setShowDiff(false); }}
+                    className="ml-auto text-danger hover:text-danger/80"
+                  >
+                    Unpin
+                  </button>
+                </div>
+              )}
               <DataTable columns={columns} data={results} isLoading={false} />
             </>
+          )}
+
+          {viewMode === 'results' && showDiff && pinnedResult && results.length > 0 && (
+            <QueryDiffView
+              pinned={pinnedResult}
+              current={{
+                id: `current_${Date.now()}`,
+                query,
+                columns,
+                data: results,
+                executionTime: executionTime || 0,
+                pinnedAt: Date.now(),
+              }}
+              onClose={() => setShowDiff(false)}
+            />
           )}
 
           {viewMode === 'explain' && explainPlan && (
