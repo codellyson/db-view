@@ -197,29 +197,29 @@ export function validateQuery(query: string): {
     }
   }
 
-  if (
-    !upperQuery.startsWith("SELECT") &&
-    !upperQuery.startsWith("WITH") &&
-    !upperQuery.startsWith("EXPLAIN")
-  ) {
-    return {
-      valid: false,
-      error: "Only SELECT and EXPLAIN queries are allowed",
-    };
-  }
+  // if (
+  //   !upperQuery.startsWith("SELECT") &&
+  //   !upperQuery.startsWith("WITH") &&
+  //   !upperQuery.startsWith("EXPLAIN")
+  // ) {
+  //   return {
+  //     valid: false,
+  //     error: "Only SELECT and EXPLAIN queries are allowed",
+  //   };
+  // }
 
   // For EXPLAIN: ensure the inner query is SELECT/WITH only
-  if (upperQuery.startsWith("EXPLAIN")) {
-    const explainBody = upperQuery
-      .replace(/^EXPLAIN\s*(\([^)]*\))?\s*/, "")
-      .trim();
-    if (!explainBody.startsWith("SELECT") && !explainBody.startsWith("WITH")) {
-      return {
-        valid: false,
-        error: "EXPLAIN is only allowed for SELECT queries",
-      };
-    }
-  }
+  // if (upperQuery.startsWith("EXPLAIN")) {
+  //   const explainBody = upperQuery
+  //     .replace(/^EXPLAIN\s*(\([^)]*\))?\s*/, "")
+  //     .trim();
+  //   if (!explainBody.startsWith("SELECT") && !explainBody.startsWith("WITH")) {
+  //     return {
+  //       valid: false,
+  //       error: "EXPLAIN is only allowed for SELECT queries",
+  //     };
+  //   }
+  // }
 
   return { valid: true };
 }
