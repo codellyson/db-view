@@ -448,8 +448,8 @@ export function Dashboard() {
               </>
             ) : (
               <EmptyState
-                title="No table selected"
-                description="Select a table from the sidebar to view its data."
+                title="What do you want to explore?"
+                description="Open the menu and pick a table to dive in."
               />
             )}
           </MainContent>

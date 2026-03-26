@@ -42,12 +42,11 @@ export default function ConnectionsPage() {
                 <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">
                   DBView
                 </h1>
-                <p className="text-sm text-secondary mb-1">
-                  Database explorer
+                <p className="text-sm text-accent font-medium mb-1">
+                  Your database in your pocket.
                 </p>
-                <p className="text-xs text-muted max-w-md mx-auto">
-                  A clean, functional interface for browsing tables, running queries,
-                  and exploring your database.
+                <p className="text-xs text-muted max-w-sm mx-auto">
+                  Connect directly — your credentials never leave this device.
                 </p>
               </div>
             )}
@@ -58,7 +57,7 @@ export default function ConnectionsPage() {
                   Connections
                 </h2>
                 <p className="text-sm text-muted">
-                  Manage saved connections or connect to a new database.
+                  Switch databases or add a new one. All credentials stay local.
                 </p>
               </div>
             )}
@@ -79,7 +78,7 @@ export default function ConnectionsPage() {
 
             {!isConnected && (
               <div className="mt-10 pt-6 border-t border-border text-center">
-                <p className="text-xs text-muted mb-1">Created by</p>
+                <p className="text-xs text-muted mb-1">Built by</p>
                 <a
                   href="https://kreativekorna.com"
                   target="_blank"

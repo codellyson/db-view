@@ -194,8 +194,8 @@ export const DataTable: React.FC<DataTableProps> = ({
   if (data.length === 0) {
     return (
       <EmptyState
-        title="No data found"
-        description="This table appears to be empty."
+        title="Nothing here yet"
+        description="This table is empty."
       />
     );
   }
@@ -203,8 +203,8 @@ export const DataTable: React.FC<DataTableProps> = ({
   if (filteredData.length === 0) {
     return (
       <EmptyState
-        title="No matching rows"
-        description="No rows match your search query."
+        title="No matches"
+        description="Try a different search term."
       />
     );
   }

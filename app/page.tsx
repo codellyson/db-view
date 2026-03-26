@@ -16,27 +16,30 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-bg">
-      <div className="container mx-auto px-8 py-16">
+      <div className="container mx-auto px-6 sm:px-8 py-12 sm:py-16">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="flex justify-center mb-8">
+          <div className="text-center mb-12 sm:mb-16">
+            <div className="flex justify-center mb-6">
               <Image
                 src="/logo.svg"
                 alt="DBView"
-                width={128}
-                height={128}
+                width={96}
+                height={96}
                 priority
               />
             </div>
-            <h1 className="text-5xl font-bold tracking-tight text-primary mb-4">
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary mb-3">
               DBView
             </h1>
-            <p className="text-lg text-secondary mb-3">
-              Database explorer
+            <p className="text-lg text-accent font-medium mb-3">
+              Your database in your pocket.
             </p>
-            <p className="text-sm text-muted max-w-2xl mx-auto">
-              A clean, functional interface for browsing tables, running queries,
-              and exploring your database.
+            <p className="text-sm text-muted max-w-sm mx-auto mb-2">
+              Browse tables, run queries, and inspect schemas on any device.
+              Built for the moments you're away from your desk.
+            </p>
+            <p className="text-xs text-muted/70 max-w-xs mx-auto">
+              Connects directly to your database. No data is sent to any remote server — credentials stay in your browser.
             </p>
           </div>
           <div className="flex items-center justify-center my-8">
@@ -44,42 +47,39 @@ export default function Home() {
               variant="primary"
               onClick={() => router.push("/connections")}
             >
-              Get started
+              Connect a database
             </Button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-            <div className="border border-border rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-primary mb-2">
-                Browse tables
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-12 sm:mb-16">
+            <div className="border border-border rounded-lg p-5 sm:p-6">
+              <h2 className="text-base font-semibold text-primary mb-1.5">
+                Tap, browse, done
               </h2>
               <p className="text-sm text-secondary">
-                View all tables in your database with schema details, relationships,
-                and statistics.
+                Tables render as cards on mobile. Tap a row to see every field. No squinting, no side-scrolling.
               </p>
             </div>
 
-            <div className="border border-border rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-primary mb-2">
-                Execute queries
+            <div className="border border-border rounded-lg p-5 sm:p-6">
+              <h2 className="text-base font-semibold text-primary mb-1.5">
+                Query from anywhere
               </h2>
               <p className="text-sm text-secondary">
-                Run SQL queries with syntax highlighting, auto-completion,
-                and explain plans.
+                Full SQL editor with syntax highlighting. Check a production value without opening your laptop.
               </p>
             </div>
-            <div className="border border-border rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-primary mb-2">
-                View schema
+            <div className="border border-border rounded-lg p-5 sm:p-6">
+              <h2 className="text-base font-semibold text-primary mb-1.5">
+                Nothing leaves your browser
               </h2>
               <p className="text-sm text-secondary">
-                Inspect table structures, column types, constraints, and
-                foreign key relationships.
+                Credentials are stored locally. Queries run directly against your database. No middleman, no cloud relay.
               </p>
             </div>
           </div>
 
-          <div className="mt-16 pt-8 border-t border-border text-center">
-            <p className="text-xs text-muted mb-1">Created by</p>
+          <div className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t border-border text-center">
+            <p className="text-xs text-muted mb-1">Built by</p>
             <a
               href="https://kreativekorna.com"
               target="_blank"

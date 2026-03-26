@@ -6,19 +6,19 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
   title: {
-    default: "DBView - Database Explorer",
+    default: "DBView — Pocket DB Explorer",
     template: "%s | DBView",
   },
-  description: "A clean, functional database explorer for PostgreSQL and MySQL. Browse tables, execute queries, and explore your database.",
+  description: "Your database in your pocket. Browse tables, run queries, and inspect schemas on any device. Connects directly — nothing leaves your browser.",
   keywords: [
     "PostgreSQL",
     "MySQL",
-    "database explorer",
-    "database viewer",
-    "SQL query",
-    "database management",
-    "database client",
+    "pocket database explorer",
+    "mobile database client",
+    "SQL query tool",
     "database browser",
+    "mobile-first database",
+    "local database viewer",
   ],
   authors: [{ name: "KreativeKorna Concepts", url: "https://kreativekorna.com" }],
   creator: "KreativeKorna Concepts",
@@ -33,8 +33,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    title: "DBView - Database Explorer",
-    description: "A clean, functional database explorer for PostgreSQL and MySQL. Browse tables, execute queries, and explore your database.",
+    title: "DBView — Pocket DB Explorer",
+    description: "Your database in your pocket. Browse, query, and explore PostgreSQL and MySQL from any device.",
     siteName: "DBView",
     images: [
       {
@@ -47,8 +47,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "DBView - Database Explorer",
-    description: "A clean, functional database explorer for PostgreSQL and MySQL.",
+    title: "DBView — Pocket DB Explorer",
+    description: "Your database in your pocket. Mobile-first explorer for PostgreSQL and MySQL.",
     images: ["/logo.svg"],
   },
   robots: {
