@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql, PostgreSQL, MySQL } from '@codemirror/lang-sql';
 import { keymap } from '@codemirror/view';
+import { acceptCompletion } from '@codemirror/autocomplete';
 import { useTheme } from '../contexts/theme-context';
 import { useConnection } from '../contexts/connection-context';
 import {
@@ -35,9 +36,17 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   const extensions = useMemo(() => {
     const sqlDialect = databaseType === 'mysql' ? MySQL : PostgreSQL;
     const exts = [
-      sql({ dialect: sqlDialect, schema: schemaSpec }),
+      sql({
+        dialect: sqlDialect,
+        schema: schemaSpec,
+        upperCaseKeywords: true,
+      }),
       createBrutalistTheme(colors, isDark),
       createBrutalistHighlight(colors, isDark),
+      // Accept completion with Tab
+      keymap.of([
+        { key: 'Tab', run: acceptCompletion },
+      ]),
     ];
 
     if (onExecute) {

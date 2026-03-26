@@ -13,8 +13,8 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items }) => {
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-4">
-      <ol className="flex items-center gap-1.5 text-sm">
+    <nav aria-label="Breadcrumb" className="mb-2 sm:mb-4">
+      <ol className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm overflow-x-auto">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
           return (

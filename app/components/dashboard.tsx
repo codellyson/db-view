@@ -25,6 +25,7 @@ import { TableStats } from "./table-stats";
 import { CSVImportDialog } from "./csv-import-dialog";
 import { TableCreationWizard } from "./table-creation-wizard";
 import { BatchExportModal } from "./batch-export-modal";
+import { TabBar } from "./tab-bar";
 import { Button } from "./ui/button";
 import { useConnection } from "../contexts/connection-context";
 import { useToast } from "../contexts/toast-context";
@@ -77,11 +78,21 @@ export function Dashboard() {
     refreshTableData,
     tableStats,
     isLoadingStats,
+    setItemsPerPage,
+    openTabs,
+    activeTabId,
+    openTab,
+    closeTab,
+    setActiveTab,
+    closeAllTabs,
+    closeOtherTabs,
   } = useDashboard();
 
   const { allFormatters } = usePlugins();
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
 
   const columnTypes = useMemo(() => {
     const types: Record<string, string> = {};
@@ -98,6 +109,7 @@ export function Dashboard() {
   const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
   const [isCreateTableOpen, setIsCreateTableOpen] = useState(false);
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
+  const [detailsTab, setDetailsTab] = useState<'schema' | 'stats' | null>(null);
 
   const onTableSelect = (table: string) => {
     handleTableSelect(table);
@@ -155,6 +167,24 @@ export function Dashboard() {
         if (!readOnlyMode && primaryKeys.length > 0 && selectedTable) {
           setIsRowEditorOpen(true);
         }
+      },
+    },
+    {
+      key: '1', meta: true, description: 'Focus sidebar',
+      category: 'Navigation',
+      action: () => {
+        const firstInput = sidebarRef.current?.querySelector<HTMLElement>('input, button');
+        firstInput?.focus();
+      },
+    },
+    {
+      key: '2', meta: true, description: 'Focus main content',
+      category: 'Navigation',
+      action: () => {
+        const firstFocusable = mainContentRef.current?.querySelector<HTMLElement>(
+          'input, button, [tabindex]:not([tabindex="-1"])'
+        );
+        firstFocusable?.focus();
       },
     },
     {
@@ -233,6 +263,7 @@ export function Dashboard() {
     </MobileMenu>
     <ResizableSplitter
       left={
+        <div ref={sidebarRef}>
         <Sidebar
           tables={tables}
           selectedTable={selectedTable}
@@ -246,10 +277,19 @@ export function Dashboard() {
           functions={dbFunctions}
           onCreateTable={() => setIsCreateTableOpen(true)}
         />
+        </div>
       }
       right={
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div ref={mainContentRef} className="flex-1 flex flex-col overflow-hidden">
           <Header isConnected={isConnected} databaseName={databaseName} onMenuToggle={() => setIsMobileMenuOpen(true)} onShortcutsHelp={() => setIsShortcutsHelpOpen(true)} />
+          <TabBar
+            tabs={openTabs}
+            activeTabId={activeTabId}
+            onTabSelect={setActiveTab}
+            onTabClose={closeTab}
+            onTabCloseOthers={closeOtherTabs}
+            onTabCloseAll={closeAllTabs}
+          />
           <MainContent>
             {error && (
               <ErrorState
@@ -267,11 +307,11 @@ export function Dashboard() {
                     { label: selectedTable },
                   ]}
                 />
-                <div className="flex justify-between items-center mb-8 gap-4">
-                  <h1 className="text-2xl font-semibold tracking-tight text-primary truncate flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2 sm:gap-4">
+                  <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-primary truncate min-w-0">
                     {selectedTable}
                   </h1>
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap">
                     {!readOnlyMode && primaryKeys.length > 0 && (
                       <Button
                         variant="primary"
@@ -308,17 +348,8 @@ export function Dashboard() {
                     </Button>
                   </div>
                 </div>
-                {!isLoadingSchema && schema.length > 0 && (
-                  <TableSchema columns={schema} />
-                )}
-                <RelationshipDisplay
-                  relationships={relationships}
-                  indexes={indexes}
-                  onNavigateToTable={onTableSelect}
-                />
-                <TableStats stats={tableStats} isLoading={isLoadingStats} />
                 {columns.length > 0 && !isLoading && (
-                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
                     <ColumnVisibility
                       columns={columns}
                       visibleColumns={visibleColumns}
@@ -338,7 +369,7 @@ export function Dashboard() {
                       value={tableSearch}
                       onChange={(e) => setTableSearch(e.target.value)}
                       placeholder="Search rows..."
-                      className="px-3 py-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent flex-1 min-w-[150px] placeholder:text-muted"
+                      className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent flex-1 min-w-0 placeholder:text-muted"
                       aria-label="Search table rows"
                     />
                   </div>
@@ -368,8 +399,52 @@ export function Dashboard() {
                     totalItems={totalItems}
                     itemsPerPage={itemsPerPage}
                     countIsEstimate={countIsEstimate}
+                    onItemsPerPageChange={(size) => {
+                      setItemsPerPage(size);
+                      setCurrentPage(1);
+                    }}
                   />
                 )}
+                {/* Details tabs — schema, relationships, stats */}
+                <div className="mt-4 border-t border-border pt-3">
+                  <div className="flex gap-1 mb-3">
+                    <button
+                      onClick={() => setDetailsTab(detailsTab === 'schema' ? null : 'schema')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                        detailsTab === 'schema'
+                          ? 'bg-accent/10 text-accent'
+                          : 'text-muted hover:text-primary hover:bg-bg-secondary'
+                      }`}
+                    >
+                      Schema{schema.length > 0 ? ` (${schema.length})` : ''}
+                    </button>
+                    <button
+                      onClick={() => setDetailsTab(detailsTab === 'stats' ? null : 'stats')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                        detailsTab === 'stats'
+                          ? 'bg-accent/10 text-accent'
+                          : 'text-muted hover:text-primary hover:bg-bg-secondary'
+                      }`}
+                    >
+                      Stats
+                    </button>
+                  </div>
+                  {detailsTab === 'schema' && (
+                    <div className="space-y-4">
+                      {!isLoadingSchema && schema.length > 0 && (
+                        <TableSchema columns={schema} />
+                      )}
+                      <RelationshipDisplay
+                        relationships={relationships}
+                        indexes={indexes}
+                        onNavigateToTable={onTableSelect}
+                      />
+                    </div>
+                  )}
+                  {detailsTab === 'stats' && (
+                    <TableStats stats={tableStats} isLoading={isLoadingStats} />
+                  )}
+                </div>
               </>
             ) : (
               <EmptyState

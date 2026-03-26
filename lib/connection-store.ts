@@ -5,7 +5,16 @@ interface StoredConnection {
   timestamp: number;
 }
 
-const connections = new Map<string, StoredConnection>();
+// Persist across Next.js hot reloads in development
+const globalForStore = globalThis as unknown as {
+  __dbConnections?: Map<string, StoredConnection>;
+};
+
+if (!globalForStore.__dbConnections) {
+  globalForStore.__dbConnections = new Map();
+}
+
+const connections = globalForStore.__dbConnections;
 
 export function storeConnection(sessionId: string, config: DBConfig): void {
   connections.set(sessionId, {

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useConnection } from '../contexts/connection-context';
 import { useToast } from '../contexts/toast-context';
 import { Button } from './ui/button';
@@ -16,6 +17,7 @@ export const SavedConnections: React.FC = () => {
     isConnecting,
   } = useConnection();
   const { addToast } = useToast();
+  const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   if (savedConnections.length === 0) {
@@ -26,6 +28,7 @@ export const SavedConnections: React.FC = () => {
     try {
       await connectToSaved(connectionId);
       addToast('Connected successfully', 'success');
+      router.push('/');
     } catch (err) {
       console.error('Failed to connect:', err);
     }

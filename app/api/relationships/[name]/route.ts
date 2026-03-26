@@ -11,7 +11,14 @@ export async function GET(
     if (!getPool()) {
       const cookieStore = await cookies();
       const sessionId = cookieStore.get("db-session")?.value;
-      await ensurePool(sessionId);
+      try {
+        await ensurePool(sessionId);
+      } catch (ensureError: any) {
+        return NextResponse.json(
+          { error: ensureError.message || "No database connection. Please connect to a database first." },
+          { status: 400 }
+        );
+      }
     }
 
     const schema = request.nextUrl.searchParams.get("schema") || "public";

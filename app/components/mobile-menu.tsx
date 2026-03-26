@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -8,11 +9,19 @@ interface MobileMenuProps {
   children: React.ReactNode;
 }
 
+const navItems = [
+  { label: 'Tables', path: '/' },
+  { label: 'Query', path: '/query' },
+  { label: 'Connections', path: '/connections' },
+];
+
 export const MobileMenu: React.FC<MobileMenuProps> = ({
   isOpen,
   onClose,
   children,
 }) => {
+  const pathname = usePathname();
+  const router = useRouter();
   useEffect(() => {
     if (!isOpen) return;
 
@@ -40,7 +49,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
       />
       <div className="fixed inset-y-0 left-0 w-[280px] z-50 bg-bg border-r border-border overflow-y-auto shadow-lg">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <span className="text-sm font-semibold text-primary">Tables</span>
+          <span className="text-sm font-semibold text-primary">Menu</span>
           <button
             onClick={onClose}
             className="p-1 rounded-md text-muted hover:text-primary hover:bg-bg-secondary transition-colors"
@@ -51,6 +60,22 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             </svg>
           </button>
         </div>
+        <nav className="flex gap-1 px-3 py-2 border-b border-border">
+          {navItems.map((item) => (
+            <button
+              key={item.path}
+              onClick={() => { router.push(item.path); onClose(); }}
+              aria-current={pathname === item.path ? 'page' : undefined}
+              className={`flex-1 text-xs font-medium px-2 py-1.5 rounded-md text-center transition-colors ${
+                pathname === item.path
+                  ? 'bg-accent/10 text-accent'
+                  : 'text-secondary hover:text-primary hover:bg-bg-secondary'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
         <div className="p-4">{children}</div>
       </div>
     </div>

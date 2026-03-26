@@ -41,6 +41,26 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Consistent focus rings — visible for keyboard, hidden for mouse */
+*:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Hide scrollbar for tab bar overflow */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Prevent Tailwind's global dark mode color from bleeding into CodeMirror */
 .cm-editor,
 .cm-editor .cm-content,

@@ -380,7 +380,7 @@ export class PostgreSQLProvider implements DatabaseProvider {
   async executeQuery(
     query: string,
     timeout: number = 30000
-  ): Promise<{ rows: any[]; executionTime: number }> {
+  ): Promise<{ rows: any[]; executionTime: number; fields?: { name: string; dataTypeID: number }[] }> {
     const client = await this.connect();
     const startTime = Date.now();
 
@@ -391,7 +391,11 @@ export class PostgreSQLProvider implements DatabaseProvider {
         timeout
       );
       const executionTime = Date.now() - startTime;
-      return { rows: result.rows, executionTime };
+      const fields = result.fields?.map((f: any) => ({
+        name: f.name,
+        dataTypeID: f.dataTypeID,
+      }));
+      return { rows: result.rows, executionTime, fields };
     } finally {
       client.release();
     }

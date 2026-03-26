@@ -8,7 +8,10 @@ interface PaginationProps {
   totalItems: number;
   itemsPerPage: number;
   countIsEstimate?: boolean;
+  onItemsPerPageChange?: (size: number) => void;
 }
+
+const PAGE_SIZE_OPTIONS = [50, 100, 250, 500];
 
 export const Pagination: React.FC<PaginationProps> = ({
   currentPage,
@@ -17,6 +20,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   totalItems,
   itemsPerPage,
   countIsEstimate = false,
+  onItemsPerPageChange,
 }) => {
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
@@ -57,11 +61,27 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
 
   return (
-    <nav aria-label="Pagination" className="flex items-center justify-between mt-6">
-      <div className="text-sm text-muted">
-        Showing {startItem} to {endItem} of {countIsEstimate ? `~${totalItems.toLocaleString()} (estimated)` : totalItems.toLocaleString()} results
+    <nav aria-label="Pagination" className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 gap-3 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <span className="text-xs sm:text-sm text-muted">
+          {startItem}-{endItem} of {countIsEstimate ? `~${totalItems.toLocaleString()}` : totalItems.toLocaleString()}
+        </span>
+        {onItemsPerPageChange && (
+          <select
+            value={itemsPerPage}
+            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+            className="text-xs sm:text-sm border border-border rounded-md bg-bg text-primary px-1.5 sm:px-2 py-1 focus:outline-none focus:ring-2 focus:ring-accent"
+            aria-label="Rows per page"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size} rows
+              </option>
+            ))}
+          </select>
+        )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <Button
           variant="secondary"
           size="sm"
@@ -69,19 +89,19 @@ export const Pagination: React.FC<PaginationProps> = ({
           disabled={currentPage === 1}
           aria-label="Go to previous page"
         >
-          Previous
+          Prev
         </Button>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
           {getPageNumbers().map((page, index) => (
             <React.Fragment key={index}>
               {page === '...' ? (
-                <span className="px-2 text-muted" aria-hidden="true">...</span>
+                <span className="px-1 sm:px-2 text-muted text-xs" aria-hidden="true">...</span>
               ) : (
                 <button
                   onClick={() => onPageChange(page as number)}
                   aria-label={`Go to page ${page}`}
                   aria-current={currentPage === page ? 'page' : undefined}
-                  className={`px-3 py-1.5 text-sm rounded-md ${
+                  className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md ${
                     currentPage === page
                       ? 'bg-accent text-white font-medium'
                       : 'text-secondary hover:bg-bg-secondary'

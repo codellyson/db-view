@@ -16,7 +16,18 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({
   disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setIsVisible(true));
+      });
+    } else {
+      setIsVisible(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -55,7 +66,9 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({
         Export
       </button>
       {isOpen && (
-        <div className="absolute top-full right-0 mt-1 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[140px]">
+        <div className={`absolute top-full right-0 mt-1 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[140px] transition-all duration-150 ease-out ${
+          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
+        }`}>
           <button
             onClick={() => handleExport(onExportCSV)}
             className="w-full px-3 py-2 text-sm text-left text-primary hover:bg-bg-secondary transition-colors rounded-t-lg border-b border-border/50"

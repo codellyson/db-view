@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -18,30 +18,75 @@ export const Modal: React.FC<ModalProps> = ({
   className = "",
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<Element | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      triggerRef.current = document.activeElement;
+      setIsAnimating(true);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setIsVisible(true));
+      });
       modalRef.current?.focus();
+    } else {
+      setIsVisible(false);
+      const timer = setTimeout(() => {
+        setIsAnimating(false);
+        // Return focus to the element that triggered the modal
+        if (triggerRef.current && triggerRef.current instanceof HTMLElement) {
+          triggerRef.current.focus();
+          triggerRef.current = null;
+        }
+      }, 150);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      // Focus trapping
+      if (e.key === "Tab" && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === modalRef.current) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
 
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";
 
     return () => {
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isAnimating && !isOpen) return null;
 
   return (
     <div
@@ -51,14 +96,18 @@ export const Modal: React.FC<ModalProps> = ({
       aria-labelledby={title ? "modal-title" : undefined}
     >
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-150 ease-out ${
+          isVisible ? 'opacity-100' : 'opacity-0'
+        }`}
         onClick={onClose}
         aria-hidden="true"
       />
       <div
         ref={modalRef}
         tabIndex={-1}
-        className={`relative z-10 bg-bg border border-border rounded-lg shadow-lg w-full max-w-md ${className}`}
+        className={`relative z-10 bg-bg border border-border rounded-lg shadow-lg w-full max-w-md transition-all duration-150 ease-out ${
+          isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.97]'
+        } ${className}`}
       >
         {title && (
           <div className="flex items-center justify-between border-b border-border px-5 py-4">

@@ -30,7 +30,7 @@ function ToastItem({
 
   const handleRemove = () => {
     setIsVisible(false);
-    setTimeout(() => onRemove(id), 200);
+    setTimeout(() => onRemove(id), 150);
   };
 
   const style = typeStyles[type];
@@ -42,7 +42,7 @@ function ToastItem({
         flex items-center gap-3
         bg-bg border border-border border-l-4 ${style.bg}
         rounded-lg px-4 py-3 text-sm text-primary shadow-md
-        transition-all duration-200
+        transition-all duration-150 ease-out
         ${isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}
       `}
     >

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { DataTable } from './data-table';
@@ -13,6 +13,7 @@ import { QueryHistory } from './query-history';
 import { SavedQueriesPanel } from './saved-queries-panel';
 import { SaveQueryDialog } from './save-query-dialog';
 import { formatSQL } from '@/lib/sql-formatter';
+import { api } from '@/lib/api';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
 import { TemplateBrowser } from './template-browser';
@@ -20,16 +21,18 @@ import { TemplateEditor } from './template-editor';
 import { QueryDiffView } from './query-diff-view';
 import { usePlugins } from '../hooks/use-plugins';
 import type { PinnedResult } from '@/types';
+import { pgOidToType } from '@/lib/pg-types';
 
 interface QueryEditorProps {}
 
 export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const { databaseType } = useConnection();
-  const { schemaMap } = useDashboard();
+  const { schemaMap, tables, selectedSchema, loadTables } = useDashboard();
   const { addTemplate } = usePlugins();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
+  const [resultColumnTypes, setResultColumnTypes] = useState<Record<string, string>>({});
   const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -42,6 +45,24 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const [viewMode, setViewMode] = useState<'results' | 'explain'>('results');
   const [pinnedResult, setPinnedResult] = useState<PinnedResult | null>(null);
   const [showDiff, setShowDiff] = useState(false);
+  // Ensure schemaMap is loaded for autocomplete even if user navigated directly to /query
+  useEffect(() => {
+    if (Object.keys(schemaMap).length === 0 && tables.length === 0) {
+      loadTables();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build autocomplete schema: use schemaMap if available, otherwise fall back to table names
+  const autocompleteSchema = useMemo(() => {
+    if (Object.keys(schemaMap).length > 0) return schemaMap;
+    // Fallback: table names without column info
+    const fallback: Record<string, string[]> = {};
+    for (const t of tables) {
+      fallback[t] = [];
+    }
+    return fallback;
+  }, [schemaMap, tables]);
+
   const { history, addQuery, favoriteQuery, deleteQuery, clearHistory } = useQueryHistory();
   const { savedQueries, saveQuery, deleteQuery: deleteSavedQuery, clearAll: clearSavedQueries } = useSavedQueries();
 
@@ -57,22 +78,22 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
     setViewMode('results');
 
     try {
-      const response = await fetch('/api/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Query execution failed');
-      }
+      const data = await api.post('/api/query', { query }, { noRetry: true });
 
       if (data.rows && data.rows.length > 0) {
         setColumns(Object.keys(data.rows[0]));
       } else {
         setColumns([]);
+      }
+      // Build column type map from pg field metadata
+      if (data.fields && Array.isArray(data.fields)) {
+        const types: Record<string, string> = {};
+        for (const field of data.fields) {
+          types[field.name] = pgOidToType(field.dataTypeID);
+        }
+        setResultColumnTypes(types);
+      } else {
+        setResultColumnTypes({});
       }
       const rows = data.rows || [];
       setResults(rows);
@@ -96,17 +117,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
     setViewMode('explain');
 
     try {
-      const response = await fetch('/api/explain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Explain failed');
-      }
+      const data = await api.post('/api/explain', { query }, { noRetry: true });
 
       setExplainPlan(data.plan);
       setExecutionTime(data.executionTime || null);
@@ -131,15 +142,15 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const hasResults = results.length > 0 || explainPlan;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <Card title="SQL query">
         <div className="space-y-4">
           <SqlEditor
             value={query}
             onChange={setQuery}
-            onExecute={!isExecuting && query.trim() ? handleExecute : undefined}
+            onExecute={handleExecute}
             disabled={isExecuting}
-            schema={schemaMap}
+            schema={autocompleteSchema}
           />
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -251,7 +262,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
       />
 
       {hasResults && (
-        <Card>
+        <div>
           {results.length > 0 && explainPlan && (
             <div className="flex gap-1 mb-4">
               <button
@@ -279,7 +290,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
 
           {viewMode === 'results' && results.length > 0 && !showDiff && (
             <>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted">
                   {results.length} {results.length === 1 ? 'row' : 'rows'} returned
                 </span>
@@ -324,7 +335,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
                   </button>
                 </div>
               )}
-              <DataTable columns={columns} data={results} isLoading={false} />
+              <DataTable columns={columns} data={results} isLoading={false} columnTypes={resultColumnTypes} />
             </>
           )}
 
@@ -346,15 +357,13 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
           {viewMode === 'explain' && explainPlan && (
             <ExplainPlan plan={explainPlan} />
           )}
-        </Card>
+        </div>
       )}
 
       {results.length === 0 && !explainPlan && !error && executionTime !== null && (
-        <Card>
-          <div className="text-center py-8 text-muted">
-            Query executed successfully. No rows returned.
-          </div>
-        </Card>
+        <div className="text-center py-6 text-sm text-muted">
+          Query executed successfully. No rows returned.
+        </div>
       )}
     </div>
   );

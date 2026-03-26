@@ -5,9 +5,18 @@ import { useConnection } from './connection-context';
 import { useToast } from './toast-context';
 import { ColumnInfo } from '@/types';
 import { buildDisplaySQL, type MutationRequest } from '@/lib/mutation';
+import { api } from '@/lib/api';
 import { type TableStatsData } from '../components/table-stats';
+import { type Tab } from '../components/tab-bar';
 
 interface DashboardContextType {
+  openTabs: Tab[];
+  activeTabId: string | undefined;
+  openTab: (name: string, type?: Tab['type']) => void;
+  closeTab: (tabId: string) => void;
+  setActiveTab: (tabId: string) => void;
+  closeAllTabs: () => void;
+  closeOtherTabs: (tabId: string) => void;
   tables: string[];
   schemas: string[];
   selectedSchema: string;
@@ -32,6 +41,7 @@ interface DashboardContextType {
   tableSearch: string;
   error: string | null;
   itemsPerPage: number;
+  setItemsPerPage: (size: number) => void;
   readOnlyMode: boolean;
   primaryKeys: string[];
   tableStats: TableStatsData | null;
@@ -60,7 +70,7 @@ const DashboardContext = createContext<DashboardContextType | undefined>(undefin
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const { isConnected, databaseType, databaseName } = useConnection();
   const { addToast } = useToast();
-  const itemsPerPage = 100;
+  const [itemsPerPage, setItemsPerPage] = useState(100);
 
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTable, setSelectedTable] = useState<string | undefined>();
@@ -89,6 +99,80 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [tableStats, setTableStats] = useState<TableStatsData | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [schemaMap, setSchemaMap] = useState<Record<string, string[]>>({});
+  const [openTabs, setOpenTabs] = useState<Tab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | undefined>();
+
+  // Per-tab data cache to avoid re-fetching on tab switch
+  interface TabCache {
+    tableData: any[];
+    columns: string[];
+    schema: ColumnInfo[];
+    relationships: any[];
+    indexes: any[];
+    currentPage: number;
+    totalItems: number;
+    countIsEstimate: boolean;
+    sortColumn: string | null;
+    sortDirection: 'asc' | 'desc' | null;
+    visibleColumns: string[];
+    tableSearch: string;
+    tableStats: TableStatsData | null;
+    error: string | null;
+  }
+  const tabCacheRef = useRef<Record<string, TabCache>>({});
+
+  const saveCurrentTabCache = useCallback(() => {
+    if (!activeTabId) return;
+    tabCacheRef.current[activeTabId] = {
+      tableData,
+      columns,
+      schema,
+      relationships,
+      indexes,
+      currentPage,
+      totalItems,
+      countIsEstimate,
+      sortColumn,
+      sortDirection,
+      visibleColumns,
+      tableSearch,
+      tableStats,
+      error,
+    };
+  }, [activeTabId, tableData, columns, schema, relationships, indexes, currentPage, totalItems, countIsEstimate, sortColumn, sortDirection, visibleColumns, tableSearch, tableStats, error]);
+
+  const restoreTabCache = useCallback((tabId: string): boolean => {
+    const cached = tabCacheRef.current[tabId];
+    if (!cached) return false;
+    setTableData(cached.tableData);
+    setColumns(cached.columns);
+    setSchema(cached.schema);
+    setRelationships(cached.relationships);
+    setIndexes(cached.indexes);
+    setCurrentPage(cached.currentPage);
+    setTotalItems(cached.totalItems);
+    setCountIsEstimate(cached.countIsEstimate);
+    setSortColumn(cached.sortColumn);
+    setSortDirection(cached.sortDirection);
+    setVisibleColumns(cached.visibleColumns);
+    setTableSearch(cached.tableSearch);
+    setTableStats(cached.tableStats);
+    setError(cached.error);
+    return true;
+  }, []);
+
+  const clearTabCache = useCallback((tabId: string) => {
+    delete tabCacheRef.current[tabId];
+  }, []);
+
+  // Track whether we just restored from cache to skip re-fetching
+  const restoredFromCacheRef = useRef(false);
+
+  const restoreTabCacheWithFlag = useCallback((tabId: string): boolean => {
+    const restored = restoreTabCache(tabId);
+    if (restored) restoredFromCacheRef.current = true;
+    return restored;
+  }, [restoreTabCache]);
 
   const primaryKeys = useMemo(() => {
     return schema.filter((col) => col.isPrimaryKey).map((col) => col.name);
@@ -99,11 +183,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const loadSchemas = useCallback(async () => {
     try {
-      const response = await fetch('/api/schemas');
-      if (response.ok) {
-        const data = await response.json();
-        setSchemas(data.schemas || []);
-      }
+      const data = await api.get('/api/schemas');
+      setSchemas(data.schemas || []);
     } catch (err) {
       console.error('Failed to load schemas:', err);
     }
@@ -112,11 +193,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const loadSchemaMap = useCallback(async (schemaName?: string) => {
     const s = schemaName || selectedSchema;
     try {
-      const response = await fetch(`/api/schema-map?schema=${encodeURIComponent(s)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSchemaMap(data.schemaMap || {});
-      }
+      const data = await api.get(`/api/schema-map?schema=${encodeURIComponent(s)}`);
+      setSchemaMap(data.schemaMap || {});
     } catch (err) {
       console.error('Failed to load schema map:', err);
     }
@@ -125,19 +203,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const loadViewsAndFunctions = useCallback(async (schemaName?: string) => {
     const s = schemaName || selectedSchema;
     try {
-      const [viewsRes, functionsRes] = await Promise.all([
-        fetch(`/api/views?schema=${encodeURIComponent(s)}`),
-        fetch(`/api/functions?schema=${encodeURIComponent(s)}`),
+      const [viewsData, functionsData] = await Promise.all([
+        api.get(`/api/views?schema=${encodeURIComponent(s)}`),
+        api.get(`/api/functions?schema=${encodeURIComponent(s)}`),
       ]);
-      if (viewsRes.ok) {
-        const data = await viewsRes.json();
-        setViews(data.views || []);
-        setMaterializedViews(data.materializedViews || []);
-      }
-      if (functionsRes.ok) {
-        const data = await functionsRes.json();
-        setDbFunctions(data.functions || []);
-      }
+      setViews(viewsData.views || []);
+      setMaterializedViews(viewsData.materializedViews || []);
+      setDbFunctions(functionsData.functions || []);
     } catch (err) {
       console.error('Failed to load views/functions:', err);
     }
@@ -148,17 +220,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setIsLoadingTables(true);
     setError(null);
     try {
-      const response = await fetch(`/api/tables?schema=${encodeURIComponent(s)}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to load tables');
-      }
-      const data = await response.json();
+      const data = await api.get(`/api/tables?schema=${encodeURIComponent(s)}`);
       setTables(data.tables || []);
     } catch (err: any) {
       console.error('Error loading tables:', err);
       setError(err.message || 'Failed to load tables');
-      addToast(err.message || 'FAILED TO LOAD TABLES', 'error');
+      addToast(err.message || 'Failed to load tables', 'error');
     } finally {
       setIsLoadingTables(false);
     }
@@ -173,12 +240,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       if (sortColumn && sortDirection) {
         url += `&sortColumn=${encodeURIComponent(sortColumn)}&sortDirection=${sortDirection}`;
       }
-      const response = await fetch(url);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to load table data');
-      }
-      const data = await response.json();
+      const data = await api.get(url);
       setTableData(data.rows || []);
       setTotalItems(data.total || 0);
       setCountIsEstimate(data.countIsEstimate || false);
@@ -197,16 +259,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedSchema, sortColumn, sortDirection]);
+  }, [selectedSchema, sortColumn, sortDirection, itemsPerPage]);
 
   const loadTableSchema = useCallback(async (tableName: string) => {
     setIsLoadingSchema(true);
     try {
-      const response = await fetch(
+      const data = await api.get(
         `/api/schema/${encodeURIComponent(tableName)}?schema=${encodeURIComponent(selectedSchema)}`
       );
-      if (!response.ok) throw new Error('Failed to load schema');
-      const data = await response.json();
       const mapped: ColumnInfo[] = (data.schema || []).map((row: any) => ({
         name: row.column_name ?? row.name,
         type: row.data_type ?? row.type,
@@ -224,14 +284,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const loadRelationships = useCallback(async (tableName: string) => {
     try {
-      const response = await fetch(
+      const data = await api.get(
         `/api/relationships/${encodeURIComponent(tableName)}?schema=${encodeURIComponent(selectedSchema)}`
       );
-      if (response.ok) {
-        const data = await response.json();
-        setRelationships(data.relationships || []);
-        setIndexes(data.indexes || []);
-      }
+      setRelationships(data.relationships || []);
+      setIndexes(data.indexes || []);
     } catch (err) {
       console.error('Failed to load relationships:', err);
     }
@@ -240,13 +297,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const loadTableStats = useCallback(async (tableName: string) => {
     setIsLoadingStats(true);
     try {
-      const response = await fetch(
+      const data = await api.get(
         `/api/table-stats/${encodeURIComponent(tableName)}?schema=${encodeURIComponent(selectedSchema)}`
       );
-      if (response.ok) {
-        const data = await response.json();
-        setTableStats(data.stats || null);
-      }
+      setTableStats(data.stats || null);
     } catch (err) {
       console.error('Failed to load table stats:', err);
     } finally {
@@ -261,42 +315,116 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [selectedTable, currentPage, loadTableData]);
 
   const mutateRow = useCallback(async (request: MutationRequest) => {
-    const response = await fetch('/api/mutate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      if (response.status === 403) {
+    try {
+      await api.post('/api/mutate', request, { noRetry: true });
+      addToast(`${request.type} successful`, 'success');
+      await refreshTableData();
+    } catch (err: any) {
+      if (err.status === 403) {
         setReadOnlyMode(true);
       }
-      throw new Error(data.error || 'Mutation failed');
+      throw err;
     }
-
-    addToast(`${request.type} SUCCESSFUL`, 'success');
-    await refreshTableData();
   }, [addToast, refreshTableData]);
+
+  const openTab = useCallback((name: string, type: Tab['type'] = 'table') => {
+    const tabId = `${type}:${name}`;
+    // Already on this tab — no-op
+    if (tabId === activeTabId) return;
+    // Save current tab's state before switching
+    saveCurrentTabCache();
+    setOpenTabs((prev) => {
+      if (prev.some((t) => t.id === tabId)) return prev;
+      return [...prev, { id: tabId, label: name, type }];
+    });
+    setActiveTabId(tabId);
+    setSelectedTable(name);
+    // Try to restore from cache; if no cache, reset for fresh load
+    if (!restoreTabCacheWithFlag(tabId)) {
+      setCurrentPage(1);
+      setSortColumn(null);
+      setSortDirection(null);
+      setVisibleColumns([]);
+      setTableSearch('');
+    }
+  }, [activeTabId, saveCurrentTabCache, restoreTabCacheWithFlag]);
+
+  const closeTab = useCallback((tabId: string) => {
+    clearTabCache(tabId);
+    setOpenTabs((prev) => {
+      const next = prev.filter((t) => t.id !== tabId);
+      if (tabId === activeTabId) {
+        const closedIndex = prev.findIndex((t) => t.id === tabId);
+        const newActive = next[Math.min(closedIndex, next.length - 1)];
+        if (newActive) {
+          setActiveTabId(newActive.id);
+          setSelectedTable(newActive.label);
+          if (!restoreTabCacheWithFlag(newActive.id)) {
+            setCurrentPage(1);
+            setSortColumn(null);
+            setSortDirection(null);
+            setVisibleColumns([]);
+            setTableSearch('');
+          }
+        } else {
+          setActiveTabId(undefined);
+          setSelectedTable(undefined);
+          setTableData([]);
+          setColumns([]);
+        }
+      }
+      return next;
+    });
+  }, [activeTabId, clearTabCache, restoreTabCacheWithFlag]);
+
+  const setActiveTab = useCallback((tabId: string) => {
+    if (tabId === activeTabId) return;
+    saveCurrentTabCache();
+    setActiveTabId(tabId);
+    setOpenTabs((prev) => {
+      const tab = prev.find((t) => t.id === tabId);
+      if (tab) {
+        setSelectedTable(tab.label);
+        if (!restoreTabCacheWithFlag(tabId)) {
+          setCurrentPage(1);
+          setSortColumn(null);
+          setSortDirection(null);
+          setVisibleColumns([]);
+          setTableSearch('');
+        }
+      }
+      return prev;
+    });
+  }, [activeTabId, saveCurrentTabCache, restoreTabCacheWithFlag]);
+
+  const closeAllTabs = useCallback(() => {
+    setOpenTabs([]);
+    setActiveTabId(undefined);
+    setSelectedTable(undefined);
+    setTableData([]);
+    setColumns([]);
+  }, []);
+
+  const closeOtherTabs = useCallback((tabId: string) => {
+    setOpenTabs((prev) => prev.filter((t) => t.id === tabId));
+    setActiveTabId(tabId);
+  }, []);
 
   const handleSchemaChange = useCallback((newSchema: string) => {
     setSelectedSchema(newSchema);
     setSelectedTable(undefined);
     setTableData([]);
     setColumns([]);
+    setOpenTabs([]);
+    setActiveTabId(undefined);
     loadTables(newSchema);
     loadViewsAndFunctions(newSchema);
     loadSchemaMap(newSchema);
   }, [loadTables, loadViewsAndFunctions, loadSchemaMap]);
 
   const handleTableSelect = useCallback((table: string) => {
-    setSelectedTable(table);
-    setCurrentPage(1);
-    setSortColumn(null);
-    setSortDirection(null);
-    setVisibleColumns([]);
-    setTableSearch('');
-  }, []);
+    openTab(table, 'table');
+  }, [openTab]);
 
   const handleSort = useCallback((column: string) => {
     if (sortColumn === column) {
@@ -339,12 +467,18 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setRelationships([]);
       setIndexes([]);
       setSchemaMap({});
+      setOpenTabs([]);
+      setActiveTabId(undefined);
       setError(null);
     }
   }, [isConnected, databaseType, databaseName, loadSchemas, loadTables, loadViewsAndFunctions, loadSchemaMap]);
 
   // Load table data when selected table or pagination/sort changes
   useEffect(() => {
+    if (restoredFromCacheRef.current) {
+      restoredFromCacheRef.current = false;
+      return;
+    }
     if (selectedTable) {
       loadTableData(selectedTable, currentPage);
       loadTableSchema(selectedTable);
@@ -358,6 +492,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   return (
     <DashboardContext.Provider
       value={{
+        openTabs,
+        activeTabId,
+        openTab,
+        closeTab,
+        setActiveTab,
+        closeAllTabs,
+        closeOtherTabs,
         tables,
         schemas,
         selectedSchema,
@@ -382,6 +523,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         tableSearch,
         error,
         itemsPerPage,
+        setItemsPerPage,
         readOnlyMode,
         primaryKeys,
         tableStats,

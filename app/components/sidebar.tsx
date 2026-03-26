@@ -52,31 +52,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="w-full bg-bg h-screen overflow-y-auto border-r border-border" aria-label="Database sidebar">
-      <div className="p-4">
+      <div className="p-3">
         {schemas && schemas.length > 1 && onSchemaChange && (
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-secondary mb-1.5">
+          <div className="mb-3">
+            <label className="block text-[10px] uppercase tracking-wider font-semibold text-muted mb-1.5 px-1">
               Schema
             </label>
-            <select
-              value={selectedSchema}
-              onChange={(e) => onSchemaChange(e.target.value)}
-              className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent appearance-none cursor-pointer"
-              aria-label="Select database schema"
-            >
-              {schemas.map((schema) => (
-                <option key={schema} value={schema}>
-                  {schema}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedSchema}
+                onChange={(e) => onSchemaChange(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs rounded-md border border-border bg-bg-secondary/50 text-primary focus:outline-none focus:ring-1 focus:ring-accent/40 appearance-none cursor-pointer hover:bg-bg-secondary transition-colors"
+                aria-label="Select database schema"
+              >
+                {schemas.map((schema) => (
+                  <option key={schema} value={schema}>
+                    {schema}
+                  </option>
+                ))}
+              </select>
+              <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
           </div>
         )}
 
         {isLoading ? (
           <SidebarSkeleton />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-1">
             <SidebarSection
               title="Tables"
               count={tables.length}
@@ -133,15 +138,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 isExpanded={expandedSections.functions}
                 onToggle={() => toggleSection('functions')}
               >
-                <div className="space-y-0.5">
+                <div className="space-y-px">
                   {functions.map((fn, i) => (
                     <div
                       key={i}
-                      className="px-3 py-1.5 text-sm rounded-md hover:bg-bg-secondary"
+                      className="group px-2.5 py-1.5 text-[13px] rounded-md hover:bg-bg-secondary flex items-start gap-2 transition-colors cursor-default"
                     >
-                      <div className="font-medium text-primary truncate">{fn.name}</div>
-                      <div className="text-xs text-muted font-mono truncate">
-                        ({fn.arguments}) &rarr; {fn.return_type}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-muted group-hover:text-secondary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+                      </svg>
+                      <div className="min-w-0">
+                        <div className="font-medium text-secondary group-hover:text-primary truncate transition-colors">{fn.name}</div>
+                        <div className="text-[11px] text-muted font-mono truncate">
+                          ({fn.arguments}) &rarr; {fn.return_type}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -166,20 +176,15 @@ const SidebarSection: React.FC<{
   actionLabel?: string;
 }> = ({ title, count, icon, isExpanded, onToggle, children, onAction, actionLabel }) => (
   <div>
-    <div className="flex items-center">
+    <div className="flex items-center group/section">
       <button
         onClick={onToggle}
-        className="flex-1 flex items-center justify-between py-1.5 px-2 text-xs font-medium text-secondary hover:text-primary rounded-md hover:bg-bg-secondary transition-colors"
+        className="flex-1 flex items-center gap-1 py-1.5 px-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted hover:text-secondary transition-colors"
         aria-expanded={isExpanded}
       >
-        <span className="flex items-center gap-1.5">
-          <span className="text-muted font-mono text-[10px] w-5">{icon}</span>
-          <span>{title}</span>
-          <span className="text-muted">({count})</span>
-        </span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className={`h-3.5 w-3.5 text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+          className={`h-3 w-3 text-muted/60 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -187,11 +192,13 @@ const SidebarSection: React.FC<{
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
+        <span>{title}</span>
+        <span className="text-muted/50 font-normal">{count}</span>
       </button>
       {onAction && (
         <button
           onClick={(e) => { e.stopPropagation(); onAction(); }}
-          className="p-1 text-muted hover:text-accent rounded transition-colors"
+          className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded transition-all"
           title={actionLabel || "Add"}
           aria-label={actionLabel || "Add"}
         >
@@ -201,6 +208,6 @@ const SidebarSection: React.FC<{
         </button>
       )}
     </div>
-    {isExpanded && <div className="mt-1">{children}</div>}
+    {isExpanded && <div className="mt-0.5 ml-1">{children}</div>}
   </div>
 );

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
 import { SqlEditor } from "./sql-editor";
 import { useConnection } from "../contexts/connection-context";
 import { useDashboard } from "../contexts/dashboard-context";
 import { buildCreateTableSQL, COLUMN_TYPES } from "@/lib/ddl-builder";
+import { api } from "@/lib/api";
 import { ColumnDefinition } from "@/types";
 
 interface TableCreationWizardProps {
@@ -85,6 +86,49 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
     setColumns((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Drag-to-reorder columns
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleColDragStart = (e: React.DragEvent, index: number) => {
+    dragIndexRef.current = index;
+    e.dataTransfer.effectAllowed = 'move';
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  };
+
+  const handleColDragEnd = (e: React.DragEvent) => {
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  const handleColDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragIndexRef.current !== null && dragIndexRef.current !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleColDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    const sourceIndex = dragIndexRef.current;
+    if (sourceIndex === null || sourceIndex === targetIndex) return;
+
+    setColumns((prev) => {
+      const newCols = [...prev];
+      const [moved] = newCols.splice(sourceIndex, 1);
+      newCols.splice(targetIndex, 0, moved);
+      return newCols;
+    });
+    setDragOverIndex(null);
+    dragIndexRef.current = null;
+  };
+
   const generatedSQL = useMemo(() => {
     if (!tableName || !hasValidColumns) return "";
     try {
@@ -109,16 +153,7 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
     setError(null);
 
     try {
-      const response = await fetch("/api/ddl", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sql: generatedSQL }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create table");
-      }
+      await api.post("/api/ddl", { sql: generatedSQL }, { noRetry: true });
 
       onComplete();
       handleClose();
@@ -206,7 +241,14 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
               {columns.map((col, i) => (
                 <div
                   key={col.id}
-                  className="flex items-start gap-2 p-3 border border-border rounded-md bg-bg-secondary"
+                  draggable
+                  onDragStart={(e) => handleColDragStart(e, i)}
+                  onDragEnd={handleColDragEnd}
+                  onDragOver={(e) => handleColDragOver(e, i)}
+                  onDrop={(e) => handleColDrop(e, i)}
+                  className={`flex items-start gap-2 p-3 border border-border rounded-md bg-bg-secondary cursor-grab active:cursor-grabbing ${
+                    dragOverIndex === i ? 'border-accent bg-accent/5' : ''
+                  }`}
                 >
                   <div className="flex-1 space-y-2">
                     <div className="flex gap-2">

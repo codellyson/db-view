@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { DBConfig, SavedConnection } from '@/types';
+import { api } from '@/lib/api';
 
 interface ConnectionContextType {
   isConnected: boolean;
@@ -78,18 +79,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     setIsConnecting(true);
     setError(null);
     try {
-      const response = await fetch('/api/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Connection failed');
-      }
-
-      const data = await response.json();
+      const data = await api.post('/api/connect', config, { noRetry: true });
       setIsConnected(true);
       setDatabaseName(data.database || config.database);
       setDatabaseType(data.type || config.type || "postgresql");
@@ -127,18 +117,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     setIsConnecting(true);
     setError(null);
     try {
-      const response = await fetch('/api/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(connection.config),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Connection failed');
-      }
-
-      const data = await response.json();
+      const data = await api.post('/api/connect', connection.config, { noRetry: true });
       setIsConnected(true);
       setDatabaseName(data.database || connection.config.database);
       setDatabaseType(data.type || connection.config.type || "postgresql");
@@ -165,7 +144,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
 
   const disconnect = async () => {
     try {
-      await fetch('/api/disconnect', { method: 'POST' });
+      await api.post('/api/disconnect', undefined, { noRetry: true });
       setIsConnected(false);
       setDatabaseName(undefined);
       setDatabaseType("postgresql");

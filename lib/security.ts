@@ -1,14 +1,22 @@
 import crypto from "crypto";
 
-const ENCRYPTION_KEY =
-  process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString("hex");
+// Persist the generated key across Next.js hot reloads so encrypted cookies
+// remain decryptable during development.
+const globalForSecurity = globalThis as unknown as { __dbEncryptionKey?: string };
 
-if (!process.env.ENCRYPTION_KEY) {
-  console.warn(
-    "WARNING: ENCRYPTION_KEY not set. Using random key that will change on restart. " +
-      "Set ENCRYPTION_KEY environment variable for production use."
-  );
+if (!globalForSecurity.__dbEncryptionKey) {
+  globalForSecurity.__dbEncryptionKey =
+    process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString("hex");
+
+  if (!process.env.ENCRYPTION_KEY) {
+    console.warn(
+      "WARNING: ENCRYPTION_KEY not set. Using random key that will change on restart. " +
+        "Set ENCRYPTION_KEY environment variable for production use."
+    );
+  }
 }
+
+const ENCRYPTION_KEY = globalForSecurity.__dbEncryptionKey;
 
 function getEncryptionKey(): Buffer {
   const keyHex = ENCRYPTION_KEY.trim();

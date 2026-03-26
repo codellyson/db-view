@@ -1,5 +1,6 @@
 'use client';
 
+import { api } from '@/lib/api';
 import { useConnection } from '../contexts/connection-context';
 import { Header } from '../components/header';
 import { Sidebar } from '../components/sidebar';
@@ -28,11 +29,8 @@ export default function QueryPage() {
   const loadTables = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/tables');
-      if (response.ok) {
-        const data = await response.json();
-        setTables(data.tables || []);
-      }
+      const data = await api.get('/api/tables');
+      setTables(data.tables || []);
     } catch (err) {
       console.error('Failed to load tables:', err);
     } finally {

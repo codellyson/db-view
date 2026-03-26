@@ -33,8 +33,6 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems = [
     { label: 'Tables', path: '/' },
     { label: 'Query', path: '/query' },
-    { label: 'ER Diagram', path: '/er-diagram' },
-    { label: 'Performance', path: '/performance' },
     { label: 'Connections', path: '/connections' },
   ];
 

@@ -6,8 +6,20 @@ import { decrypt } from "./security";
 import { startHealthCheck, stopHealthCheck, resetHealthStatus } from "./health-check";
 import { cookies } from "next/headers";
 
-let activeProvider: DatabaseProvider | null = null;
-let poolConfig: DBConfig | null = null;
+// Persist across Next.js hot reloads in development.
+// Without this, every file save wipes the connection pool.
+const globalForDb = globalThis as unknown as {
+  __dbActiveProvider?: DatabaseProvider | null;
+  __dbPoolConfig?: DBConfig | null;
+};
+
+let activeProvider: DatabaseProvider | null = globalForDb.__dbActiveProvider ?? null;
+let poolConfig: DBConfig | null = globalForDb.__dbPoolConfig ?? null;
+
+function persistGlobals() {
+  globalForDb.__dbActiveProvider = activeProvider;
+  globalForDb.__dbPoolConfig = poolConfig;
+}
 
 function createProvider(type: DatabaseType): DatabaseProvider {
   if (type === "mysql") {
@@ -38,6 +50,7 @@ export function createPool(config: DBConfig, type?: DatabaseType): void {
   activeProvider = createProvider(dbType);
   activeProvider.createPool(config);
   poolConfig = config;
+  persistGlobals();
   startHealthCheck(activeProvider);
 }
 
@@ -66,6 +79,7 @@ export function setPool(
   if (newPool === null) {
     activeProvider = null;
     poolConfig = null;
+    persistGlobals();
     resetHealthStatus();
     return;
   }
@@ -73,6 +87,7 @@ export function setPool(
   if (config) {
     poolConfig = config;
   }
+  persistGlobals();
 
   if (activeProvider) {
     startHealthCheck(activeProvider);
@@ -84,11 +99,12 @@ export async function ensurePool(sessionId?: string): Promise<any> {
     return activeProvider.getPool();
   }
 
-  // Try to reconstruct from poolConfig
+  // Try to reconstruct from poolConfig (survives hot reload via globalThis)
   if (poolConfig) {
     const dbType = poolConfig.type || "postgresql";
     activeProvider = createProvider(dbType);
     activeProvider.createPool(poolConfig);
+    persistGlobals();
     startHealthCheck(activeProvider);
     return activeProvider.getPool();
   }
@@ -101,6 +117,7 @@ export async function ensurePool(sessionId?: string): Promise<any> {
       const dbType = config.type || "postgresql";
       activeProvider = createProvider(dbType);
       activeProvider.createPool(config);
+      persistGlobals();
       startHealthCheck(activeProvider);
       return activeProvider.getPool();
     }
@@ -130,6 +147,7 @@ export async function ensurePool(sessionId?: string): Promise<any> {
         const dbType = config.type || "postgresql";
         activeProvider = createProvider(dbType);
         activeProvider.createPool(config);
+        persistGlobals();
         startHealthCheck(activeProvider);
         return activeProvider.getPool();
       } else if (configFromCookie) {
@@ -138,6 +156,7 @@ export async function ensurePool(sessionId?: string): Promise<any> {
         activeProvider = createProvider(dbType);
         activeProvider.createPool(configFromCookie);
         storeConnection(cookieSessionId, configFromCookie);
+        persistGlobals();
         startHealthCheck(activeProvider);
         return activeProvider.getPool();
       }
