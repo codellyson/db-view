@@ -36,7 +36,7 @@ export default function Home() {
             </p>
             <p className="text-sm text-muted max-w-sm mx-auto mb-2">
               Browse tables, run queries, and inspect schemas on any device.
-              Built for the moments you're away from your desk.
+              Built for the moments you&apos;re away from your desk.
             </p>
             <p className="text-xs text-muted/70 max-w-xs mx-auto">
               Connects directly to your database. No data is sent to any remote server — credentials stay in your browser.
