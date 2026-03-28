@@ -25,7 +25,7 @@ export function generateSQLContent(
   columns: string[],
   data: any[],
   tableName: string,
-  dialect: 'postgresql' | 'mysql' = 'postgresql'
+  dialect: 'postgresql' | 'mysql' | 'sqlite' = 'postgresql'
 ): string {
   const quoteId = (name: string) =>
     dialect === 'mysql'
@@ -78,7 +78,7 @@ export function exportSQL(
   columns: string[],
   data: any[],
   tableName: string,
-  dialect: 'postgresql' | 'mysql' = 'postgresql'
+  dialect: 'postgresql' | 'mysql' | 'sqlite' = 'postgresql'
 ): void {
   const sqlContent = generateSQLContent(columns, data, tableName, dialect);
   downloadBlob(sqlContent, `${tableName}_${dateStamp()}.sql`, 'text/sql;charset=utf-8;');

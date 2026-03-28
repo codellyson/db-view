@@ -1,4 +1,4 @@
-export type Dialect = "postgresql" | "mysql";
+export type Dialect = "postgresql" | "mysql" | "sqlite";
 
 export interface MutationRequest {
   type: "INSERT" | "UPDATE" | "DELETE";
@@ -16,11 +16,13 @@ export function validateIdentifier(name: string): void {
 
 export function escapeIdentifier(name: string, dialect: Dialect): string {
   if (dialect === "mysql") return `\`${name.replace(/`/g, "``")}\``;
+  // PostgreSQL and SQLite both use double-quote escaping
   return `"${name.replace(/"/g, '""')}"`;
 }
 
 export function placeholder(index: number, dialect: Dialect): string {
   if (dialect === "mysql") return "?";
+  if (dialect === "sqlite") return "?";
   return `$${index}`;
 }
 
@@ -61,7 +63,10 @@ export function buildUpdateQuery(
     throw new Error("UPDATE requires at least one primary key condition");
   }
 
-  const sql = `UPDATE ${esc(schema)}.${esc(table)} SET ${setClauses.join(", ")} WHERE ${whereClauses.join(" AND ")}`;
+  const qualifiedTable = dialect === "sqlite"
+    ? esc(table)
+    : `${esc(schema)}.${esc(table)}`;
+  const sql = `UPDATE ${qualifiedTable} SET ${setClauses.join(", ")} WHERE ${whereClauses.join(" AND ")}`;
   return { sql, params };
 }
 
@@ -93,7 +98,10 @@ export function buildInsertQuery(
     throw new Error("INSERT requires at least one value");
   }
 
-  let sql = `INSERT INTO ${esc(schema)}.${esc(table)} (${columns.join(", ")}) VALUES (${placeholders.join(", ")})`;
+  const qualifiedTable = dialect === "sqlite"
+    ? esc(table)
+    : `${esc(schema)}.${esc(table)}`;
+  let sql = `INSERT INTO ${qualifiedTable} (${columns.join(", ")}) VALUES (${placeholders.join(", ")})`;
   if (dialect === "postgresql") {
     sql += " RETURNING *";
   }
@@ -125,7 +133,10 @@ export function buildDeleteQuery(
     throw new Error("DELETE requires at least one primary key condition");
   }
 
-  const sql = `DELETE FROM ${esc(schema)}.${esc(table)} WHERE ${whereClauses.join(" AND ")}`;
+  const qualifiedTable = dialect === "sqlite"
+    ? esc(table)
+    : `${esc(schema)}.${esc(table)}`;
+  const sql = `DELETE FROM ${qualifiedTable} WHERE ${whereClauses.join(" AND ")}`;
   return { sql, params };
 }
 
@@ -164,7 +175,7 @@ export function buildDisplaySQL(
     }
     // Replace placeholders with quoted values for display
     let display = result.sql;
-    if (dialect === "mysql") {
+    if (dialect === "mysql" || dialect === "sqlite") {
       // Replace ? placeholders left-to-right
       result.params.forEach((param) => {
         const val =

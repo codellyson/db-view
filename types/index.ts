@@ -5,7 +5,11 @@ export interface DBConfig {
   username: string;
   password: string;
   ssl?: boolean | { rejectUnauthorized?: boolean };
-  type?: "postgresql" | "mysql";
+  type?: "postgresql" | "mysql" | "sqlite";
+  /** File path or libsql:// URL (only used when type is "sqlite") */
+  filepath?: string;
+  /** Auth token for Turso/libSQL remote databases */
+  authToken?: string;
 }
 
 export interface SavedConnection {

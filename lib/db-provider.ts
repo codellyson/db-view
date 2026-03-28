@@ -1,6 +1,6 @@
 import { DBConfig } from "@/types";
 
-export type DatabaseType = "postgresql" | "mysql";
+export type DatabaseType = "postgresql" | "mysql" | "sqlite";
 
 export interface QueryResult {
   rows: any[];

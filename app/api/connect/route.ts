@@ -9,38 +9,49 @@ export async function POST(request: NextRequest) {
   try {
     const config: DBConfig = await request.json();
 
-    const hostValidation = validateInput(config.host, "Host");
-    if (!hostValidation.valid) {
-      return NextResponse.json(
-        { error: hostValidation.error },
-        { status: 400 }
-      );
-    }
-
-    const databaseValidation = validateInput(config.database, "Database");
-    if (!databaseValidation.valid) {
-      return NextResponse.json(
-        { error: databaseValidation.error },
-        { status: 400 }
-      );
-    }
-
-    const usernameValidation = validateInput(config.username, "Username");
-    if (!usernameValidation.valid) {
-      return NextResponse.json(
-        { error: usernameValidation.error },
-        { status: 400 }
-      );
-    }
-
-    if (config.port < 1 || config.port > 65535) {
-      return NextResponse.json(
-        { error: "Port must be between 1 and 65535" },
-        { status: 400 }
-      );
-    }
-
     const dbType = config.type || "postgresql";
+
+    // SQLite only needs a file path
+    if (dbType === "sqlite") {
+      if (!config.filepath) {
+        return NextResponse.json(
+          { error: "SQLite file path is required" },
+          { status: 400 }
+        );
+      }
+    } else {
+      const hostValidation = validateInput(config.host, "Host");
+      if (!hostValidation.valid) {
+        return NextResponse.json(
+          { error: hostValidation.error },
+          { status: 400 }
+        );
+      }
+
+      const databaseValidation = validateInput(config.database, "Database");
+      if (!databaseValidation.valid) {
+        return NextResponse.json(
+          { error: databaseValidation.error },
+          { status: 400 }
+        );
+      }
+
+      const usernameValidation = validateInput(config.username, "Username");
+      if (!usernameValidation.valid) {
+        return NextResponse.json(
+          { error: usernameValidation.error },
+          { status: 400 }
+        );
+      }
+
+      if (config.port < 1 || config.port > 65535) {
+        return NextResponse.json(
+          { error: "Port must be between 1 and 65535" },
+          { status: 400 }
+        );
+      }
+    }
+
     try {
       await testConnection(config, dbType);
     } catch (connErr: any) {

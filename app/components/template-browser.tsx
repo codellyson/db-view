@@ -11,7 +11,7 @@ interface TemplateBrowserProps {
   isOpen: boolean;
   onClose: () => void;
   onInsert: (sql: string) => void;
-  dialect: "postgresql" | "mysql";
+  dialect: "postgresql" | "mysql" | "sqlite";
 }
 
 const CATEGORIES = [

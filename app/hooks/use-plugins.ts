@@ -40,7 +40,7 @@ export function usePlugins() {
   }, []);
 
   const getTemplates = useCallback(
-    (dialect: "postgresql" | "mysql"): QueryTemplate[] => {
+    (dialect: "postgresql" | "mysql" | "sqlite"): QueryTemplate[] => {
       const builtIn = DEFAULT_TEMPLATES.filter(
         (t) =>
           (t.dialect === dialect || t.dialect === "universal") &&

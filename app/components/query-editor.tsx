@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { EditorView } from '@codemirror/view';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { DataTable } from './data-table';
@@ -27,7 +28,7 @@ interface QueryEditorProps {}
 
 export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const { databaseType } = useConnection();
-  const { schemaMap, tables, selectedSchema, loadTables } = useDashboard();
+  const { schemaMap, tables, selectedSchema } = useDashboard();
   const { addTemplate } = usePlugins();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
@@ -45,12 +46,19 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const [viewMode, setViewMode] = useState<'results' | 'explain'>('results');
   const [pinnedResult, setPinnedResult] = useState<PinnedResult | null>(null);
   const [showDiff, setShowDiff] = useState(false);
-  // Ensure schemaMap is loaded for autocomplete even if user navigated directly to /query
-  useEffect(() => {
-    if (Object.keys(schemaMap).length === 0 && tables.length === 0) {
-      loadTables();
+  const editorViewRef = useRef<EditorView | null>(null);
+  const [hasSelection, setHasSelection] = useState(false);
+
+  const getExecutableQuery = useCallback(() => {
+    const view = editorViewRef.current;
+    if (view) {
+      const { from, to } = view.state.selection.main;
+      if (from !== to) {
+        return view.state.sliceDoc(from, to).trim();
+      }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return query.trim();
+  }, [query]);
 
   // Build autocomplete schema: use schemaMap if available, otherwise fall back to table names
   const autocompleteSchema = useMemo(() => {
@@ -67,7 +75,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const { savedQueries, saveQuery, deleteQuery: deleteSavedQuery, clearAll: clearSavedQueries } = useSavedQueries();
 
   const handleExecute = async () => {
-    if (!query.trim()) return;
+    const execQuery = getExecutableQuery();
+    if (!execQuery) return;
 
     setIsExecuting(true);
     setError(null);
@@ -78,7 +87,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
     setViewMode('results');
 
     try {
-      const data = await api.post('/api/query', { query }, { noRetry: true });
+      const data = await api.post('/api/query', { query: execQuery }, { noRetry: true });
 
       if (data.rows && data.rows.length > 0) {
         setColumns(Object.keys(data.rows[0]));
@@ -98,7 +107,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
       const rows = data.rows || [];
       setResults(rows);
       setExecutionTime(data.executionTime || null);
-      addQuery(query, data.executionTime || 0, rows.length);
+      addQuery(execQuery, data.executionTime || 0, rows.length);
     } catch (err: any) {
       setError(err.message || 'Query execution failed');
       setResults([]);
@@ -109,7 +118,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   };
 
   const handleExplain = async () => {
-    if (!query.trim()) return;
+    const execQuery = getExecutableQuery();
+    if (!execQuery) return;
 
     setIsExecuting(true);
     setError(null);
@@ -117,7 +127,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
     setViewMode('explain');
 
     try {
-      const data = await api.post('/api/explain', { query }, { noRetry: true });
+      const data = await api.post('/api/explain', { query: execQuery }, { noRetry: true });
 
       setExplainPlan(data.plan);
       setExecutionTime(data.executionTime || null);
@@ -151,6 +161,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
             onExecute={handleExecute}
             disabled={isExecuting}
             schema={autocompleteSchema}
+            editorRef={editorViewRef}
+            onSelectionChange={setHasSelection}
           />
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -160,7 +172,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
                 isLoading={isExecuting && viewMode === 'results'}
                 disabled={isExecuting || !query.trim()}
               >
-                Execute
+                {hasSelection ? 'Run Selection' : 'Execute'}
               </Button>
               <Button
                 variant="secondary"
@@ -168,7 +180,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
                 isLoading={isExecuting && viewMode === 'explain'}
                 disabled={isExecuting || !query.trim()}
               >
-                Explain
+                {hasSelection ? 'Explain Selection' : 'Explain'}
               </Button>
               <Button
                 variant="secondary"

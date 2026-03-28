@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { sql, PostgreSQL, MySQL } from '@codemirror/lang-sql';
-import { keymap } from '@codemirror/view';
+import { sql, PostgreSQL, MySQL, SQLite } from '@codemirror/lang-sql';
+import { keymap, EditorView } from '@codemirror/view';
 import { acceptCompletion } from '@codemirror/autocomplete';
 import { useTheme } from '../contexts/theme-context';
 import { useConnection } from '../contexts/connection-context';
@@ -19,6 +19,8 @@ interface SqlEditorProps {
   disabled?: boolean;
   placeholder?: string;
   schema?: Record<string, string[]>;
+  editorRef?: React.MutableRefObject<EditorView | null>;
+  onSelectionChange?: (hasSelection: boolean) => void;
 }
 
 export const SqlEditor: React.FC<SqlEditorProps> = ({
@@ -28,13 +30,21 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   disabled = false,
   placeholder = 'SELECT * FROM users LIMIT 10;',
   schema: schemaSpec,
+  editorRef,
+  onSelectionChange,
 }) => {
   const { mode, colors } = useTheme();
   const { databaseType } = useConnection();
   const isDark = mode === 'dark';
 
+  const handleCreateEditor = useCallback((view: EditorView) => {
+    if (editorRef) {
+      editorRef.current = view;
+    }
+  }, [editorRef]);
+
   const extensions = useMemo(() => {
-    const sqlDialect = databaseType === 'mysql' ? MySQL : PostgreSQL;
+    const sqlDialect = databaseType === 'mysql' ? MySQL : databaseType === 'sqlite' ? SQLite : PostgreSQL;
     const exts = [
       sql({
         dialect: sqlDialect,
@@ -48,6 +58,17 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
         { key: 'Tab', run: acceptCompletion },
       ]),
     ];
+
+    if (onSelectionChange) {
+      exts.push(
+        EditorView.updateListener.of((update) => {
+          if (update.selectionSet) {
+            const { from, to } = update.state.selection.main;
+            onSelectionChange(from !== to);
+          }
+        })
+      );
+    }
 
     if (onExecute) {
       exts.push(
@@ -64,7 +85,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     }
 
     return exts;
-  }, [isDark, onExecute, colors, databaseType, schemaSpec]);
+  }, [isDark, onExecute, onSelectionChange, colors, databaseType, schemaSpec]);
 
   return (
     <div className="border border-border rounded-md overflow-hidden">
@@ -76,6 +97,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
         editable={!disabled}
         height="192px"
         theme="none"
+        onCreateEditor={handleCreateEditor}
         basicSetup={{
           lineNumbers: true,
           highlightActiveLineGutter: true,

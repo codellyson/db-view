@@ -8,7 +8,7 @@ interface ConnectionContextType {
   isConnected: boolean;
   isConnecting: boolean;
   databaseName?: string;
-  databaseType: "postgresql" | "mysql";
+  databaseType: "postgresql" | "mysql" | "sqlite";
   currentConnectionId?: string;
   savedConnections: SavedConnection[];
   connect: (config: DBConfig, name?: string) => Promise<void>;
@@ -30,7 +30,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   const [databaseName, setDatabaseName] = useState<string | undefined>();
   const [currentConnectionId, setCurrentConnectionId] = useState<string | undefined>();
   const [savedConnections, setSavedConnections] = useState<SavedConnection[]>([]);
-  const [databaseType, setDatabaseType] = useState<"postgresql" | "mysql">("postgresql");
+  const [databaseType, setDatabaseType] = useState<"postgresql" | "mysql" | "sqlite">("postgresql");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

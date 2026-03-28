@@ -14,7 +14,7 @@ interface TemplateEditorProps {
     description: string;
     sql: string;
     tags: string[];
-    dialect: "postgresql" | "mysql" | "universal";
+    dialect: "postgresql" | "mysql" | "sqlite" | "universal";
     category: "performance" | "schema" | "data" | "admin" | "custom";
     variables: TemplateVariable[];
   }) => void;
@@ -43,7 +43,7 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
   const [description, setDescription] = useState("");
   const [sql, setSql] = useState("");
   const [tagsInput, setTagsInput] = useState("");
-  const [dialect, setDialect] = useState<"postgresql" | "mysql" | "universal">("universal");
+  const [dialect, setDialect] = useState<"postgresql" | "mysql" | "sqlite" | "universal">("universal");
   const [category, setCategory] = useState<"performance" | "schema" | "data" | "admin" | "custom">("custom");
 
   const resetState = () => {

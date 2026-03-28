@@ -17,7 +17,7 @@ interface BatchExportModalProps {
   onClose: () => void;
   tables: string[];
   schema: string;
-  databaseType: "postgresql" | "mysql";
+  databaseType: "postgresql" | "mysql" | "sqlite";
 }
 
 type ExportFormat = "csv" | "json" | "sql";

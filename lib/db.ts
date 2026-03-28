@@ -1,6 +1,7 @@
 import { DBConfig } from "@/types";
 import { DatabaseProvider, DatabaseType } from "./db-provider";
 import { PostgreSQLProvider } from "./providers/postgresql";
+import { SQLiteProvider } from "./providers/sqlite";
 import { getConnection, storeConnection } from "./connection-store";
 import { decrypt } from "./security";
 import { startHealthCheck, stopHealthCheck, resetHealthStatus } from "./health-check";
@@ -23,9 +24,11 @@ function persistGlobals() {
 
 function createProvider(type: DatabaseType): DatabaseProvider {
   if (type === "mysql") {
-    // Dynamic import to avoid loading mysql2 when only using PostgreSQL
     const { MySQLProvider } = require("./providers/mysql");
     return new MySQLProvider();
+  }
+  if (type === "sqlite") {
+    return new SQLiteProvider();
   }
   return new PostgreSQLProvider();
 }

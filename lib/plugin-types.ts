@@ -12,7 +12,7 @@ export interface QueryTemplate {
   description: string;
   sql: string;
   tags: string[];
-  dialect: "postgresql" | "mysql" | "universal";
+  dialect: "postgresql" | "mysql" | "sqlite" | "universal";
   category: "performance" | "schema" | "data" | "admin" | "custom";
   isBuiltIn: boolean;
   variables: TemplateVariable[];

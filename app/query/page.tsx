@@ -1,7 +1,7 @@
 'use client';
 
-import { api } from '@/lib/api';
 import { useConnection } from '../contexts/connection-context';
+import { useDashboard } from '../contexts/dashboard-context';
 import { Header } from '../components/header';
 import { Sidebar } from '../components/sidebar';
 import { MainContent } from '../components/main-content';
@@ -10,33 +10,18 @@ import { Breadcrumb } from '../components/breadcrumb';
 import { Footer } from '../components/footer';
 import { ResizableSplitter } from '../components/resizable-splitter';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 export default function QueryPage() {
   const { isConnected, databaseName } = useConnection();
+  const { tables, isLoadingTables } = useDashboard();
   const router = useRouter();
-  const [tables, setTables] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!isConnected) {
       router.push('/');
-    } else {
-      loadTables();
     }
   }, [isConnected, router]);
-
-  const loadTables = async () => {
-    setIsLoading(true);
-    try {
-      const data = await api.get('/api/tables');
-      setTables(data.tables || []);
-    } catch (err) {
-      console.error('Failed to load tables:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   if (!isConnected) {
     return null;
@@ -51,7 +36,7 @@ export default function QueryPage() {
           onTableSelect={(table) => {
             router.push(`/?table=${table}`);
           }}
-          isLoading={isLoading}
+          isLoading={isLoadingTables}
         />
       }
       right={
@@ -72,4 +57,3 @@ export default function QueryPage() {
     />
   );
 }
-

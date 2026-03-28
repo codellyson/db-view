@@ -47,6 +47,17 @@ export const COLUMN_TYPES: Record<Dialect, string[]> = {
     "BLOB",
     "ENUM('')",
   ],
+  sqlite: [
+    "INTEGER",
+    "TEXT",
+    "REAL",
+    "BLOB",
+    "NUMERIC",
+    "BOOLEAN",
+    "DATE",
+    "DATETIME",
+    "VARCHAR(255)",
+  ],
 };
 
 export function buildCreateTableSQL(
@@ -65,6 +76,8 @@ export function buildCreateTableSQL(
     if (dialect === "mysql" && col.isPrimaryKey && (colType === "INT" || colType === "BIGINT")) {
       parts.push(colType);
       parts.push("AUTO_INCREMENT");
+    } else if (dialect === "sqlite" && col.isPrimaryKey && colType === "INTEGER") {
+      parts.push("INTEGER PRIMARY KEY AUTOINCREMENT");
     } else {
       parts.push(colType);
     }
@@ -88,11 +101,23 @@ export function buildCreateTableSQL(
     }
   }
 
-  if (pkColumns.length > 0) {
-    lines.push(`  PRIMARY KEY (${pkColumns.join(", ")})`);
+  // SQLite AUTOINCREMENT columns already include PRIMARY KEY inline
+  const sqliteAutoPKs = dialect === "sqlite"
+    ? definition.columns.filter(c => c.isPrimaryKey && c.type === "INTEGER").map(c => c.name)
+    : [];
+  const remainingPKs = pkColumns.filter(col => {
+    // Strip escaping for comparison
+    const raw = col.replace(/^"|"$/g, "");
+    return !sqliteAutoPKs.includes(raw);
+  });
+
+  if (remainingPKs.length > 0) {
+    lines.push(`  PRIMARY KEY (${remainingPKs.join(", ")})`);
   }
 
-  const tableName = `${esc(definition.schema)}.${esc(definition.name)}`;
+  const tableName = dialect === "sqlite"
+    ? esc(definition.name)
+    : `${esc(definition.schema)}.${esc(definition.name)}`;
   let sql = `CREATE TABLE ${tableName} (\n${lines.join(",\n")}\n)`;
 
   if (dialect === "mysql") {
