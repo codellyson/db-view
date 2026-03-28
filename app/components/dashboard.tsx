@@ -86,6 +86,8 @@ export function Dashboard() {
     setActiveTab,
     closeAllTabs,
     closeOtherTabs,
+    isQueryTab,
+    queryTabResults,
   } = useDashboard();
 
   const { allFormatters } = usePlugins();
@@ -289,6 +291,19 @@ export function Dashboard() {
             onTabClose={closeTab}
             onTabCloseOthers={closeOtherTabs}
             onTabCloseAll={closeAllTabs}
+            actions={
+              <>
+                <button
+                  onClick={() => router.push('/query')}
+                  className="p-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded transition-colors"
+                  title="New query (go to editor)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </>
+            }
           />
           <MainContent>
             {error && (
@@ -298,7 +313,34 @@ export function Dashboard() {
                 className="mb-8"
               />
             )}
-            {selectedTable ? (
+            {isQueryTab && activeTabId && queryTabResults[activeTabId] ? (
+              (() => {
+                const qr = queryTabResults[activeTabId];
+                return (
+                  <>
+                    <Breadcrumb
+                      items={[
+                        { label: databaseName || 'Database', onClick: () => setSelectedTable(undefined) },
+                        { label: 'Query Result' },
+                      ]}
+                    />
+                    <div className="flex items-center justify-between mb-4">
+                      <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-primary truncate min-w-0">
+                        Query Result
+                      </h1>
+                      <span className="text-sm text-muted font-mono flex-shrink-0">
+                        {qr.rows.length} {qr.rows.length === 1 ? 'row' : 'rows'} &middot; {qr.executionTime}ms
+                      </span>
+                    </div>
+                    <DataTable
+                      columns={qr.columns}
+                      data={qr.rows}
+                      isLoading={false}
+                    />
+                  </>
+                );
+              })()
+            ) : selectedTable ? (
               <>
                 <Breadcrumb
                   items={[

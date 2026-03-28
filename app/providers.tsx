@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConnectionProvider } from "./contexts/connection-context";
 import { ToastProvider } from "./contexts/toast-context";
@@ -31,6 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           </ConnectionProvider>
           <ToastContainer />
           <ThemeToggle />
+          <Analytics />
         </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>

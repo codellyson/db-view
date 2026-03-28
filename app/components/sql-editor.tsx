@@ -88,7 +88,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   }, [isDark, onExecute, onSelectionChange, colors, databaseType, schemaSpec]);
 
   return (
-    <div className="border border-border rounded-md overflow-hidden">
+    <div className="overflow-hidden">
       <CodeMirror
         value={value}
         onChange={onChange}

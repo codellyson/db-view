@@ -5,7 +5,7 @@ import React, { useRef, useEffect } from 'react';
 export interface Tab {
   id: string;
   label: string;
-  type: 'table' | 'view' | 'matview';
+  type: 'table' | 'view' | 'matview' | 'query';
 }
 
 interface TabBarProps {
@@ -15,6 +15,7 @@ interface TabBarProps {
   onTabClose: (tabId: string) => void;
   onTabCloseOthers?: (tabId: string) => void;
   onTabCloseAll?: () => void;
+  actions?: React.ReactNode;
 }
 
 export const TabBar: React.FC<TabBarProps> = ({
@@ -24,6 +25,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   onTabClose,
   onTabCloseOthers,
   onTabCloseAll,
+  actions,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
@@ -32,7 +34,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
   }, [activeTabId]);
 
-  if (tabs.length === 0) return null;
+  if (tabs.length === 0 && !actions) return null;
 
   const handleMiddleClick = (e: React.MouseEvent, tabId: string) => {
     if (e.button === 1) {
@@ -43,6 +45,11 @@ export const TabBar: React.FC<TabBarProps> = ({
 
   return (
     <div className="flex items-center border-b border-border bg-bg-secondary/30 min-h-[36px]">
+      {actions && (
+        <div className="flex items-center gap-0.5 px-1 border-r border-border flex-shrink-0">
+          {actions}
+        </div>
+      )}
       <div
         ref={scrollRef}
         className="flex items-end overflow-x-auto scrollbar-none flex-1"
@@ -68,7 +75,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               <span className={`flex-shrink-0 font-mono text-[9px] px-1 py-px rounded ${
                 isActive ? 'bg-accent/10 text-accent' : 'bg-bg-secondary text-muted'
               }`}>
-                {tab.type === 'table' ? 'T' : tab.type === 'view' ? 'V' : 'MV'}
+                {tab.type === 'query' ? 'Q' : tab.type === 'table' ? 'T' : tab.type === 'view' ? 'V' : 'MV'}
               </span>
               <span className="truncate">{tab.label}</span>
               <span

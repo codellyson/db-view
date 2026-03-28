@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
     const result = await executeQuery(query);
     return NextResponse.json(result);
   } catch (error: any) {
-    const sanitizedError = sanitizeError(error);
     console.error("Query execution error:", error);
-    return NextResponse.json({ error: sanitizedError }, { status: 500 });
+    const message = error.sqlMessage || error.message || "Query execution failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

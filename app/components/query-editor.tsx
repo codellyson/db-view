@@ -2,34 +2,33 @@
 
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { EditorView } from '@codemirror/view';
-import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { DataTable } from './data-table';
 import { ErrorState } from './error-state';
 import { SqlEditor } from './sql-editor';
-import { ExplainPlan } from './explain-plan';
 import { useQueryHistory } from '../hooks/use-query-history';
-import { useSavedQueries } from '../hooks/use-saved-queries';
 import { QueryHistory } from './query-history';
-import { SavedQueriesPanel } from './saved-queries-panel';
-import { SaveQueryDialog } from './save-query-dialog';
 import { formatSQL } from '@/lib/sql-formatter';
 import { api } from '@/lib/api';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
-import { TemplateBrowser } from './template-browser';
-import { TemplateEditor } from './template-editor';
-import { QueryDiffView } from './query-diff-view';
-import { usePlugins } from '../hooks/use-plugins';
-import type { PinnedResult } from '@/types';
 import { pgOidToType } from '@/lib/pg-types';
+import { TabBar, type Tab } from './tab-bar';
+
+interface ResultTab {
+  id: string;
+  label: string;
+  rows: any[];
+  columns: string[];
+  columnTypes: Record<string, string>;
+  executionTime: number;
+}
 
 interface QueryEditorProps {}
 
 export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const { databaseType } = useConnection();
-  const { schemaMap, tables, selectedSchema } = useDashboard();
-  const { addTemplate } = usePlugins();
+  const { schemaMap, tables } = useDashboard();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
@@ -38,16 +37,12 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   const [error, setError] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showSavedQueries, setShowSavedQueries] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
-  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-  const [explainPlan, setExplainPlan] = useState<any[] | null>(null);
-  const [viewMode, setViewMode] = useState<'results' | 'explain'>('results');
-  const [pinnedResult, setPinnedResult] = useState<PinnedResult | null>(null);
-  const [showDiff, setShowDiff] = useState(false);
   const editorViewRef = useRef<EditorView | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
+
+  // Result tabs
+  const [resultTabs, setResultTabs] = useState<ResultTab[]>([]);
+  const [activeResultTabId, setActiveResultTabId] = useState<string | undefined>();
 
   const getExecutableQuery = useCallback(() => {
     const view = editorViewRef.current;
@@ -60,10 +55,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
     return query.trim();
   }, [query]);
 
-  // Build autocomplete schema: use schemaMap if available, otherwise fall back to table names
   const autocompleteSchema = useMemo(() => {
     if (Object.keys(schemaMap).length > 0) return schemaMap;
-    // Fallback: table names without column info
     const fallback: Record<string, string[]> = {};
     for (const t of tables) {
       fallback[t] = [];
@@ -72,7 +65,17 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   }, [schemaMap, tables]);
 
   const { history, addQuery, favoriteQuery, deleteQuery, clearHistory } = useQueryHistory();
-  const { savedQueries, saveQuery, deleteQuery: deleteSavedQuery, clearAll: clearSavedQueries } = useSavedQueries();
+
+  const parseColumnTypes = (data: any) => {
+    if (data.fields && Array.isArray(data.fields)) {
+      const types: Record<string, string> = {};
+      for (const field of data.fields) {
+        types[field.name] = pgOidToType(field.dataTypeID);
+      }
+      return types;
+    }
+    return {};
+  };
 
   const handleExecute = async () => {
     const execQuery = getExecutableQuery();
@@ -83,31 +86,18 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
     setResults([]);
     setColumns([]);
     setExecutionTime(null);
-    setExplainPlan(null);
-    setViewMode('results');
 
     try {
       const data = await api.post('/api/query', { query: execQuery }, { noRetry: true });
-
-      if (data.rows && data.rows.length > 0) {
-        setColumns(Object.keys(data.rows[0]));
-      } else {
-        setColumns([]);
-      }
-      // Build column type map from pg field metadata
-      if (data.fields && Array.isArray(data.fields)) {
-        const types: Record<string, string> = {};
-        for (const field of data.fields) {
-          types[field.name] = pgOidToType(field.dataTypeID);
-        }
-        setResultColumnTypes(types);
-      } else {
-        setResultColumnTypes({});
-      }
       const rows = data.rows || [];
+      const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
+      setColumns(cols);
+      setResultColumnTypes(parseColumnTypes(data));
       setResults(rows);
       setExecutionTime(data.executionTime || null);
       addQuery(execQuery, data.executionTime || 0, rows.length);
+      // Deselect any result tab so inline results show
+      setActiveResultTabId(undefined);
     } catch (err: any) {
       setError(err.message || 'Query execution failed');
       setResults([]);
@@ -117,27 +107,50 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
     }
   };
 
-  const handleExplain = async () => {
+  const handleExecuteToTab = async () => {
     const execQuery = getExecutableQuery();
     if (!execQuery) return;
 
     setIsExecuting(true);
     setError(null);
-    setExplainPlan(null);
-    setViewMode('explain');
 
     try {
-      const data = await api.post('/api/explain', { query: execQuery }, { noRetry: true });
+      const data = await api.post('/api/query', { query: execQuery }, { noRetry: true });
+      const rows = data.rows || [];
+      const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const label = execQuery.length > 30 ? execQuery.slice(0, 30) + '...' : execQuery;
+      const tabId = `qr_${Date.now()}`;
 
-      setExplainPlan(data.plan);
-      setExecutionTime(data.executionTime || null);
+      const newTab: ResultTab = {
+        id: tabId,
+        label,
+        rows,
+        columns: cols,
+        columnTypes: parseColumnTypes(data),
+        executionTime: data.executionTime || 0,
+      };
+
+      setResultTabs((prev) => [...prev, newTab]);
+      setActiveResultTabId(tabId);
+      addQuery(execQuery, data.executionTime || 0, rows.length);
     } catch (err: any) {
-      setError(err.message || 'Explain failed');
-      setExplainPlan(null);
+      setError(err.message || 'Query execution failed');
     } finally {
       setIsExecuting(false);
     }
   };
+
+  const closeResultTab = useCallback((tabId: string) => {
+    setResultTabs((prev) => {
+      const next = prev.filter((t) => t.id !== tabId);
+      if (tabId === activeResultTabId) {
+        const closedIndex = prev.findIndex((t) => t.id === tabId);
+        const newActive = next[Math.min(closedIndex, next.length - 1)];
+        setActiveResultTabId(newActive?.id);
+      }
+      return next;
+    });
+  }, [activeResultTabId]);
 
   const handleClear = () => {
     setQuery('');
@@ -145,84 +158,76 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
     setColumns([]);
     setError(null);
     setExecutionTime(null);
-    setExplainPlan(null);
-    setViewMode('results');
   };
 
-  const hasResults = results.length > 0 || explainPlan;
+  // What to show in results area
+  const activeTab = resultTabs.find((t) => t.id === activeResultTabId);
+  const showInlineResults = !activeResultTabId && results.length > 0;
+
+  const tabBarTabs: Tab[] = resultTabs.map((t) => ({
+    id: t.id,
+    label: t.label,
+    type: 'query' as const,
+  }));
 
   return (
     <div className="space-y-4">
       <Card title="SQL query">
-        <div className="space-y-4">
-          <SqlEditor
-            value={query}
-            onChange={setQuery}
-            onExecute={handleExecute}
-            disabled={isExecuting}
-            schema={autocompleteSchema}
-            editorRef={editorViewRef}
-            onSelectionChange={setHasSelection}
-          />
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                variant="primary"
+        <div className="space-y-3">
+          <div className="flex border border-border rounded-md overflow-hidden">
+            <div className="flex flex-col items-center gap-1 px-1.5 py-2 bg-bg-secondary/40 border-r border-border">
+              <button
                 onClick={handleExecute}
-                isLoading={isExecuting && viewMode === 'results'}
                 disabled={isExecuting || !query.trim()}
+                className="w-7 h-7 flex items-center justify-center rounded text-green-500 hover:bg-green-500/15 disabled:opacity-30 transition-colors"
+                title={hasSelection ? 'Run Selection (Ctrl+Enter)' : 'Execute (Ctrl+Enter)'}
               >
-                {hasSelection ? 'Run Selection' : 'Execute'}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={handleExplain}
-                isLoading={isExecuting && viewMode === 'explain'}
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg>
+              </button>
+              <button
+                onClick={handleExecuteToTab}
                 disabled={isExecuting || !query.trim()}
+                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:bg-blue-400/15 disabled:opacity-30 transition-colors"
+                title={hasSelection ? 'Selection to Tab' : 'Run to Tab'}
               >
-                {hasSelection ? 'Explain Selection' : 'Explain'}
-              </Button>
-              <Button
-                variant="secondary"
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2l8 5-8 5V2z"/><rect x="11" y="3" width="3" height="10" rx="0.5"/></svg>
+              </button>
+              <div className="w-5 border-t border-border my-0.5" />
+              <button
                 onClick={() => setQuery(formatSQL(query, databaseType))}
                 disabled={isExecuting || !query.trim()}
+                className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary disabled:opacity-30 transition-colors"
+                title="Format SQL"
               >
-                Format
-              </Button>
-              <Button variant="secondary" onClick={handleClear} disabled={isExecuting}>
-                Clear
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setIsSaveDialogOpen(true)}
-                disabled={!query.trim()}
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="10" height="2" rx="1"/><rect x="1" y="12" width="12" height="2" rx="1"/></svg>
+              </button>
+              <button
+                onClick={handleClear}
+                disabled={isExecuting}
+                className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-danger hover:bg-danger/10 disabled:opacity-30 transition-colors"
+                title="Clear"
               >
-                Save
-              </Button>
-              <Button
-                variant={showSavedQueries ? 'primary' : 'ghost'}
-                onClick={() => { setShowSavedQueries(!showSavedQueries); setShowHistory(false); }}
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+              </button>
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${showHistory ? 'text-accent bg-accent/15' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
+                title="History"
               >
-                Saved
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setShowTemplates(true)}
-              >
-                Templates
-              </Button>
-              <Button
-                variant={showHistory ? 'primary' : 'ghost'}
-                onClick={() => { setShowHistory(!showHistory); setShowSavedQueries(false); }}
-              >
-                History
-              </Button>
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2.5 2.5"/></svg>
+              </button>
             </div>
-            {executionTime !== null && (
-              <span className="text-sm text-muted font-mono">
-                {executionTime}ms
-              </span>
-            )}
+            <div className="flex-1 min-w-0">
+              <SqlEditor
+                value={query}
+                onChange={setQuery}
+                onExecute={handleExecute}
+                disabled={isExecuting}
+                schema={autocompleteSchema}
+                editorRef={editorViewRef}
+                onSelectionChange={setHasSelection}
+              />
+            </div>
           </div>
           {error && (
             <ErrorState
@@ -242,137 +247,60 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
               onClear={clearHistory}
             />
           )}
-          {showSavedQueries && (
-            <SavedQueriesPanel
-              queries={savedQueries}
-              onSelect={(sql) => {
-                setQuery(sql);
-                setShowSavedQueries(false);
-              }}
-              onDelete={deleteSavedQuery}
-              onClear={clearSavedQueries}
-            />
-          )}
         </div>
       </Card>
-      <SaveQueryDialog
-        isOpen={isSaveDialogOpen}
-        onClose={() => setIsSaveDialogOpen(false)}
-        onSave={(name, tags) => saveQuery(name, query, tags)}
-        query={query}
-      />
-      <TemplateBrowser
-        isOpen={showTemplates}
-        onClose={() => setShowTemplates(false)}
-        onInsert={(sql) => setQuery(sql)}
-        dialect={databaseType || 'postgresql'}
-      />
-      <TemplateEditor
-        isOpen={isTemplateEditorOpen}
-        onClose={() => setIsTemplateEditorOpen(false)}
-        onSave={addTemplate}
-      />
 
-      {hasResults && (
+      {/* Result tabs bar */}
+      {(resultTabs.length > 0 || showInlineResults) && (
+        <TabBar
+          tabs={tabBarTabs}
+          activeTabId={activeResultTabId}
+          onTabSelect={(tabId) => setActiveResultTabId(tabId)}
+          onTabClose={closeResultTab}
+          onTabCloseAll={() => { setResultTabs([]); setActiveResultTabId(undefined); }}
+          actions={
+            showInlineResults || (!activeResultTabId && results.length === 0) ? undefined : (
+              <button
+                onClick={() => setActiveResultTabId(undefined)}
+                className={`p-1.5 rounded transition-colors ${!activeResultTabId ? 'text-accent bg-accent/10' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
+                title="Show inline result"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg>
+              </button>
+            )
+          }
+        />
+      )}
+
+      {/* Active result tab content */}
+      {activeTab && (
         <div>
-          {results.length > 0 && explainPlan && (
-            <div className="flex gap-1 mb-4">
-              <button
-                onClick={() => setViewMode('results')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  viewMode === 'results'
-                    ? 'bg-accent/10 text-accent'
-                    : 'text-secondary hover:text-primary hover:bg-bg-secondary'
-                }`}
-              >
-                Results
-              </button>
-              <button
-                onClick={() => setViewMode('explain')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  viewMode === 'explain'
-                    ? 'bg-accent/10 text-accent'
-                    : 'text-secondary hover:text-primary hover:bg-bg-secondary'
-                }`}
-              >
-                Explain plan
-              </button>
-            </div>
-          )}
-
-          {viewMode === 'results' && results.length > 0 && !showDiff && (
-            <>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted">
-                  {results.length} {results.length === 1 ? 'row' : 'rows'} returned
-                </span>
-                <div className="flex items-center gap-2">
-                  {pinnedResult && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setShowDiff(true)}
-                    >
-                      Compare with Pinned
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setPinnedResult({
-                        id: `pin_${Date.now()}`,
-                        query,
-                        columns,
-                        data: results,
-                        executionTime: executionTime || 0,
-                        pinnedAt: Date.now(),
-                      });
-                      setShowDiff(false);
-                    }}
-                  >
-                    {pinnedResult ? 'Re-pin' : 'Pin Result'}
-                  </Button>
-                </div>
-              </div>
-              {pinnedResult && (
-                <div className="flex items-center gap-2 mb-3 px-2.5 py-1.5 bg-bg-secondary rounded-md text-xs text-muted">
-                  <span>Pinned: {pinnedResult.query.slice(0, 50)}{pinnedResult.query.length > 50 ? '...' : ''}</span>
-                  <span>({pinnedResult.data.length} rows)</span>
-                  <button
-                    onClick={() => { setPinnedResult(null); setShowDiff(false); }}
-                    className="ml-auto text-danger hover:text-danger/80"
-                  >
-                    Unpin
-                  </button>
-                </div>
-              )}
-              <DataTable columns={columns} data={results} isLoading={false} columnTypes={resultColumnTypes} />
-            </>
-          )}
-
-          {viewMode === 'results' && showDiff && pinnedResult && results.length > 0 && (
-            <QueryDiffView
-              pinned={pinnedResult}
-              current={{
-                id: `current_${Date.now()}`,
-                query,
-                columns,
-                data: results,
-                executionTime: executionTime || 0,
-                pinnedAt: Date.now(),
-              }}
-              onClose={() => setShowDiff(false)}
-            />
-          )}
-
-          {viewMode === 'explain' && explainPlan && (
-            <ExplainPlan plan={explainPlan} />
-          )}
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted">
+              {activeTab.rows.length} {activeTab.rows.length === 1 ? 'row' : 'rows'} returned
+            </span>
+            <span className="text-sm text-muted font-mono">{activeTab.executionTime}ms</span>
+          </div>
+          <DataTable columns={activeTab.columns} data={activeTab.rows} isLoading={false} columnTypes={activeTab.columnTypes} />
         </div>
       )}
 
-      {results.length === 0 && !explainPlan && !error && executionTime !== null && (
+      {/* Inline results (no tab selected) */}
+      {showInlineResults && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted">
+              {results.length} {results.length === 1 ? 'row' : 'rows'} returned
+            </span>
+            {executionTime !== null && (
+              <span className="text-sm text-muted font-mono">{executionTime}ms</span>
+            )}
+          </div>
+          <DataTable columns={columns} data={results} isLoading={false} columnTypes={resultColumnTypes} />
+        </div>
+      )}
+
+      {results.length === 0 && !activeTab && !error && executionTime !== null && (
         <div className="text-center py-6 text-sm text-muted">
           Query executed successfully. No rows returned.
         </div>

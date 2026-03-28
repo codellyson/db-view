@@ -64,6 +64,9 @@ interface DashboardContextType {
   handleSort: (column: string) => void;
   mutateRow: (request: MutationRequest) => Promise<void>;
   refreshTableData: () => Promise<void>;
+  openQueryTab: (label: string, rows: any[], cols: string[], executionTime: number) => void;
+  queryTabResults: Record<string, { rows: any[]; columns: string[]; executionTime: number }>;
+  isQueryTab: boolean;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -94,6 +97,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [readOnlyMode, setReadOnlyMode] = useState(false);
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | undefined>();
+  const [queryTabResults, setQueryTabResults] = useState<Record<string, { rows: any[]; columns: string[]; executionTime: number }>>({});
 
   // Per-tab UI state cache
   const tabUIStateRef = useRef<Record<string, TabUIState>>({});
@@ -355,6 +359,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const closeTab = useCallback((tabId: string) => {
     clearTabUIState(tabId);
+    if (tabId.startsWith('query:')) {
+      setQueryTabResults((prev) => {
+        const next = { ...prev };
+        delete next[tabId];
+        return next;
+      });
+    }
     setOpenTabs((prev) => {
       const next = prev.filter((t) => t.id !== tabId);
       if (tabId === activeTabId) {
@@ -362,13 +373,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         const newActive = next[Math.min(closedIndex, next.length - 1)];
         if (newActive) {
           setActiveTabId(newActive.id);
-          setSelectedTable(newActive.label);
-          if (!restoreTabUIState(newActive.id)) {
-            setCurrentPage(1);
-            setSortColumn(null);
-            setSortDirection(null);
-            setVisibleColumns([]);
-            setTableSearch('');
+          if (newActive.type === 'query') {
+            setSelectedTable(undefined);
+          } else {
+            setSelectedTable(newActive.label);
+            if (!restoreTabUIState(newActive.id)) {
+              setCurrentPage(1);
+              setSortColumn(null);
+              setSortDirection(null);
+              setVisibleColumns([]);
+              setTableSearch('');
+            }
           }
         } else {
           setActiveTabId(undefined);
@@ -386,23 +401,37 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setOpenTabs((prev) => {
       const tab = prev.find((t) => t.id === tabId);
       if (tab) {
-        setSelectedTable(tab.label);
-        if (!restoreTabUIState(tabId)) {
-          setCurrentPage(1);
-          setSortColumn(null);
-          setSortDirection(null);
-          setVisibleColumns([]);
-          setTableSearch('');
+        if (tab.type === 'query') {
+          setSelectedTable(undefined);
+        } else {
+          setSelectedTable(tab.label);
+          if (!restoreTabUIState(tabId)) {
+            setCurrentPage(1);
+            setSortColumn(null);
+            setSortDirection(null);
+            setVisibleColumns([]);
+            setTableSearch('');
+          }
         }
       }
       return prev;
     });
   }, [activeTabId, saveCurrentTabUIState, restoreTabUIState]);
 
+  const openQueryTab = useCallback((label: string, rows: any[], cols: string[], executionTime: number) => {
+    const tabId = `query:${label}_${Date.now()}`;
+    saveCurrentTabUIState();
+    setOpenTabs((prev) => [...prev, { id: tabId, label, type: 'query' }]);
+    setActiveTabId(tabId);
+    setSelectedTable(undefined);
+    setQueryTabResults((prev) => ({ ...prev, [tabId]: { rows, columns: cols, executionTime } }));
+  }, [saveCurrentTabUIState]);
+
   const closeAllTabs = useCallback(() => {
     setOpenTabs([]);
     setActiveTabId(undefined);
     setSelectedTable(undefined);
+    setQueryTabResults({});
   }, []);
 
   const closeOtherTabs = useCallback((tabId: string) => {
@@ -497,6 +526,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         handleSort,
         mutateRow,
         refreshTableData,
+        openQueryTab,
+        queryTabResults,
+        isQueryTab: activeTabId?.startsWith('query:') ?? false,
       }}
     >
       {children}
