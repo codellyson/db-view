@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { DBConfig, SavedConnection } from '@/types';
 import { api } from '@/lib/api';
 
@@ -21,7 +21,6 @@ interface ConnectionContextType {
 
 const ConnectionContext = createContext<ConnectionContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'db-connections';
 const CURRENT_CONNECTION_KEY = 'db-current-connection';
 
 export function ConnectionProvider({ children }: { children: React.ReactNode }) {
@@ -33,15 +32,24 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   const [databaseType, setDatabaseType] = useState<"postgresql" | "mysql" | "sqlite">("postgresql");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      loadSavedConnections();
+  const loadSavedConnections = useCallback(async () => {
+    try {
+      const data = await api.get<{ connections: SavedConnection[] }>('/api/saved-connections');
+      setSavedConnections(data.connections);
+    } catch (e) {
+      console.error('Failed to load saved connections:', e);
     }
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && savedConnections.length > 0 && !isConnected) {
-      const currentId = localStorage.getItem(CURRENT_CONNECTION_KEY);
+    loadSavedConnections();
+  }, [loadSavedConnections]);
+
+  useEffect(() => {
+    if (savedConnections.length > 0 && !isConnected) {
+      const currentId = typeof window !== 'undefined'
+        ? localStorage.getItem(CURRENT_CONNECTION_KEY)
+        : null;
       if (currentId) {
         const connection = savedConnections.find(c => c.id === currentId);
         if (connection) {
@@ -52,51 +60,28 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedConnections.length]);
 
-  const loadSavedConnections = () => {
-    if (typeof window === 'undefined') return;
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const connections = JSON.parse(stored) as SavedConnection[];
-        setSavedConnections(connections);
-      }
-    } catch (e) {
-      console.error('Failed to load saved connections:', e);
-    }
-  };
-
-  const saveConnections = (connections: SavedConnection[]) => {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(connections));
-      setSavedConnections(connections);
-    } catch (e) {
-      console.error('Failed to save connections:', e);
-    }
-  };
-
   const connect = async (config: DBConfig, name?: string) => {
     setIsConnecting(true);
     setError(null);
     try {
-      const data = await api.post('/api/connect', config, { noRetry: true });
+      const connectionId = name
+        ? `conn_${Date.now()}_${Math.random().toString(36).substring(7)}`
+        : undefined;
+
+      // Single request: connects + optionally saves credentials in encrypted HTTP-only cookie
+      const data = await api.post('/api/connect', {
+        config,
+        ...(name && { saveName: name, saveId: connectionId }),
+      }, { noRetry: true });
+
       setIsConnected(true);
       setDatabaseName(data.database || config.database);
       setDatabaseType(data.type || config.type || "postgresql");
 
-      if (name && typeof window !== 'undefined') {
-        const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-        const newConnection: SavedConnection = {
-          id: connectionId,
-          name,
-          config,
-          createdAt: Date.now(),
-          lastUsed: Date.now(),
-        };
-        const updated = [...savedConnections, newConnection];
-        saveConnections(updated);
+      if (name && data.savedConnection) {
+        setSavedConnections(prev => [...prev, data.savedConnection]);
         setCurrentConnectionId(connectionId);
-        localStorage.setItem(CURRENT_CONNECTION_KEY, connectionId);
+        localStorage.setItem(CURRENT_CONNECTION_KEY, connectionId!);
       }
     } catch (err: any) {
       setError(err.message || 'Connection failed');
@@ -117,21 +102,19 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     setIsConnecting(true);
     setError(null);
     try {
-      const data = await api.post('/api/connect', connection.config, { noRetry: true });
+      // Server reads credentials from encrypted cookie and connects
+      const data = await api.patch('/api/saved-connections', { id: connectionId }, { noRetry: true });
       setIsConnected(true);
       setDatabaseName(data.database || connection.config.database);
       setDatabaseType(data.type || connection.config.type || "postgresql");
       setCurrentConnectionId(connectionId);
-      
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(CURRENT_CONNECTION_KEY, connectionId);
-        const updated = savedConnections.map(c => 
-          c.id === connectionId 
-            ? { ...c, lastUsed: Date.now() }
-            : c
-        );
-        saveConnections(updated);
-      }
+      localStorage.setItem(CURRENT_CONNECTION_KEY, connectionId);
+
+      setSavedConnections(prev =>
+        prev.map(c =>
+          c.id === connectionId ? { ...c, lastUsed: Date.now() } : c
+        )
+      );
     } catch (err: any) {
       setError(err.message || 'Connection failed');
       setIsConnected(false);
@@ -158,23 +141,29 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const saveConnection = (name: string, config: DBConfig) => {
+  const saveConnection = async (name: string, config: DBConfig) => {
     const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    const newConnection: SavedConnection = {
-      id: connectionId,
-      name,
-      config,
-      createdAt: Date.now(),
-    };
-    const updated = [...savedConnections, newConnection];
-    saveConnections(updated);
+    try {
+      const data = await api.post('/api/saved-connections', {
+        id: connectionId,
+        name,
+        config,
+      }, { noRetry: true });
+      setSavedConnections(prev => [...prev, data.connection]);
+    } catch (e) {
+      console.error('Failed to save connection:', e);
+    }
   };
 
-  const deleteConnection = (connectionId: string) => {
-    const updated = savedConnections.filter(c => c.id !== connectionId);
-    saveConnections(updated);
-    if (currentConnectionId === connectionId) {
-      disconnect();
+  const deleteConnection = async (connectionId: string) => {
+    try {
+      await api.delete('/api/saved-connections', { id: connectionId });
+      setSavedConnections(prev => prev.filter(c => c.id !== connectionId));
+      if (currentConnectionId === connectionId) {
+        disconnect();
+      }
+    } catch (e) {
+      console.error('Failed to delete connection:', e);
     }
   };
 

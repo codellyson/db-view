@@ -11,7 +11,6 @@
 
 import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
-const CONNECTIONS_KEY = 'db-connections';
 const CURRENT_KEY = 'db-current-connection';
 
 const client = axios.create({
@@ -36,35 +35,26 @@ function isConnectionLostError(message: string): boolean {
     lower.includes('pool has been destroyed');
 }
 
-function getSavedConnectionConfig(): any | null {
+function getCurrentConnectionId(): string | null {
   if (typeof window === 'undefined') return null;
-  try {
-    const currentId = localStorage.getItem(CURRENT_KEY);
-    if (!currentId) return null;
-    const stored = localStorage.getItem(CONNECTIONS_KEY);
-    if (!stored) return null;
-    const connections = JSON.parse(stored);
-    const connection = connections.find((c: any) => c.id === currentId);
-    return connection?.config || null;
-  } catch {
-    return null;
-  }
+  return localStorage.getItem(CURRENT_KEY);
 }
 
 async function attemptReconnect(): Promise<boolean> {
   // Deduplicate: if already reconnecting, wait for that attempt
   if (reconnectPromise) return reconnectPromise;
 
-  const config = getSavedConnectionConfig();
-  if (!config) return false;
+  const connectionId = getCurrentConnectionId();
+  if (!connectionId) return false;
 
   isReconnecting = true;
   reconnectPromise = (async () => {
     try {
-      const res = await axios.post('/api/connect', config, {
-        timeout: 10000,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      // Server reads credentials from encrypted HTTP-only cookie
+      const res = await axios.patch('/api/saved-connections',
+        { id: connectionId },
+        { timeout: 10000, headers: { 'Content-Type': 'application/json' } },
+      );
       return res.status === 200;
     } catch {
       return false;
@@ -138,7 +128,7 @@ function isRetryable(status?: number, msg?: string): boolean {
 }
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   url: string,
   data?: any,
   options: ApiOptions = {}
@@ -180,4 +170,10 @@ export const api = {
 
   post: <T = any>(url: string, body?: any, options?: ApiOptions) =>
     request<T>('POST', url, body, options),
+
+  patch: <T = any>(url: string, body?: any, options?: ApiOptions) =>
+    request<T>('PATCH', url, body, options),
+
+  delete: <T = any>(url: string, body?: any, options?: ApiOptions) =>
+    request<T>('DELETE', url, body, options),
 };

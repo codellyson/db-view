@@ -138,12 +138,12 @@ export function Dashboard() {
 
   const shortcuts: Shortcut[] = useMemo(() => [
     {
-      key: 'k', meta: true, description: 'Focus table search',
+      key: 'k', alt: true, description: 'Focus table search',
       category: 'Navigation',
       action: () => searchInputRef.current?.focus(),
     },
     {
-      key: 'j', meta: true, description: 'Toggle sidebar',
+      key: 'j', alt: true, description: 'Toggle sidebar',
       category: 'Navigation',
       action: () => setIsMobileMenuOpen((prev) => !prev),
     },
@@ -153,17 +153,17 @@ export function Dashboard() {
       action: () => setIsShortcutsHelpOpen((prev) => !prev),
     },
     {
-      key: 'q', meta: true, shift: true, description: 'Go to query page',
+      key: 'q', alt: true, description: 'Go to query page',
       category: 'Navigation',
       action: () => router.push('/query'),
     },
     {
-      key: 't', meta: true, shift: true, description: 'Go to tables page',
+      key: 't', alt: true, description: 'Go to tables page',
       category: 'Navigation',
       action: () => router.push('/'),
     },
     {
-      key: 'n', meta: true, description: 'Add new row',
+      key: 'n', alt: true, description: 'Add new row',
       category: 'Editing',
       action: () => {
         if (!readOnlyMode && primaryKeys.length > 0 && selectedTable) {
@@ -172,7 +172,7 @@ export function Dashboard() {
       },
     },
     {
-      key: '1', meta: true, description: 'Focus sidebar',
+      key: '1', alt: true, description: 'Focus sidebar',
       category: 'Navigation',
       action: () => {
         const firstInput = sidebarRef.current?.querySelector<HTMLElement>('input, button');
@@ -180,7 +180,7 @@ export function Dashboard() {
       },
     },
     {
-      key: '2', meta: true, description: 'Focus main content',
+      key: '2', alt: true, description: 'Focus main content',
       category: 'Navigation',
       action: () => {
         const firstFocusable = mainContentRef.current?.querySelector<HTMLElement>(
