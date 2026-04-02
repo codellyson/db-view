@@ -243,7 +243,9 @@ export const EditableCell: React.FC<EditableCellProps> = ({
     );
   }
 
-  const displayValue = value !== null && value !== undefined ? String(value) : null;
+  const displayValue = value !== null && value !== undefined
+    ? (typeof value === 'object' ? JSON.stringify(value) : String(value))
+    : null;
 
   return (
     <div

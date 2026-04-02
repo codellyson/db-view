@@ -11,6 +11,7 @@ import type { ColumnFormatter } from '@/lib/plugin-types';
 import { applyFormatter } from '@/lib/formatter-presets';
 import { ContextMenu, useContextMenu, type ContextMenuEntry } from './ui/context-menu';
 import { MobileRowCard } from './mobile-row-card';
+import { ValuePanel } from './value-panel';
 import { useIsMobile } from '../hooks/use-media-query';
 
 interface DataTableProps {
@@ -57,7 +58,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   const isMobile = useIsMobile();
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
-  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ row: number; col: string; value: any } | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [frozenColumn, setFrozenColumn] = useState<string | null>(null);
@@ -413,11 +414,9 @@ export const DataTable: React.FC<DataTableProps> = ({
   // Calculate frozen column offset
   const frozenColIndex = frozenColumn ? displayColumns.indexOf(frozenColumn) : -1;
   const frozenCols = frozenColIndex >= 0 ? displayColumns.slice(0, frozenColIndex + 1) : [];
-  const frozenWidth = frozenCols.reduce((sum, col) => sum + getColumnWidth(col), 0)
-    + (canDelete ? 40 : 0);
+  const frozenWidth = frozenCols.reduce((sum, col) => sum + getColumnWidth(col), 0);
 
-  const totalTableWidth = displayColumns.reduce((sum, col) => sum + getColumnWidth(col), 0)
-    + (canDelete ? 40 : 0);
+  const totalTableWidth = displayColumns.reduce((sum, col) => sum + getColumnWidth(col), 0);
 
   const renderCellContent = (row: any, column: string, rowIndex: number) => {
     if (canEdit && !primaryKeys.includes(column)) {
@@ -443,13 +442,18 @@ export const DataTable: React.FC<DataTableProps> = ({
       return <FormattedCell formatted={formatted} rawValue={row[column]} />;
     }
 
+    const cellValue = row[column];
+    const displayStr = cellValue !== null && cellValue !== undefined
+      ? (typeof cellValue === 'object' ? JSON.stringify(cellValue) : String(cellValue))
+      : null;
+
     return (
       <div
         className="truncate"
-        title={row[column] !== null && row[column] !== undefined ? String(row[column]) : 'NULL'}
+        title={displayStr || 'NULL'}
       >
-        {row[column] !== null && row[column] !== undefined
-          ? String(row[column])
+        {displayStr !== null
+          ? displayStr
           : <span className="text-muted italic">NULL</span>}
       </div>
     );
@@ -458,7 +462,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   const isFrozen = (col: string) => frozenCols.includes(col);
 
   const getColumnLeft = (col: string) => {
-    let left = canDelete ? 40 : 0;
+    let left = 0;
     for (const c of displayColumns) {
       if (c === col) break;
       left += getColumnWidth(c);
@@ -467,7 +471,8 @@ export const DataTable: React.FC<DataTableProps> = ({
   };
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 320px)', minHeight: '250px' }}>
+    <div className="flex gap-0" style={{ height: 'calc(100vh - 320px)', minHeight: '250px' }}>
+    <div className={`border border-border rounded-lg overflow-hidden flex flex-col ${selectedCell ? 'flex-1 min-w-0' : 'w-full'}`}>
       {!readOnlyMode && primaryKeys.length === 0 && columnSchema.length > 0 && (
         <div className="px-4 py-2 bg-warning/10 text-xs text-warning border-b border-border flex-shrink-0">
           Editing disabled -- no primary key detected
@@ -483,14 +488,6 @@ export const DataTable: React.FC<DataTableProps> = ({
             className="bg-bg-secondary sticky top-0 z-20 flex border-b border-border"
             style={{ height: HEADER_HEIGHT }}
           >
-            {canDelete && (
-              <div
-                className={`flex-shrink-0 px-2 flex items-center text-xs font-medium text-muted border-r border-border ${
-                  frozenCols.length > 0 ? 'sticky left-0 z-30 bg-bg-secondary' : ''
-                }`}
-                style={{ width: 40 }}
-              />
-            )}
             {displayColumns.map((column) => {
               const frozen = isFrozen(column);
               const colLeft = frozen ? getColumnLeft(column) : undefined;
@@ -573,30 +570,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                     } ${isExpanded ? 'bg-bg-secondary/70' : ''}`}
                     style={{ height: ROW_HEIGHT }}
                     onClick={() => toggleRowExpand(rowIndex)}
-                    onMouseEnter={() => setHoveredRow(rowIndex)}
-                    onMouseLeave={() => setHoveredRow(null)}
                   >
-                    {canDelete && (
-                      <div
-                        className={`flex-shrink-0 px-2 flex items-center justify-center ${
-                          frozenCols.length > 0 ? 'sticky left-0 z-10 bg-inherit' : ''
-                        }`}
-                        style={{ width: 40 }}
-                      >
-                        {hoveredRow === rowIndex && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRowDelete?.(getRowPrimaryKeys(row));
-                            }}
-                            className="text-danger hover:text-danger/80 text-xs"
-                            title="Delete row"
-                          >
-                            X
-                          </button>
-                        )}
-                      </div>
-                    )}
                     {displayColumns.map((column) => {
                       const frozen = isFrozen(column);
                       const colLeft = frozen ? getColumnLeft(column) : undefined;
@@ -605,15 +579,17 @@ export const DataTable: React.FC<DataTableProps> = ({
                           key={column}
                           className={`flex-shrink-0 px-4 flex items-center text-sm text-primary font-mono ${
                             frozen ? 'sticky z-10 bg-inherit border-r border-border' : ''
-                          }`}
+                          } ${selectedCell?.row === rowIndex && selectedCell?.col === column ? 'ring-2 ring-inset ring-accent/60 bg-accent/5' : ''}`}
                           style={{
                             width: getColumnWidth(column),
                             left: colLeft,
                           }}
                           onClick={(e) => {
+                            e.stopPropagation();
                             if (editingCell?.row === rowIndex && editingCell?.col === column) {
-                              e.stopPropagation();
+                              return;
                             }
+                            setSelectedCell({ row: rowIndex, col: column, value: row[column] });
                           }}
                           onContextMenu={(e) => cellContextMenu(e, row, column, rowIndex)}
                         >
@@ -663,6 +639,24 @@ export const DataTable: React.FC<DataTableProps> = ({
           onClose={closeContextMenu}
         />
       )}
+    </div>
+    {selectedCell && (
+      <div className="w-80 flex-shrink-0">
+        <ValuePanel
+          column={selectedCell.col}
+          value={selectedCell.value}
+          columnType={columnTypes[selectedCell.col]}
+          onClose={() => setSelectedCell(null)}
+          onSave={!!onCellUpdate ? (newValue) => {
+            const row = filteredData[selectedCell.row];
+            if (row) {
+              handleCellSave(row, selectedCell.col, newValue);
+              setSelectedCell({ ...selectedCell, value: newValue });
+            }
+          } : undefined}
+        />
+      </div>
+    )}
     </div>
   );
 };
