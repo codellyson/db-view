@@ -72,7 +72,7 @@ export const ValuePanel: React.FC<ValuePanelProps> = ({
     : editValue;
 
   return (
-    <div className="flex flex-col border-l border-border bg-bg rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 320px)', minHeight: '250px' }}>
+    <div className="flex flex-col bg-bg overflow-hidden" style={{ height: 'calc(100vh - 320px)', minHeight: '250px' }}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-bg-secondary/50 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">

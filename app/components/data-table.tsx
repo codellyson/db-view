@@ -641,7 +641,7 @@ export const DataTable: React.FC<DataTableProps> = ({
       )}
     </div>
     {selectedCell && (
-      <div className="w-80 flex-shrink-0">
+      <div className="w-80 flex-shrink-0 border border-border rounded-lg overflow-hidden">
         <ValuePanel
           column={selectedCell.col}
           value={selectedCell.value}
