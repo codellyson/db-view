@@ -19,7 +19,7 @@ const nextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors 'self' https://kreativekorna.com",
+            value: "frame-ancestors 'self' https://kreativekorna.com https://www.kreativekorna.com",
           },
         ],
       },
