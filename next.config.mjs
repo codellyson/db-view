@@ -7,6 +7,24 @@ const withSerwist = withSerwistInit({
 });
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "ALLOW-FROM https://kreativekorna.com",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'self' https://kreativekorna.com",
+          },
+        ],
+      },
+    ];
+  },
+};
 
 export default withSerwist(nextConfig);
