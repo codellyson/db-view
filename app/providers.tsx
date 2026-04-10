@@ -9,6 +9,7 @@ import { ThemeProvider } from "./contexts/theme-context";
 import { DashboardProvider } from "./contexts/dashboard-context";
 import { ToastContainer } from "./components/ui/toast";
 import { ThemeToggle } from "./components/theme-toggle";
+import { PostHogProvider } from "./posthog-provider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,17 +25,19 @@ const queryClient = new QueryClient({
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <ToastProvider>
-          <ConnectionProvider>
-            <DashboardProvider>{children}</DashboardProvider>
-          </ConnectionProvider>
-          <ToastContainer />
-          <ThemeToggle />
-          <Analytics />
-        </ToastProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <PostHogProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ToastProvider>
+            <ConnectionProvider>
+              <DashboardProvider>{children}</DashboardProvider>
+            </ConnectionProvider>
+            <ToastContainer />
+            <ThemeToggle />
+            <Analytics />
+          </ToastProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </PostHogProvider>
   );
 }
