@@ -1,10 +1,14 @@
 import { Pool, PoolClient, PoolConfig } from "pg";
 import { DBConfig } from "@/types";
-import { DatabaseProvider, QueryResult } from "../db-provider";
+import { DatabaseProvider, ExecuteQueryResult, QueryFieldInfo, QueryResult } from "../db-provider";
 
 export class PostgreSQLProvider implements DatabaseProvider {
   readonly type = "postgresql" as const;
   private pool: Pool | null = null;
+  // Cache: table OID -> { schema, table }. Cleared on endPool().
+  private oidCache = new Map<number, { schema: string; table: string }>();
+  // Cache: "tableOID:attNum" -> column name. Cleared on endPool().
+  private columnCache = new Map<string, string>();
 
   createPool(config: DBConfig): void {
     const poolOpts: PoolConfig = {
@@ -52,6 +56,81 @@ export class PostgreSQLProvider implements DatabaseProvider {
       await this.pool.end().catch(() => {});
       this.pool = null;
     }
+    this.oidCache.clear();
+    this.columnCache.clear();
+  }
+
+  private async resolveFieldSources(
+    client: PoolClient,
+    pgFields: any[]
+  ): Promise<QueryFieldInfo[]> {
+    // Collect OIDs we haven't seen and column pairs we haven't resolved.
+    const unknownTableIds = new Set<number>();
+    const unknownColumns: { tableID: number; columnID: number }[] = [];
+    for (const f of pgFields) {
+      if (f.tableID && f.tableID > 0) {
+        if (!this.oidCache.has(f.tableID)) unknownTableIds.add(f.tableID);
+        if (f.columnID && f.columnID > 0) {
+          const key = `${f.tableID}:${f.columnID}`;
+          if (!this.columnCache.has(key)) {
+            unknownColumns.push({ tableID: f.tableID, columnID: f.columnID });
+          }
+        }
+      }
+    }
+
+    if (unknownTableIds.size > 0) {
+      const ids = Array.from(unknownTableIds);
+      const res = await client.query(
+        `SELECT c.oid::int AS oid, n.nspname AS schema, c.relname AS table
+         FROM pg_class c
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE c.oid = ANY($1::oid[])`,
+        [ids]
+      );
+      for (const row of res.rows) {
+        this.oidCache.set(row.oid, { schema: row.schema, table: row.table });
+      }
+    }
+
+    if (unknownColumns.length > 0) {
+      // Build (tableID, columnID) pairs and query pg_attribute in one round-trip.
+      const tableIds = unknownColumns.map((c) => c.tableID);
+      const colIds = unknownColumns.map((c) => c.columnID);
+      const res = await client.query(
+        `SELECT a.attrelid::int AS table_id, a.attnum::int AS col_id, a.attname AS name
+         FROM pg_attribute a
+         WHERE (a.attrelid, a.attnum) IN (
+           SELECT unnest($1::oid[]), unnest($2::int[])
+         )`,
+        [tableIds, colIds]
+      );
+      for (const row of res.rows) {
+        this.columnCache.set(`${row.table_id}:${row.col_id}`, row.name);
+      }
+    }
+
+    return pgFields.map((f: any) => {
+      const base: QueryFieldInfo = {
+        name: f.name,
+        dataTypeID: f.dataTypeID ?? null,
+        source: null,
+      };
+      if (!f.tableID || f.tableID <= 0) return base;
+      const tbl = this.oidCache.get(f.tableID);
+      if (!tbl) return base;
+      if (!f.columnID || f.columnID <= 0) {
+        // Column came from a base table but this specific output slot is computed
+        // (e.g. a function over a base column). Leave source null.
+        return base;
+      }
+      const column = this.columnCache.get(`${f.tableID}:${f.columnID}`);
+      if (!column) return base;
+      return {
+        ...base,
+        source: { schema: tbl.schema, table: tbl.table, column },
+      };
+    });
   }
 
   // --- Schema introspection ---
@@ -380,7 +459,7 @@ export class PostgreSQLProvider implements DatabaseProvider {
   async executeQuery(
     query: string,
     timeout: number = 30000
-  ): Promise<{ rows: any[]; executionTime: number; fields?: { name: string; dataTypeID: number }[] }> {
+  ): Promise<ExecuteQueryResult> {
     const client = await this.connect();
     const startTime = Date.now();
 
@@ -391,10 +470,9 @@ export class PostgreSQLProvider implements DatabaseProvider {
         timeout
       );
       const executionTime = Date.now() - startTime;
-      const fields = result.fields?.map((f: any) => ({
-        name: f.name,
-        dataTypeID: f.dataTypeID,
-      }));
+      const fields = result.fields
+        ? await this.resolveFieldSources(client, result.fields as any[])
+        : undefined;
       return { rows: result.rows, executionTime, fields };
     } finally {
       client.release();

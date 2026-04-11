@@ -132,6 +132,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Set default schema on connection
   const hasLoadedRef = useRef(false);
+  // Tracks which database we've already restored tabs for, so we can gate
+  // localStorage writes until the one-shot restore has completed.
+  const tabsRestoredForRef = useRef<string | null>(null);
   useEffect(() => {
     if (isConnected && !hasLoadedRef.current) {
       hasLoadedRef.current = true;
@@ -142,12 +145,48 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
     if (!isConnected) {
       hasLoadedRef.current = false;
+      tabsRestoredForRef.current = null;
       setSelectedTable(undefined);
       setOpenTabs([]);
       setActiveTabId(undefined);
       queryClient.clear();
     }
   }, [isConnected, databaseType, databaseName, queryClient]);
+
+  // Restore persisted tabs once per database connection.
+  useEffect(() => {
+    if (!isConnected || !databaseName) return;
+    if (tabsRestoredForRef.current === databaseName) return;
+    tabsRestoredForRef.current = databaseName;
+    try {
+      const raw = localStorage.getItem(`dbview-tabs-${databaseName}`);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { openTabs?: Tab[]; activeTabId?: string };
+      if (!Array.isArray(parsed.openTabs)) return;
+      setOpenTabs(parsed.openTabs);
+      setActiveTabId(parsed.activeTabId);
+      const active = parsed.openTabs.find((t) => t.id === parsed.activeTabId);
+      if (active && active.type === 'table') {
+        setSelectedTable(active.label);
+      }
+    } catch {
+      // corrupt entry — ignore
+    }
+  }, [isConnected, databaseName]);
+
+  // Persist tab bar whenever it changes (after restore has completed).
+  useEffect(() => {
+    if (!isConnected || !databaseName) return;
+    if (tabsRestoredForRef.current !== databaseName) return;
+    try {
+      localStorage.setItem(
+        `dbview-tabs-${databaseName}`,
+        JSON.stringify({ openTabs, activeTabId })
+      );
+    } catch {
+      // quota exceeded or storage disabled — best effort
+    }
+  }, [openTabs, activeTabId, isConnected, databaseName]);
 
   // ─── TanStack Queries ───────────────────────────────────────
 
@@ -367,6 +406,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         delete next[tabId];
         return next;
       });
+    }
+    if (tabId.startsWith('editor:') && typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(`dbview-editor-${tabId}`);
+      } catch {
+        // ignore
+      }
     }
     setOpenTabs((prev) => {
       const next = prev.filter((t) => t.id !== tabId);

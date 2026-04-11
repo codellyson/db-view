@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useConnection } from "./contexts/connection-context";
 import { Dashboard } from "./components/dashboard";
 import { Button } from "./components/ui";
+import { InstallAppButton } from "./components/install-app-button";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -42,13 +43,14 @@ export default function Home() {
               Connects directly to your database. No data is sent to any remote server — credentials stay in your browser.
             </p>
           </div>
-          <div className="flex items-center justify-center my-8">
+          <div className="flex flex-wrap items-center justify-center gap-3 my-8">
             <Button
               variant="primary"
               onClick={() => router.push("/connections")}
             >
               Connect a database
             </Button>
+            <InstallAppButton />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-12 sm:mb-16">
             <div className="border border-border rounded-lg p-5 sm:p-6">

@@ -253,7 +253,7 @@ export async function getTableStats(
 export async function executeQuery(
   query: string,
   timeout: number = 30000
-): Promise<{ rows: any[]; executionTime: number }> {
+) {
   return (await getActiveProvider()).executeQuery(query, timeout);
 }
 

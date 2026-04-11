@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 interface EditableCellProps {
@@ -26,7 +26,6 @@ function inferEditor(columnType?: string, value?: any): EditorKind {
       t === 'real' || t === 'float' || t.includes('double') ||
       t === 'smallserial' || t === 'serial' || t === 'bigserial') return 'number';
   if (t === 'text' || t.includes('varchar') || t.includes('char')) {
-    // Use textarea for long values
     if (value !== null && value !== undefined && String(value).length > 60) return 'textarea';
   }
 
@@ -45,6 +44,33 @@ function formatForEditor(value: any, kind: EditorKind): string {
   return String(value);
 }
 
+interface PopoverPosition {
+  top: number;
+  left: number;
+  width: number;
+}
+
+// Pin the popover to the cell's top-left, widen beyond the cell if needed,
+// and shift back into the viewport if the right/bottom edge would clip.
+function computePosition(anchor: DOMRect, popoverSize: { width: number; height: number }): PopoverPosition {
+  const margin = 8;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const desiredWidth = Math.max(popoverSize.width, anchor.width);
+
+  let left = anchor.left;
+  if (left + desiredWidth + margin > vw) left = Math.max(margin, vw - desiredWidth - margin);
+
+  let top = anchor.top;
+  if (top + popoverSize.height + margin > vh) {
+    // Flip above the cell if there's more room up there.
+    const aboveTop = anchor.top - popoverSize.height - 4;
+    top = aboveTop > margin ? aboveTop : Math.max(margin, vh - popoverSize.height - margin);
+  }
+
+  return { top, left, width: desiredWidth };
+}
+
 export const EditableCell: React.FC<EditableCellProps> = ({
   value,
   column,
@@ -56,28 +82,89 @@ export const EditableCell: React.FC<EditableCellProps> = ({
   disabled = false,
 }) => {
   const editorKind = inferEditor(columnType, value);
+  const isLargeEditor = editorKind === 'json' || editorKind === 'textarea';
+
   const [editValue, setEditValue] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [position, setPosition] = useState<PopoverPosition | null>(null);
+
+  const cellRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Snap the editValue back to the current cell value whenever we enter edit mode.
   useEffect(() => {
     if (isEditing) {
       setEditValue(formatForEditor(value, editorKind));
       setJsonError(null);
-      setTimeout(() => {
-        inputRef.current?.focus();
-        textareaRef.current?.focus();
-      }, 0);
     }
   }, [isEditing, value, editorKind]);
+
+  // Position the popover relative to the cell, then re-position on scroll/resize
+  // so it stays anchored. Cancel the edit if the underlying cell scrolls off-screen
+  // far enough that the popover would float orphaned.
+  useLayoutEffect(() => {
+    if (!isEditing) {
+      setPosition(null);
+      return;
+    }
+    const popoverSize = isLargeEditor
+      ? { width: 520, height: 340 }
+      : { width: 320, height: 112 };
+
+    const place = () => {
+      const anchor = cellRef.current?.getBoundingClientRect();
+      if (!anchor) return;
+      setPosition(computePosition(anchor, popoverSize));
+    };
+    place();
+
+    const onScrollOrResize = () => place();
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [isEditing, isLargeEditor]);
+
+  // Focus the relevant field once the popover is on screen.
+  useEffect(() => {
+    if (!isEditing || !position) return;
+    const t = setTimeout(() => {
+      if (isLargeEditor) {
+        textareaRef.current?.focus();
+        textareaRef.current?.select();
+      } else {
+        inputRef.current?.focus();
+        if (inputRef.current && 'select' in inputRef.current) {
+          (inputRef.current as HTMLInputElement).select();
+        }
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, [isEditing, position, isLargeEditor]);
+
+  // Outside-click cancels. Uses mousedown so it fires before focus changes
+  // confuse the buttons inside the popover.
+  useEffect(() => {
+    if (!isEditing) return;
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (popoverRef.current?.contains(target)) return;
+      if (cellRef.current?.contains(target)) return;
+      onCancel();
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [isEditing, onCancel]);
 
   const save = useCallback(() => {
     if (editValue === '') {
       onSave(column, null);
       return;
     }
-
     if (editorKind === 'json') {
       try {
         JSON.parse(editValue);
@@ -87,12 +174,6 @@ export const EditableCell: React.FC<EditableCellProps> = ({
         return;
       }
     }
-
-    if (editorKind === 'boolean') {
-      onSave(column, editValue);
-      return;
-    }
-
     onSave(column, editValue);
   }, [column, editValue, editorKind, onSave]);
 
@@ -102,162 +183,145 @@ export const EditableCell: React.FC<EditableCellProps> = ({
       onCancel();
       return;
     }
-
-    // For textarea/json: Enter inserts newline, Cmd+Enter saves
-    if (editorKind === 'json' || editorKind === 'textarea') {
+    // Large editors: Enter inserts newline, Mod+Enter saves.
+    if (isLargeEditor) {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        save();
-      }
-      // Tab saves
-      if (e.key === 'Tab') {
         e.preventDefault();
         save();
       }
       return;
     }
-
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      save();
-    } else if (e.key === 'Tab') {
+    if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       save();
     }
   };
 
-  if (isEditing) {
-    // Boolean: dropdown
-    if (editorKind === 'boolean') {
-      return (
-        <select
-          value={editValue === '' ? '' : editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={() => save()}
-          onKeyDown={handleKeyDown}
-          autoFocus
-          className="w-full px-2 py-1 text-sm font-mono border border-accent rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-        >
-          <option value="">NULL</option>
-          <option value="true">true</option>
-          <option value="false">false</option>
-        </select>
-      );
-    }
-
-    // JSON / long text: portal-mounted modal editor (escapes overflow-hidden parents)
-    if (editorKind === 'json' || editorKind === 'textarea') {
-      return createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
-        >
-          <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
-          <div className="relative z-10 bg-bg border border-border rounded-lg shadow-lg w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-primary">{column}</span>
-                <span className="text-xs text-muted font-mono">{columnType}</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted">
-                <kbd className="px-1.5 py-0.5 bg-bg-secondary rounded border border-border text-[10px]">
-                  {navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+Enter
-                </kbd>
-                <span>to save</span>
-              </div>
-            </div>
-            <div className="p-4">
-              <textarea
-                ref={textareaRef}
-                value={editValue}
-                onChange={(e) => {
-                  setEditValue(e.target.value);
-                  if (jsonError) setJsonError(null);
-                }}
-                onKeyDown={handleKeyDown}
-                rows={Math.min(15, Math.max(4, editValue.split('\n').length + 1))}
-                spellCheck={false}
-                className={`w-full px-3 py-2 text-sm font-mono border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 resize-y ${
-                  jsonError ? 'border-danger focus:ring-danger' : 'border-border focus:ring-accent'
-                }`}
-              />
-              {jsonError && (
-                <p className="text-xs text-danger mt-1.5">{jsonError}</p>
-              )}
-            </div>
-            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-              <button
-                onClick={() => { setEditValue(''); save(); }}
-                className="text-xs text-muted hover:text-primary transition-colors"
-              >
-                Set NULL
-              </button>
-              <div className="flex gap-2">
-                <button
-                  onClick={onCancel}
-                  className="px-3 py-1.5 text-sm text-secondary hover:bg-bg-secondary rounded-md transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={save}
-                  className="px-3 py-1.5 text-sm bg-accent text-white rounded-md hover:bg-accent-hover transition-colors"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      );
-    }
-
-    // Number input
-    if (editorKind === 'number') {
-      return (
-        <input
-          ref={inputRef}
-          type="number"
-          step="any"
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={() => onCancel()}
-          className="w-full px-2 py-1 text-sm font-mono border border-accent rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-        />
-      );
-    }
-
-    // Default: text input
-    return (
-      <input
-        ref={inputRef}
-        type="text"
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onBlur={() => onCancel()}
-        className="w-full px-2 py-1 text-sm font-mono border border-accent rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-      />
-    );
-  }
-
+  // ─── Display (non-editing) ────────────────────────────────────
   const displayValue = value !== null && value !== undefined
     ? (typeof value === 'object' ? JSON.stringify(value) : String(value))
     : null;
 
   return (
-    <div
-      className={`truncate ${!disabled ? 'cursor-text' : ''}`}
-      onDoubleClick={!disabled ? onStartEdit : undefined}
-      title={displayValue || 'NULL'}
-    >
-      {displayValue !== null ? (
-        displayValue
-      ) : (
-        <span className="text-muted italic">NULL</span>
-      )}
-    </div>
+    <>
+      <div
+        ref={cellRef}
+        className={`truncate ${!disabled ? 'cursor-text' : ''} ${isEditing ? 'opacity-40' : ''}`}
+        onDoubleClick={!disabled ? onStartEdit : undefined}
+        title={displayValue || 'NULL'}
+      >
+        {displayValue !== null ? (
+          displayValue
+        ) : (
+          <span className="text-muted italic">NULL</span>
+        )}
+      </div>
+
+      {isEditing && position && typeof window !== 'undefined' &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            className="fixed z-50 bg-bg border border-border rounded-md shadow-xl flex flex-col overflow-hidden"
+            style={{
+              top: position.top,
+              left: position.left,
+              width: position.width,
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {/* Header: column name + type */}
+            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border bg-bg-secondary/40 flex-shrink-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-xs font-medium text-primary truncate">{column}</span>
+                {columnType && (
+                  <span className="text-[10px] font-mono text-muted flex-shrink-0">{columnType}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-muted flex-shrink-0">
+                <kbd className="px-1 py-0.5 bg-bg rounded border border-border">
+                  {isLargeEditor
+                    ? (typeof navigator !== 'undefined' && navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl') + '+Enter'
+                    : 'Enter'}
+                </kbd>
+                <span>save</span>
+              </div>
+            </div>
+
+            {/* Body: input */}
+            <div className="p-2 flex-1 min-h-0">
+              {editorKind === 'boolean' ? (
+                <select
+                  ref={inputRef as React.RefObject<HTMLSelectElement>}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  <option value="">NULL</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              ) : isLargeEditor ? (
+                <textarea
+                  ref={textareaRef}
+                  value={editValue}
+                  onChange={(e) => {
+                    setEditValue(e.target.value);
+                    if (jsonError) setJsonError(null);
+                  }}
+                  onKeyDown={handleKeyDown}
+                  rows={12}
+                  spellCheck={false}
+                  className={`w-full h-full px-2 py-1.5 text-sm font-mono border rounded bg-bg text-primary focus:outline-none focus:ring-2 resize-none ${
+                    jsonError ? 'border-danger focus:ring-danger' : 'border-border focus:ring-accent'
+                  }`}
+                />
+              ) : (
+                <input
+                  ref={inputRef as React.RefObject<HTMLInputElement>}
+                  type={editorKind === 'number' ? 'number' : 'text'}
+                  step={editorKind === 'number' ? 'any' : undefined}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              )}
+              {jsonError && (
+                <p className="text-[11px] text-danger mt-1.5">{jsonError}</p>
+              )}
+            </div>
+
+            {/* Footer: actions */}
+            <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-border bg-bg-secondary/30 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => { setEditValue(''); save(); }}
+                className="text-[11px] text-muted hover:text-primary transition-colors px-1.5 py-0.5"
+                title="Set this cell to NULL"
+              >
+                Set NULL
+              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-2.5 py-1 text-[11px] font-medium text-secondary hover:text-primary hover:bg-bg-secondary rounded transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={save}
+                  className="px-2.5 py-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 };

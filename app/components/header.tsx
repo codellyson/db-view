@@ -72,17 +72,30 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
         {isConnected && (
-          <button
-            onClick={() => router.push('/connections')}
-            aria-current={pathname === '/connections' ? 'page' : undefined}
-            className={`hidden md:inline-flex text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-              pathname === '/connections'
-                ? 'bg-accent/10 text-accent'
-                : 'text-secondary hover:text-primary hover:bg-bg-secondary'
-            }`}
-          >
-            Connections
-          </button>
+          <nav aria-label="Main navigation" className="flex items-center gap-1">
+            <button
+              onClick={() => router.push('/')}
+              aria-current={pathname === '/' ? 'page' : undefined}
+              className={`inline-flex text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
+                pathname === '/'
+                  ? 'bg-accent/10 text-accent'
+                  : 'text-secondary hover:text-primary hover:bg-bg-secondary'
+              }`}
+            >
+              Workspace
+            </button>
+            <button
+              onClick={() => router.push('/connections')}
+              aria-current={pathname === '/connections' ? 'page' : undefined}
+              className={`inline-flex text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
+                pathname === '/connections'
+                  ? 'bg-accent/10 text-accent'
+                  : 'text-secondary hover:text-primary hover:bg-bg-secondary'
+              }`}
+            >
+              Connections
+            </button>
+          </nav>
         )}
       </div>
       <div className="flex items-center gap-2 md:gap-3">

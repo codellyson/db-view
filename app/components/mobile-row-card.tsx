@@ -14,6 +14,7 @@ interface MobileRowCardProps {
   columnSchema: ColumnInfo[];
   canEdit: boolean;
   canDelete: boolean;
+  isColumnEditable?: (column: string) => boolean;
   onCellUpdate?: (rowPks: Record<string, any>, column: string, newValue: any) => void;
   onRowDelete?: (rowPks: Record<string, any>) => void;
   getRowPrimaryKeys: (row: any) => Record<string, any>;
@@ -29,6 +30,7 @@ export const MobileRowCard: React.FC<MobileRowCardProps> = ({
   columnSchema,
   canEdit,
   canDelete,
+  isColumnEditable,
   onCellUpdate,
   onRowDelete,
   getRowPrimaryKeys,
@@ -118,7 +120,7 @@ export const MobileRowCard: React.FC<MobileRowCardProps> = ({
           <div className="border-t border-border pt-2 space-y-1">
             {columns.map((column) => {
               const isPk = primaryKeys.includes(column);
-              const isEditable = canEdit && !isPk;
+              const isEditable = canEdit && !isPk && (isColumnEditable ? isColumnEditable(column) : true);
               const value = row[column];
 
               return (

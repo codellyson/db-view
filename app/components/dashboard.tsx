@@ -348,7 +348,7 @@ export function Dashboard() {
                       key={tab.id}
                       className={tab.id === activeTabId ? 'flex-1 flex flex-col min-h-0' : 'hidden'}
                     >
-                      <QueryEditor isActive={tab.id === activeTabId} />
+                      <QueryEditor tabId={tab.id} isActive={tab.id === activeTabId} />
                     </div>
                   ))}
                 </div>

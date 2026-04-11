@@ -1,6 +1,6 @@
 import { createClient, type Client, type Config } from "@libsql/client";
 import { DBConfig } from "@/types";
-import { DatabaseProvider, QueryResult } from "../db-provider";
+import { DatabaseProvider, ExecuteQueryResult, QueryFieldInfo, QueryResult } from "../db-provider";
 
 function escId(name: string): string {
   return `"${name.replace(/"/g, '""')}"`;
@@ -181,7 +181,7 @@ export class SQLiteProvider implements DatabaseProvider {
   async executeQuery(
     query: string,
     _timeout?: number
-  ): Promise<{ rows: any[]; executionTime: number }> {
+  ): Promise<ExecuteQueryResult> {
     const startTime = Date.now();
     const trimmed = query.trim();
 
@@ -194,7 +194,13 @@ export class SQLiteProvider implements DatabaseProvider {
         }
         return obj;
       });
-      return { rows, executionTime: Date.now() - startTime };
+      // libsql does not expose column origin metadata, so source is always null.
+      const fields: QueryFieldInfo[] = result.columns.map((name) => ({
+        name,
+        dataTypeID: null,
+        source: null,
+      }));
+      return { rows, executionTime: Date.now() - startTime, fields };
     }
 
     const result = await this.client!.execute(trimmed);

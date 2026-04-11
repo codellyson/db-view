@@ -1,7 +1,7 @@
 import mysql from "mysql2/promise";
 import type { Pool, PoolOptions } from "mysql2/promise";
 import { DBConfig } from "@/types";
-import { DatabaseProvider, QueryResult } from "../db-provider";
+import { DatabaseProvider, ExecuteQueryResult, QueryFieldInfo, QueryResult } from "../db-provider";
 
 function escId(name: string): string {
   return `\`${name.replace(/`/g, "``")}\``;
@@ -304,7 +304,7 @@ export class MySQLProvider implements DatabaseProvider {
   async executeQuery(
     query: string,
     timeout: number = 30000
-  ): Promise<{ rows: any[]; executionTime: number }> {
+  ): Promise<ExecuteQueryResult> {
     const conn = await this.pool!.getConnection();
     const startTime = Date.now();
 
@@ -327,15 +327,33 @@ export class MySQLProvider implements DatabaseProvider {
         }, timeout);
       });
 
-      const [rows] = (await Promise.race([
+      const raced = (await Promise.race([
         conn.query(query),
         timeoutPromise,
       ])) as any;
       clearTimeout(timer!);
+      const [rows, fieldMeta] = raced as [any, any[] | undefined];
       const executionTime = Date.now() - startTime;
+      const fields: QueryFieldInfo[] | undefined = Array.isArray(fieldMeta)
+        ? fieldMeta.map((f: any) => {
+            const orgTable = f.orgTable ?? f.orgtable ?? "";
+            const orgName = f.orgName ?? f.orgname ?? "";
+            const db = f.schema ?? f.db ?? "";
+            const source =
+              orgTable && orgName
+                ? { schema: db || "", table: orgTable, column: orgName }
+                : null;
+            return {
+              name: f.name,
+              dataTypeID: f.columnType ?? f.type ?? null,
+              source,
+            };
+          })
+        : undefined;
       return {
         rows: Array.isArray(rows) ? rows : [],
         executionTime,
+        fields,
       };
     } finally {
       try {

@@ -7,6 +7,21 @@ export interface QueryResult {
   rowCount?: number;
 }
 
+export interface QueryFieldInfo {
+  name: string;
+  dataTypeID: number | null;
+  // Origin of this column if it can be resolved to a base table column.
+  // Null when the column is computed (expression, literal, aggregate),
+  // or when the driver does not expose source metadata (e.g. libsql).
+  source: { schema: string; table: string; column: string } | null;
+}
+
+export interface ExecuteQueryResult {
+  rows: any[];
+  executionTime: number;
+  fields?: QueryFieldInfo[];
+}
+
 export interface DatabaseProvider {
   readonly type: DatabaseType;
 
@@ -39,7 +54,7 @@ export interface DatabaseProvider {
   executeQuery(
     query: string,
     timeout?: number
-  ): Promise<{ rows: any[]; executionTime: number }>;
+  ): Promise<ExecuteQueryResult>;
   executeExplain(
     query: string,
     timeout?: number

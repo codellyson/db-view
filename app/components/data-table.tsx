@@ -11,7 +11,6 @@ import type { ColumnFormatter } from '@/lib/plugin-types';
 import { applyFormatter } from '@/lib/formatter-presets';
 import { ContextMenu, useContextMenu, type ContextMenuEntry } from './ui/context-menu';
 import { MobileRowCard } from './mobile-row-card';
-import { ValuePanel } from './value-panel';
 import { useIsMobile } from '../hooks/use-media-query';
 
 interface DataTableProps {
@@ -28,6 +27,9 @@ interface DataTableProps {
   onCellUpdate?: (rowPks: Record<string, any>, column: string, newValue: any) => void;
   onRowDelete?: (rowPks: Record<string, any>) => void;
   readOnlyMode?: boolean;
+  // Columns that are part of an otherwise-editable result but cannot be
+  // written back (e.g. computed expressions in a query result).
+  readOnlyColumns?: string[];
   columnTypes?: Record<string, string>;
   activeFormatters?: ColumnFormatter[];
 }
@@ -52,9 +54,18 @@ export const DataTable: React.FC<DataTableProps> = ({
   onCellUpdate,
   onRowDelete,
   readOnlyMode = false,
+  readOnlyColumns,
   columnTypes = {},
   activeFormatters = [],
 }) => {
+  const readOnlyColumnSet = useMemo(
+    () => new Set(readOnlyColumns ?? []),
+    [readOnlyColumns]
+  );
+  const isColumnEditable = useCallback(
+    (col: string) => !readOnlyColumnSet.has(col),
+    [readOnlyColumnSet]
+  );
   const isMobile = useIsMobile();
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
@@ -253,6 +264,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   columnSchema={columnSchema}
                   canEdit={canEdit}
                   canDelete={canDelete}
+                  isColumnEditable={isColumnEditable}
                   onCellUpdate={onCellUpdate}
                   onRowDelete={onRowDelete}
                   getRowPrimaryKeys={getRowPrimaryKeys}
@@ -391,7 +403,7 @@ export const DataTable: React.FC<DataTableProps> = ({
       { label: 'Copy row as INSERT', onClick: () => copyToClipboard(insertSql) },
     ];
 
-    if (canEdit && !primaryKeys.includes(column)) {
+    if (canEdit && !primaryKeys.includes(column) && isColumnEditable(column)) {
       items.push(
         { type: 'divider' },
         { label: 'Edit cell', onClick: () => {
@@ -419,7 +431,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   const totalTableWidth = displayColumns.reduce((sum, col) => sum + getColumnWidth(col), 0);
 
   const renderCellContent = (row: any, column: string, rowIndex: number) => {
-    if (canEdit && !primaryKeys.includes(column)) {
+    if (canEdit && !primaryKeys.includes(column) && isColumnEditable(column)) {
       return (
         <EditableCell
           value={row[column]}
@@ -472,7 +484,7 @@ export const DataTable: React.FC<DataTableProps> = ({
 
   return (
     <div className="flex gap-0" style={{ height: 'calc(100vh - 320px)', minHeight: '250px' }}>
-    <div className={`border border-border rounded-lg overflow-hidden flex flex-col ${selectedCell ? 'flex-1 min-w-0' : 'w-full'}`}>
+    <div className="border border-border rounded-lg overflow-hidden flex flex-col w-full">
       {!readOnlyMode && primaryKeys.length === 0 && columnSchema.length > 0 && (
         <div className="px-4 py-2 bg-warning/10 text-xs text-warning border-b border-border flex-shrink-0">
           Editing disabled -- no primary key detected
@@ -640,23 +652,6 @@ export const DataTable: React.FC<DataTableProps> = ({
         />
       )}
     </div>
-    {selectedCell && (
-      <div className="w-80 flex-shrink-0 border border-border rounded-lg overflow-hidden">
-        <ValuePanel
-          column={selectedCell.col}
-          value={selectedCell.value}
-          columnType={columnTypes[selectedCell.col]}
-          onClose={() => setSelectedCell(null)}
-          onSave={!!onCellUpdate ? (newValue) => {
-            const row = filteredData[selectedCell.row];
-            if (row) {
-              handleCellSave(row, selectedCell.col, newValue);
-              setSelectedCell({ ...selectedCell, value: newValue });
-            }
-          } : undefined}
-        />
-      </div>
-    )}
     </div>
   );
 };

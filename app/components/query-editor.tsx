@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { EditorView } from '@codemirror/view';
 import { Card } from './ui/card';
@@ -13,7 +13,15 @@ import { formatSQL } from '@/lib/sql-formatter';
 import { api } from '@/lib/api';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
+import { useToast } from '../contexts/toast-context';
+import { useQuery } from '@tanstack/react-query';
 import { pgOidToType } from '@/lib/pg-types';
+import { analyzeEditability, describeReason, type EditabilityResult } from '@/lib/query-editability';
+import type { QueryFieldInfo } from '@/lib/db-provider';
+import type { ColumnInfo } from '@/types';
+import type { MutationRequest } from '@/lib/mutation';
+import { buildDisplaySQL } from '@/lib/mutation';
+import { MutationConfirmation } from './mutation-confirmation';
 import { TabBar, type Tab } from './tab-bar';
 
 interface ResultTab {
@@ -27,14 +35,40 @@ interface ResultTab {
 
 interface QueryEditorProps {
   isActive?: boolean;
+  tabId?: string;
 }
 
-export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true }) => {
+const editorStorageKey = (tabId: string) => `dbview-editor-${tabId}`;
+
+export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId }) => {
   const { databaseType } = useConnection();
-  const { schemaMap, tables, selectedSchema } = useDashboard();
-  const [query, setQuery] = useState('');
+  const { schemaMap, tables, selectedSchema, mutateRow } = useDashboard();
+  const { addToast } = useToast();
+  const [query, setQuery] = useState<string>(() => {
+    if (!tabId || typeof window === 'undefined') return '';
+    try {
+      return localStorage.getItem(editorStorageKey(tabId)) ?? '';
+    } catch {
+      return '';
+    }
+  });
+
+  useEffect(() => {
+    if (!tabId || typeof window === 'undefined') return;
+    try {
+      if (query) {
+        localStorage.setItem(editorStorageKey(tabId), query);
+      } else {
+        localStorage.removeItem(editorStorageKey(tabId));
+      }
+    } catch {
+      // ignore
+    }
+  }, [query, tabId]);
   const [results, setResults] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
+  const [resultFields, setResultFields] = useState<QueryFieldInfo[] | undefined>(undefined);
+  const [executedSql, setExecutedSql] = useState<string>('');
   const [resultColumnTypes, setResultColumnTypes] = useState<Record<string, string>>({});
   const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +76,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true }) => 
   const [showHistory, setShowHistory] = useState(false);
   const editorViewRef = useRef<EditorView | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
+  const [pendingMutation, setPendingMutation] = useState<MutationRequest | null>(null);
+  const [isMutating, setIsMutating] = useState(false);
 
   // Result tabs
   const [resultTabs, setResultTabs] = useState<ResultTab[]>([]);
@@ -92,6 +128,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true }) => 
     setError(null);
     setResults([]);
     setColumns([]);
+    setResultFields(undefined);
     setExecutionTime(null);
 
     try {
@@ -100,6 +137,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true }) => 
       const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
       setColumns(cols);
       setResultColumnTypes(parseColumnTypes(data));
+      setResultFields(data.fields as QueryFieldInfo[] | undefined);
+      setExecutedSql(execQuery);
       setResults(rows);
       setExecutionTime(data.executionTime || null);
       addQuery(execQuery, data.executionTime || 0, rows.length);
@@ -109,6 +148,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true }) => 
       setError(err.message || 'Query execution failed');
       setResults([]);
       setColumns([]);
+      setResultFields(undefined);
     } finally {
       setIsExecuting(false);
     }
@@ -160,6 +200,158 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true }) => 
       preventDefault: true,
     }
   );
+
+  // ─── Result editability ────────────────────────────────────────
+  // Detect the unique source (schema, table) from the result fields.
+  const candidateSource = useMemo(() => {
+    if (!resultFields || resultFields.length === 0) return null;
+    const seen = new Set<string>();
+    let schema = '';
+    let table = '';
+    for (const f of resultFields) {
+      if (f.source) {
+        const key = `${f.source.schema}.${f.source.table}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          schema = f.source.schema;
+          table = f.source.table;
+        }
+      }
+    }
+    return seen.size === 1 ? { schema, table } : null;
+  }, [resultFields]);
+
+  const sourceSchemaQuery = useQuery({
+    queryKey: ['queryResultSourceSchema', candidateSource?.schema, candidateSource?.table],
+    queryFn: async () => {
+      const data = await api.get(
+        `/api/schema/${encodeURIComponent(candidateSource!.table)}?schema=${encodeURIComponent(candidateSource!.schema)}`
+      );
+      return ((data.schema || []) as any[]).map((row: any) => ({
+        name: row.column_name ?? row.name,
+        type: row.data_type ?? row.type,
+        nullable: row.is_nullable === 'YES' || row.nullable === true,
+        default: row.column_default ?? row.default ?? null,
+        isPrimaryKey: row.is_primary_key ?? row.isPrimaryKey ?? false,
+      })) as ColumnInfo[];
+    },
+    enabled: !!candidateSource,
+  });
+
+  const sourceColumnInfo = useMemo(() => sourceSchemaQuery.data ?? [], [sourceSchemaQuery.data]);
+  const sourcePrimaryKeys = useMemo(
+    () => sourceColumnInfo.filter((c) => c.isPrimaryKey).map((c) => c.name),
+    [sourceColumnInfo]
+  );
+
+  const editability: EditabilityResult = useMemo(() => {
+    return analyzeEditability({
+      sql: executedSql,
+      fields: resultFields,
+      getPrimaryKeys: (schema, table) => {
+        if (
+          candidateSource?.schema === schema &&
+          candidateSource?.table === table &&
+          sourcePrimaryKeys.length > 0
+        ) {
+          return sourcePrimaryKeys;
+        }
+        return undefined;
+      },
+    });
+  }, [executedSql, resultFields, candidateSource, sourcePrimaryKeys]);
+
+  // When editable: derive per-row-lookup PKs (result-aliased) and
+  // the set of read-only result columns (computed expressions, etc.).
+  const editableMeta = useMemo(() => {
+    if (!editability.editable) return null;
+    const { columnToSource, primaryKeys: basePks, schema, table } = editability;
+    const resultPrimaryKeys = columns.filter((c) => basePks.includes(columnToSource[c] ?? ''));
+    const readOnlyResultColumns = columns.filter((c) => !(c in columnToSource));
+    return { schema, table, columnToSource, resultPrimaryKeys, readOnlyResultColumns };
+  }, [editability, columns]);
+
+  // Translate a row's result-aliased PKs back to base-table column names.
+  const buildBaseWhere = useCallback(
+    (rowPks: Record<string, any>): Record<string, any> | null => {
+      if (!editableMeta) return null;
+      const where: Record<string, any> = {};
+      for (const [resultCol, val] of Object.entries(rowPks)) {
+        const baseCol = editableMeta.columnToSource[resultCol];
+        if (!baseCol) return null;
+        where[baseCol] = val;
+      }
+      return where;
+    },
+    [editableMeta]
+  );
+
+  const handleQueryCellUpdate = useCallback(
+    (rowPks: Record<string, any>, column: string, newValue: any) => {
+      if (!editableMeta) return;
+      const baseColumn = editableMeta.columnToSource[column];
+      const where = buildBaseWhere(rowPks);
+      if (!baseColumn || !where) return;
+      setPendingMutation({
+        type: 'UPDATE',
+        schema: editableMeta.schema,
+        table: editableMeta.table,
+        values: { [baseColumn]: newValue },
+        where,
+      });
+    },
+    [editableMeta, buildBaseWhere]
+  );
+
+  const handleQueryRowDelete = useCallback(
+    (rowPks: Record<string, any>) => {
+      if (!editableMeta) return;
+      const where = buildBaseWhere(rowPks);
+      if (!where) return;
+      setPendingMutation({
+        type: 'DELETE',
+        schema: editableMeta.schema,
+        table: editableMeta.table,
+        where,
+      });
+    },
+    [editableMeta, buildBaseWhere]
+  );
+
+  const refreshResults = useCallback(async () => {
+    if (!executedSql) return;
+    setIsExecuting(true);
+    setError(null);
+    try {
+      const data = await api.post('/api/query', { query: executedSql }, { noRetry: true });
+      const rows = data.rows || [];
+      const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
+      setColumns(cols);
+      setResultColumnTypes(parseColumnTypes(data));
+      setResultFields(data.fields as QueryFieldInfo[] | undefined);
+      setResults(rows);
+      setExecutionTime(data.executionTime || null);
+      setActiveResultTabId(undefined);
+    } catch (err: any) {
+      setError(err.message || 'Query execution failed');
+    } finally {
+      setIsExecuting(false);
+    }
+  }, [executedSql]);
+
+  const handleConfirmMutation = useCallback(async () => {
+    if (!pendingMutation) return;
+    setIsMutating(true);
+    try {
+      await mutateRow(pendingMutation);
+      setPendingMutation(null);
+      await refreshResults();
+    } catch (err: any) {
+      addToast(err.message || 'Mutation failed', 'error');
+    } finally {
+      setIsMutating(false);
+    }
+  }, [pendingMutation, mutateRow, refreshResults, addToast]);
 
   const closeResultTab = useCallback((tabId: string) => {
     setResultTabs((prev) => {
@@ -309,15 +501,53 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true }) => 
       {/* Inline results (no tab selected) */}
       {showInlineResults && (
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-sm text-muted">
               {results.length} {results.length === 1 ? 'row' : 'rows'} returned
             </span>
-            {executionTime !== null && (
-              <span className="text-sm text-muted font-mono">{executionTime}ms</span>
-            )}
+            <div className="flex items-center gap-2">
+              {editableMeta ? (
+                <span
+                  className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/10 text-accent"
+                  title={`Editable — ${editableMeta.schema}.${editableMeta.table}`}
+                >
+                  Editable
+                </span>
+              ) : editability.editable === false && resultFields && resultFields.length > 0 ? (
+                <span
+                  className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-bg-secondary text-muted"
+                  title={`Read-only — ${describeReason(editability.reason)}${editability.detail ? ` (${editability.detail})` : ''}`}
+                >
+                  Read-only
+                </span>
+              ) : null}
+              {executionTime !== null && (
+                <span className="text-sm text-muted font-mono">{executionTime}ms</span>
+              )}
+              <button
+                onClick={refreshResults}
+                disabled={isExecuting || !executedSql}
+                className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Refresh results (re-run last query)"
+                aria-label="Refresh results"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-3.5 w-3.5 ${isExecuting ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <DataTable columns={columns} data={results} isLoading={false} columnTypes={resultColumnTypes} />
+          <DataTable
+            columns={columns}
+            data={results}
+            isLoading={false}
+            columnTypes={resultColumnTypes}
+            primaryKeys={editableMeta?.resultPrimaryKeys}
+            columnSchema={editableMeta ? sourceColumnInfo : undefined}
+            onCellUpdate={editableMeta ? handleQueryCellUpdate : undefined}
+            onRowDelete={editableMeta ? handleQueryRowDelete : undefined}
+            readOnlyColumns={editableMeta?.readOnlyResultColumns}
+          />
         </div>
       )}
 
@@ -325,6 +555,17 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true }) => 
         <div className="text-center py-6 text-sm text-muted">
           Query executed successfully. No rows returned.
         </div>
+      )}
+
+      {pendingMutation && (
+        <MutationConfirmation
+          isOpen={!!pendingMutation}
+          type={pendingMutation.type}
+          sql={buildDisplaySQL(pendingMutation, databaseType)}
+          onConfirm={handleConfirmMutation}
+          onCancel={() => setPendingMutation(null)}
+          isLoading={isMutating}
+        />
       )}
     </div>
   );
