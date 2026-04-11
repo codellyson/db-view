@@ -30,12 +30,6 @@ export const Header: React.FC<HeaderProps> = ({
     router.push('/');
   };
 
-  const navItems = [
-    { label: 'Tables', path: '/' },
-    { label: 'Query', path: '/query' },
-    { label: 'Connections', path: '/connections' },
-  ];
-
   return (
     <header className="h-14 bg-bg border-b border-border flex items-center justify-between px-4 md:px-6">
       <div className="flex items-center gap-3 md:gap-6">
@@ -50,33 +44,45 @@ export const Header: React.FC<HeaderProps> = ({
             </svg>
           </button>
         )}
-        <div className="flex items-center gap-2">
-          <Image
-            src="/logo.svg"
-            alt="DBView"
-            width={28}
-            height={28}
-            priority
-          />
-          <span className="text-base font-semibold text-primary">DBView</span>
-        </div>
+        {isConnected ? (
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-2 rounded-md px-1 -mx-1 hover:bg-bg-secondary transition-colors"
+            aria-label="Back to tables"
+          >
+            <Image
+              src="/logo.svg"
+              alt="DBView"
+              width={28}
+              height={28}
+              priority
+            />
+            <span className="text-base font-semibold text-primary">DBView</span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo.svg"
+              alt="DBView"
+              width={28}
+              height={28}
+              priority
+            />
+            <span className="text-base font-semibold text-primary">DBView</span>
+          </div>
+        )}
         {isConnected && (
-          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => router.push(item.path)}
-                aria-current={pathname === item.path ? 'page' : undefined}
-                className={`text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-                  pathname === item.path
-                    ? 'bg-accent/10 text-accent'
-                    : 'text-secondary hover:text-primary hover:bg-bg-secondary'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
+          <button
+            onClick={() => router.push('/connections')}
+            aria-current={pathname === '/connections' ? 'page' : undefined}
+            className={`hidden md:inline-flex text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
+              pathname === '/connections'
+                ? 'bg-accent/10 text-accent'
+                : 'text-secondary hover:text-primary hover:bg-bg-secondary'
+            }`}
+          >
+            Connections
+          </button>
         )}
       </div>
       <div className="flex items-center gap-2 md:gap-3">

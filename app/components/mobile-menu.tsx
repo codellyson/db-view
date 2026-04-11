@@ -10,8 +10,6 @@ interface MobileMenuProps {
 }
 
 const navItems = [
-  { label: 'Tables', path: '/' },
-  { label: 'Query', path: '/query' },
   { label: 'Connections', path: '/connections' },
 ];
 

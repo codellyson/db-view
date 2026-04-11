@@ -26,6 +26,7 @@ import { CSVImportDialog } from "./csv-import-dialog";
 import { TableCreationWizard } from "./table-creation-wizard";
 import { BatchExportModal } from "./batch-export-modal";
 import { TabBar } from "./tab-bar";
+import { QueryEditor } from "./query-editor";
 import { Button } from "./ui/button";
 import { useConnection } from "../contexts/connection-context";
 import { useToast } from "../contexts/toast-context";
@@ -88,6 +89,8 @@ export function Dashboard() {
     closeOtherTabs,
     isQueryTab,
     queryTabResults,
+    openEditorTab,
+    isEditorTab,
   } = useDashboard();
 
   const { allFormatters } = usePlugins();
@@ -153,14 +156,9 @@ export function Dashboard() {
       action: () => setIsShortcutsHelpOpen((prev) => !prev),
     },
     {
-      key: 'q', alt: true, description: 'Go to query page',
+      key: 'q', alt: true, description: 'New SQL editor tab',
       category: 'Navigation',
-      action: () => router.push('/query'),
-    },
-    {
-      key: 't', alt: true, description: 'Go to tables page',
-      category: 'Navigation',
-      action: () => router.push('/'),
+      action: () => openEditorTab(),
     },
     {
       key: 'n', alt: true, description: 'Add new row',
@@ -198,7 +196,7 @@ export function Dashboard() {
         else if (isShortcutsHelpOpen) setIsShortcutsHelpOpen(false);
       },
     },
-  ], [readOnlyMode, primaryKeys, selectedTable, pendingMutation, isRowEditorOpen, isShortcutsHelpOpen, router]);
+  ], [readOnlyMode, primaryKeys, selectedTable, pendingMutation, isRowEditorOpen, isShortcutsHelpOpen, router, openEditorTab]);
 
   useKeyboardShortcuts(shortcuts);
 
@@ -257,6 +255,19 @@ export function Dashboard() {
   return (
     <>
     <MobileMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)}>
+      <div className="mb-4">
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => {
+            openEditorTab();
+            setIsMobileMenuOpen(false);
+          }}
+          className="w-full"
+        >
+          + New SQL editor
+        </Button>
+      </div>
       <TableList
         tables={tables}
         selectedTable={selectedTable}
@@ -283,7 +294,12 @@ export function Dashboard() {
       }
       right={
         <div ref={mainContentRef} className="flex-1 flex flex-col overflow-hidden">
-          <Header isConnected={isConnected} databaseName={databaseName} onMenuToggle={() => setIsMobileMenuOpen(true)} onShortcutsHelp={() => setIsShortcutsHelpOpen(true)} />
+          <Header
+            isConnected={isConnected}
+            databaseName={databaseName}
+            onMenuToggle={() => setIsMobileMenuOpen(true)}
+            onShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
+          />
           <TabBar
             tabs={openTabs}
             activeTabId={activeTabId}
@@ -294,9 +310,10 @@ export function Dashboard() {
             actions={
               <>
                 <button
-                  onClick={() => router.push('/query')}
+                  onClick={openEditorTab}
                   className="p-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded transition-colors"
-                  title="New query (go to editor)"
+                  title="New SQL editor (Alt+Q)"
+                  aria-label="New SQL editor tab"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -313,7 +330,31 @@ export function Dashboard() {
                 className="mb-8"
               />
             )}
-            {isQueryTab && activeTabId && queryTabResults[activeTabId] ? (
+            {(() => {
+              const editorTabs = openTabs.filter((t) => t.type === 'editor');
+              if (editorTabs.length === 0) return null;
+              return (
+                <div className={isEditorTab ? 'flex-1 flex flex-col min-h-0' : 'hidden'}>
+                  {isEditorTab && (
+                    <Breadcrumb
+                      items={[
+                        { label: databaseName || 'DATABASE' },
+                        { label: openTabs.find((t) => t.id === activeTabId)?.label || 'SQL' },
+                      ]}
+                    />
+                  )}
+                  {editorTabs.map((tab) => (
+                    <div
+                      key={tab.id}
+                      className={tab.id === activeTabId ? 'flex-1 flex flex-col min-h-0' : 'hidden'}
+                    >
+                      <QueryEditor isActive={tab.id === activeTabId} />
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+            {isEditorTab ? null : isQueryTab && activeTabId && queryTabResults[activeTabId] ? (
               (() => {
                 const qr = queryTabResults[activeTabId];
                 return (
@@ -491,7 +532,12 @@ export function Dashboard() {
             ) : (
               <EmptyState
                 title="What do you want to explore?"
-                description="Open the menu and pick a table to dive in."
+                description="Pick a table from the sidebar, or open a SQL editor to run a query."
+                action={
+                  <Button variant="primary" size="sm" onClick={openEditorTab}>
+                    New SQL editor
+                  </Button>
+                }
               />
             )}
           </MainContent>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { EditorView } from '@codemirror/view';
 import { Card } from './ui/card';
 import { DataTable } from './data-table';
@@ -24,11 +25,13 @@ interface ResultTab {
   executionTime: number;
 }
 
-interface QueryEditorProps {}
+interface QueryEditorProps {
+  isActive?: boolean;
+}
 
-export const QueryEditor: React.FC<QueryEditorProps> = () => {
+export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true }) => {
   const { databaseType } = useConnection();
-  const { schemaMap, tables } = useDashboard();
+  const { schemaMap, tables, selectedSchema } = useDashboard();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
@@ -56,13 +59,17 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
   }, [query]);
 
   const autocompleteSchema = useMemo(() => {
-    if (Object.keys(schemaMap).length > 0) return schemaMap;
-    const fallback: Record<string, string[]> = {};
-    for (const t of tables) {
-      fallback[t] = [];
-    }
-    return fallback;
-  }, [schemaMap, tables]);
+    // Build a flat { table: columns[] } map and also a nested { schema: { table: columns[] } }
+    // so CodeMirror can resolve both bare-table references and schema-qualified ones.
+    const flat: Record<string, string[]> =
+      Object.keys(schemaMap).length > 0
+        ? schemaMap
+        : tables.reduce<Record<string, string[]>>((acc, t) => {
+            acc[t] = [];
+            return acc;
+          }, {});
+    return { ...flat, [selectedSchema]: flat };
+  }, [schemaMap, tables, selectedSchema]);
 
   const { history, addQuery, favoriteQuery, deleteQuery, clearHistory } = useQueryHistory();
 
@@ -139,6 +146,20 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
       setIsExecuting(false);
     }
   };
+
+  useHotkeys(
+    'ctrl+enter, meta+enter',
+    (e) => {
+      e.preventDefault();
+      handleExecute();
+    },
+    {
+      enabled: isActive,
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+    }
+  );
 
   const closeResultTab = useCallback((tabId: string) => {
     setResultTabs((prev) => {
@@ -221,9 +242,9 @@ export const QueryEditor: React.FC<QueryEditorProps> = () => {
               <SqlEditor
                 value={query}
                 onChange={setQuery}
-                onExecute={handleExecute}
                 disabled={isExecuting}
                 schema={autocompleteSchema}
+                defaultSchema={selectedSchema}
                 editorRef={editorViewRef}
                 onSelectionChange={setHasSelection}
               />

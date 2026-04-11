@@ -67,6 +67,8 @@ interface DashboardContextType {
   openQueryTab: (label: string, rows: any[], cols: string[], executionTime: number) => void;
   queryTabResults: Record<string, { rows: any[]; columns: string[]; executionTime: number }>;
   isQueryTab: boolean;
+  openEditorTab: () => void;
+  isEditorTab: boolean;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -373,7 +375,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         const newActive = next[Math.min(closedIndex, next.length - 1)];
         if (newActive) {
           setActiveTabId(newActive.id);
-          if (newActive.type === 'query') {
+          if (newActive.type === 'query' || newActive.type === 'editor') {
             setSelectedTable(undefined);
           } else {
             setSelectedTable(newActive.label);
@@ -401,7 +403,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setOpenTabs((prev) => {
       const tab = prev.find((t) => t.id === tabId);
       if (tab) {
-        if (tab.type === 'query') {
+        if (tab.type === 'query' || tab.type === 'editor') {
           setSelectedTable(undefined);
         } else {
           setSelectedTable(tab.label);
@@ -417,6 +419,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return prev;
     });
   }, [activeTabId, saveCurrentTabUIState, restoreTabUIState]);
+
+  const editorCounterRef = useRef(0);
+  const openEditorTab = useCallback(() => {
+    editorCounterRef.current += 1;
+    const tabId = `editor:${Date.now()}_${editorCounterRef.current}`;
+    const label = `SQL Editor ${editorCounterRef.current}`;
+    saveCurrentTabUIState();
+    setOpenTabs((prev) => [...prev, { id: tabId, label, type: 'editor' }]);
+    setActiveTabId(tabId);
+    setSelectedTable(undefined);
+  }, [saveCurrentTabUIState]);
 
   const openQueryTab = useCallback((label: string, rows: any[], cols: string[], executionTime: number) => {
     const tabId = `query:${label}_${Date.now()}`;
@@ -529,6 +542,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         openQueryTab,
         queryTabResults,
         isQueryTab: activeTabId?.startsWith('query:') ?? false,
+        openEditorTab,
+        isEditorTab: activeTabId?.startsWith('editor:') ?? false,
       }}
     >
       {children}

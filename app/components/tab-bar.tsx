@@ -5,7 +5,7 @@ import React, { useRef, useEffect } from 'react';
 export interface Tab {
   id: string;
   label: string;
-  type: 'table' | 'view' | 'matview' | 'query';
+  type: 'table' | 'view' | 'matview' | 'query' | 'editor';
 }
 
 interface TabBarProps {
@@ -75,7 +75,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               <span className={`flex-shrink-0 font-mono text-[9px] px-1 py-px rounded ${
                 isActive ? 'bg-accent/10 text-accent' : 'bg-bg-secondary text-muted'
               }`}>
-                {tab.type === 'query' ? 'Q' : tab.type === 'table' ? 'T' : tab.type === 'view' ? 'V' : 'MV'}
+                {tab.type === 'query' ? 'Q' : tab.type === 'editor' ? 'E' : tab.type === 'table' ? 'T' : tab.type === 'view' ? 'V' : 'MV'}
               </span>
               <span className="truncate">{tab.label}</span>
               <span

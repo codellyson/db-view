@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql, PostgreSQL, MySQL, SQLite } from '@codemirror/lang-sql';
 import { keymap, EditorView } from '@codemirror/view';
@@ -12,13 +12,15 @@ import {
   createBrutalistHighlight,
 } from '@/lib/codemirror-brutalist-theme';
 
+type SQLSchemaSpec = { [name: string]: SQLSchemaSpec | readonly string[] };
+
 interface SqlEditorProps {
   value: string;
   onChange: (value: string) => void;
-  onExecute?: () => void;
   disabled?: boolean;
   placeholder?: string;
-  schema?: Record<string, string[]>;
+  schema?: SQLSchemaSpec;
+  defaultSchema?: string;
   editorRef?: React.MutableRefObject<EditorView | null>;
   onSelectionChange?: (hasSelection: boolean) => void;
 }
@@ -26,16 +28,20 @@ interface SqlEditorProps {
 export const SqlEditor: React.FC<SqlEditorProps> = ({
   value,
   onChange,
-  onExecute,
   disabled = false,
   placeholder = 'SELECT * FROM users LIMIT 10;',
   schema: schemaSpec,
+  defaultSchema,
   editorRef,
   onSelectionChange,
 }) => {
   const { mode, colors } = useTheme();
   const { databaseType } = useConnection();
   const isDark = mode === 'dark';
+
+  // Hold the selection callback in a ref so extensions stay stable across renders.
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
 
   const handleCreateEditor = useCallback((view: EditorView) => {
     if (editorRef) {
@@ -48,7 +54,8 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     const exts = [
       sql({
         dialect: sqlDialect,
-        schema: schemaSpec,
+        schema: schemaSpec as any,
+        defaultSchema,
         upperCaseKeywords: true,
       }),
       createBrutalistTheme(colors, isDark),
@@ -59,33 +66,17 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
       ]),
     ];
 
-    if (onSelectionChange) {
-      exts.push(
-        EditorView.updateListener.of((update) => {
-          if (update.selectionSet) {
-            const { from, to } = update.state.selection.main;
-            onSelectionChange(from !== to);
-          }
-        })
-      );
-    }
-
-    if (onExecute) {
-      exts.push(
-        keymap.of([
-          {
-            key: 'Mod-Enter',
-            run: () => {
-              onExecute();
-              return true;
-            },
-          },
-        ])
-      );
-    }
+    exts.push(
+      EditorView.updateListener.of((update) => {
+        if (update.selectionSet && onSelectionChangeRef.current) {
+          const { from, to } = update.state.selection.main;
+          onSelectionChangeRef.current(from !== to);
+        }
+      })
+    );
 
     return exts;
-  }, [isDark, onExecute, onSelectionChange, colors, databaseType, schemaSpec]);
+  }, [isDark, colors, databaseType, schemaSpec, defaultSchema]);
 
   return (
     <div className="overflow-hidden">
