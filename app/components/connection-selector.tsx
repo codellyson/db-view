@@ -16,6 +16,7 @@ export const ConnectionSelector: React.FC = () => {
   const { addToast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [switchingTo, setSwitchingTo] = useState<string | null>(null);
 
   if (savedConnections.length === 0) {
     return null;
@@ -28,6 +29,7 @@ export const ConnectionSelector: React.FC = () => {
       setIsOpen(false);
       return;
     }
+    setSwitchingTo(connectionId);
     try {
       await connectToSaved(connectionId);
       setIsOpen(false);
@@ -35,6 +37,8 @@ export const ConnectionSelector: React.FC = () => {
     } catch (err) {
       console.error('Failed to switch connection:', err);
       addToast('Failed to switch connection', 'error');
+    } finally {
+      setSwitchingTo(null);
     }
   };
 
@@ -75,7 +79,7 @@ export const ConnectionSelector: React.FC = () => {
         <>
           <div
             className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
+            onClick={() => !isConnecting && setIsOpen(false)}
             aria-hidden="true"
           />
           <div className="absolute top-full right-0 mt-2 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[220px] overflow-hidden" role="listbox" aria-label="Saved connections">
@@ -93,7 +97,7 @@ export const ConnectionSelector: React.FC = () => {
                       ? 'bg-accent/10 text-accent'
                       : 'text-primary hover:bg-bg-secondary'
                   }`}
-                  onClick={() => handleSwitch(connection.id)}
+                  onClick={() => !isConnecting && handleSwitch(connection.id)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
@@ -101,16 +105,25 @@ export const ConnectionSelector: React.FC = () => {
                         {connection.name}
                       </p>
                       <p className="text-xs font-mono text-muted truncate">
-                        {connection.config.host}:{connection.config.port}/{connection.config.database}
+                        {isConnecting && switchingTo === connection.id
+                          ? 'Connecting...'
+                          : `${connection.config.host}:{connection.config.port}/{connection.config.database}`}
                       </p>
                     </div>
-                    <button
-                      onClick={(e) => handleDelete(e, connection.id)}
-                      className="ml-2 px-1.5 py-0.5 text-xs rounded text-muted hover:text-danger hover:bg-danger/10 transition-colors"
-                      aria-label={`Delete connection ${connection.name}`}
-                    >
-                      &times;
-                    </button>
+                    {isConnecting && switchingTo === connection.id ? (
+                      <svg className="ml-2 h-4 w-4 animate-spin text-accent flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : (
+                      <button
+                        onClick={(e) => handleDelete(e, connection.id)}
+                        className="ml-2 px-1.5 py-0.5 text-xs rounded text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                        aria-label={`Delete connection ${connection.name}`}
+                      >
+                        &times;
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
