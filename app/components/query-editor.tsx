@@ -22,7 +22,16 @@ import type { ColumnInfo } from '@/types';
 import type { MutationRequest } from '@/lib/mutation';
 import { buildDisplaySQL } from '@/lib/mutation';
 import { MutationConfirmation } from './mutation-confirmation';
+import { QueryExecutionConfirmation } from './query-execution-confirmation';
 import { TabBar, type Tab } from './tab-bar';
+
+interface PendingQueryConfirmation {
+  sql: string;
+  kind: 'write' | 'ddl';
+  statement: string;
+  isBulkWrite: boolean;
+  requiresTypedConfirmation: boolean;
+}
 
 interface ResultTab {
   id: string;
@@ -78,6 +87,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
   const [hasSelection, setHasSelection] = useState(false);
   const [pendingMutation, setPendingMutation] = useState<MutationRequest | null>(null);
   const [isMutating, setIsMutating] = useState(false);
+  const [pendingQueryConfirm, setPendingQueryConfirm] = useState<PendingQueryConfirmation | null>(null);
 
   // Result tabs
   const [resultTabs, setResultTabs] = useState<ResultTab[]>([]);
@@ -120,10 +130,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     return {};
   };
 
-  const handleExecute = async () => {
-    const execQuery = getExecutableQuery();
-    if (!execQuery) return;
-
+  const executeQueryRequest = useCallback(async (execQuery: string, confirmed = false) => {
     setIsExecuting(true);
     setError(null);
     setResults([]);
@@ -132,7 +139,25 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     setExecutionTime(null);
 
     try {
-      const data = await api.post('/api/query', { query: execQuery }, { noRetry: true });
+      const data = await api.post(
+        '/api/query',
+        { query: execQuery, confirmed },
+        { noRetry: true }
+      );
+
+      // Server says this needs user confirmation before it'll execute.
+      if (data.needsConfirmation) {
+        const c = data.classification;
+        setPendingQueryConfirm({
+          sql: data.preview,
+          kind: c.kind,
+          statement: c.statement,
+          isBulkWrite: c.isBulkWrite,
+          requiresTypedConfirmation: c.requiresTypedConfirmation,
+        });
+        return;
+      }
+
       const rows = data.rows || [];
       const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
       setColumns(cols);
@@ -142,7 +167,6 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
       setResults(rows);
       setExecutionTime(data.executionTime || null);
       addQuery(execQuery, data.executionTime || 0, rows.length);
-      // Deselect any result tab so inline results show
       setActiveResultTabId(undefined);
     } catch (err: any) {
       setError(err.message || 'Query execution failed');
@@ -152,7 +176,20 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     } finally {
       setIsExecuting(false);
     }
+  }, [addQuery]);
+
+  const handleExecute = async () => {
+    const execQuery = getExecutableQuery();
+    if (!execQuery) return;
+    await executeQueryRequest(execQuery);
   };
+
+  const handleConfirmQueryExecution = useCallback(async () => {
+    if (!pendingQueryConfirm) return;
+    const sql = pendingQueryConfirm.sql;
+    setPendingQueryConfirm(null);
+    await executeQueryRequest(sql, true);
+  }, [pendingQueryConfirm, executeQueryRequest]);
 
   const handleExecuteToTab = async () => {
     const execQuery = getExecutableQuery();
@@ -163,6 +200,19 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
 
     try {
       const data = await api.post('/api/query', { query: execQuery }, { noRetry: true });
+
+      if (data.needsConfirmation) {
+        const c = data.classification;
+        setPendingQueryConfirm({
+          sql: data.preview,
+          kind: c.kind,
+          statement: c.statement,
+          isBulkWrite: c.isBulkWrite,
+          requiresTypedConfirmation: c.requiresTypedConfirmation,
+        });
+        return;
+      }
+
       const rows = data.rows || [];
       const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
       const label = execQuery.length > 30 ? execQuery.slice(0, 30) + '...' : execQuery;
@@ -565,6 +615,20 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
           onConfirm={handleConfirmMutation}
           onCancel={() => setPendingMutation(null)}
           isLoading={isMutating}
+        />
+      )}
+
+      {pendingQueryConfirm && (
+        <QueryExecutionConfirmation
+          isOpen={!!pendingQueryConfirm}
+          sql={pendingQueryConfirm.sql}
+          statement={pendingQueryConfirm.statement}
+          kind={pendingQueryConfirm.kind}
+          isBulkWrite={pendingQueryConfirm.isBulkWrite}
+          requiresTypedConfirmation={pendingQueryConfirm.requiresTypedConfirmation}
+          onConfirm={handleConfirmQueryExecution}
+          onCancel={() => setPendingQueryConfirm(null)}
+          isLoading={isExecuting}
         />
       )}
     </div>

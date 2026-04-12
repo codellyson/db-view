@@ -86,24 +86,6 @@ export function decrypt(encryptedText: string): string {
 const MAX_QUERY_LENGTH = 10000;
 const MAX_INPUT_LENGTH = 255;
 
-// Strip SQL comments to prevent keyword obfuscation (e.g. DE-comment-LETE).
-// Collapses whitespace so multi-space tricks don't bypass checks.
-function stripSqlComments(sql: string): string {
-  let result = sql.replace(/\/\*[\s\S]*?\*\//g, " ");
-  result = result.replace(/--[^\n]*/g, " ");
-  result = result.replace(/\s+/g, " ").trim();
-  return result;
-}
-
-/**
- * Check if a keyword appears as a standalone SQL token (word boundaries),
- * not as part of an identifier like "updated_at".
- */
-function containsDangerousKeyword(strippedUpperQuery: string, keyword: string): boolean {
-  const pattern = new RegExp(`\\b${keyword}\\b`);
-  return pattern.test(strippedUpperQuery);
-}
-
 /**
  * Detect multiple statements via semicolons outside of string literals.
  */
@@ -161,74 +143,9 @@ export function validateQuery(query: string): {
     };
   }
 
-  // Strip comments and normalize for keyword checking
-  const stripped = stripSqlComments(query);
-  const upperQuery = stripped.toUpperCase();
-
-  const dangerousKeywords = [
-    "DROP",
-    "DELETE",
-    // "UPDATE",
-    // "INSERT",
-    // "ALTER",
-    // "CREATE",
-    "TRUNCATE",
-    "GRANT",
-    "REVOKE",
-    "EXEC",
-    "EXECUTE",
-    "CALL",
-    "COPY",
-    "IMPORT",
-    "LOCK",
-    "VACUUM",
-    "REINDEX",
-    "CLUSTER",
-    "REFRESH",
-    "REASSIGN",
-    "DO",
-    "NOTIFY",
-    "LISTEN",
-    "UNLISTEN",
-    "DISCARD",
-    "PREPARE",
-    "DEALLOCATE",
-    "COMMENT",
-  ];
-
-  for (const keyword of dangerousKeywords) {
-    if (containsDangerousKeyword(upperQuery, keyword)) {
-      return {
-        valid: false,
-        error: `Query contains prohibited keyword: ${keyword}. Only SELECT queries are allowed.`,
-      };
-    }
-  }
-
-  // if (
-  //   !upperQuery.startsWith("SELECT") &&
-  //   !upperQuery.startsWith("WITH") &&
-  //   !upperQuery.startsWith("EXPLAIN")
-  // ) {
-  //   return {
-  //     valid: false,
-  //     error: "Only SELECT and EXPLAIN queries are allowed",
-  //   };
-  // }
-
-  // For EXPLAIN: ensure the inner query is SELECT/WITH only
-  // if (upperQuery.startsWith("EXPLAIN")) {
-  //   const explainBody = upperQuery
-  //     .replace(/^EXPLAIN\s*(\([^)]*\))?\s*/, "")
-  //     .trim();
-  //   if (!explainBody.startsWith("SELECT") && !explainBody.startsWith("WITH")) {
-  //     return {
-  //       valid: false,
-  //       error: "EXPLAIN is only allowed for SELECT queries",
-  //     };
-  //   }
-  // }
-
+  // Keyword-level decisions (read vs write vs blocked) are handled by
+  // lib/query-classifier.ts so the route can run a confirmation handshake
+  // for destructive statements instead of blocking them outright.
   return { valid: true };
 }
 

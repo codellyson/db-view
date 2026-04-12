@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { testConnection, createPool } from "@/lib/db";
 import { storeConnection, generateSessionId } from "@/lib/connection-store";
 import { encrypt, decrypt, validateInput } from "@/lib/security";
+import { connectLimiter } from "@/lib/rate-limit";
 import { DBConfig } from "@/types";
 import { cookies } from "next/headers";
 
@@ -17,6 +18,22 @@ interface StoredSavedConnection {
 }
 
 export async function POST(request: NextRequest) {
+  // Rate limit by IP — no session cookie exists yet at connect time.
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const rl = connectLimiter.check(ip);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many connection attempts. Please wait a moment." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      }
+    );
+  }
+
   try {
     const body = await request.json();
     const config: DBConfig = body.config ?? body;
@@ -25,13 +42,50 @@ export async function POST(request: NextRequest) {
 
     const dbType = config.type || "postgresql";
 
-    // SQLite only needs a file path
+    // SQLite / libsql
     if (dbType === "sqlite") {
       if (!config.filepath) {
         return NextResponse.json(
-          { error: "SQLite file path is required" },
+          { error: "SQLite connection URL or file path is required" },
           { status: 400 }
         );
+      }
+
+      const isRemote = /^(libsql|https?|wss?):\/\//i.test(config.filepath);
+
+      if (isRemote) {
+        // Remote libsql / Turso — same security model as Postgres/MySQL.
+        // The URL points to a remote database with its own auth, not our
+        // filesystem. Allow it unconditionally.
+      } else {
+        // Local file path — this reads from the server's disk.
+        // Block entirely on hosted deployments.
+        if (process.env.DBVIEW_DISABLE_LOCAL_SQLITE === "true") {
+          return NextResponse.json(
+            { error: "Local SQLite file connections are disabled on this server. Use a Turso/libsql URL, PostgreSQL, or MySQL instead." },
+            { status: 403 }
+          );
+        }
+
+        // Path traversal guard: reject absolute paths and ../ sequences
+        // unless an explicit base directory is configured.
+        const baseDir = process.env.DBVIEW_SQLITE_BASE_DIR;
+        if (baseDir) {
+          const path = await import("path");
+          const resolved = path.resolve(baseDir, config.filepath);
+          if (!resolved.startsWith(path.resolve(baseDir))) {
+            return NextResponse.json(
+              { error: "SQLite file path is outside the allowed directory" },
+              { status: 400 }
+            );
+          }
+          config.filepath = resolved;
+        } else if (/^\/|^[A-Z]:\\|\.\.[\\/]/.test(config.filepath)) {
+          return NextResponse.json(
+            { error: "Absolute paths and directory traversal are not allowed for SQLite. Set DBVIEW_SQLITE_BASE_DIR on the server to allow specific directories." },
+            { status: 400 }
+          );
+        }
       }
     } else {
       const hostValidation = validateInput(config.host, "Host");

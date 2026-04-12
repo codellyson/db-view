@@ -7,6 +7,7 @@ import {
   type MutationRequest,
 } from "@/lib/mutation";
 import { sanitizeError } from "@/lib/security";
+import { mutateLimiter } from "@/lib/rate-limit";
 import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
@@ -18,9 +19,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get("db-session")?.value;
+
+    const rl = mutateLimiter.check(sessionId || "anonymous");
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        }
+      );
+    }
+
     if (!getPool()) {
-      const cookieStore = await cookies();
-      const sessionId = cookieStore.get("db-session")?.value;
       if (sessionId) {
         await ensurePool(sessionId);
       }
