@@ -184,12 +184,14 @@ export const DataTable: React.FC<DataTableProps> = ({
     };
   }, [resizingColumn]);
 
-  // Virtual row rendering
+  // Virtual row rendering — use measureElement for dynamic row heights
+  // so expanded row details push subsequent rows down instead of overlapping.
   const rowVirtualizer = useVirtualizer({
     count: filteredData.length,
     getScrollElement: () => scrollContainerRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 10,
+    measureElement: (el) => el.getBoundingClientRect().height,
   });
 
   const mobileVirtualizer = useVirtualizer({
@@ -500,6 +502,7 @@ export const DataTable: React.FC<DataTableProps> = ({
             className="bg-bg-secondary sticky top-0 z-20 flex border-b border-border"
             style={{ height: HEADER_HEIGHT }}
           >
+            <div className="flex-shrink-0" style={{ width: 28 }} />
             {displayColumns.map((column) => {
               const frozen = isFrozen(column);
               const colLeft = frozen ? getColumnLeft(column) : undefined;
@@ -568,6 +571,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                 <div
                   key={virtualRow.key}
                   data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -583,6 +587,20 @@ export const DataTable: React.FC<DataTableProps> = ({
                     style={{ height: ROW_HEIGHT }}
                     onClick={() => toggleRowExpand(rowIndex)}
                   >
+                    <div
+                      className="flex-shrink-0 flex items-center justify-center text-muted hover:text-primary transition-colors"
+                      style={{ width: 28 }}
+                      aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className={`h-3.5 w-3.5 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`}
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </div>
                     {displayColumns.map((column) => {
                       const frozen = isFrozen(column);
                       const colLeft = frozen ? getColumnLeft(column) : undefined;
