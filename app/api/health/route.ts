@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
-import { getHealthStatus } from "@/lib/health-check";
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionProvider } from "@/lib/db";
+import { checkHealth } from "@/lib/health-check";
 
-export async function GET() {
-  const pool = getPool();
-
-  if (!pool) {
+export async function GET(_request: NextRequest) {
+  try {
+    const { provider } = await getSessionProvider();
+    const status = await checkHealth(provider);
+    return NextResponse.json(status);
+  } catch {
     return NextResponse.json({
       healthy: false,
       latency: null,
@@ -14,7 +16,4 @@ export async function GET() {
       error: "No active connection pool",
     });
   }
-
-  const status = getHealthStatus();
-  return NextResponse.json(status);
 }

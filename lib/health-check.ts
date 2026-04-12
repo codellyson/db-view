@@ -5,82 +5,38 @@ interface HealthStatus {
   latency: number | null;
   activeConnections: number;
   idleConnections: number;
-  failureCount: number;
-  lastCheck: number | null;
 }
 
-let healthStatus: HealthStatus = {
-  healthy: true,
-  latency: null,
-  activeConnections: 0,
-  idleConnections: 0,
-  failureCount: 0,
-  lastCheck: null,
-};
-
-let healthInterval: NodeJS.Timeout | null = null;
-const MAX_FAILURES = 3;
-
-export function startHealthCheck(provider: DatabaseProvider): void {
-  stopHealthCheck();
-
-  const check = async () => {
-    const start = Date.now();
-    try {
-      await provider.healthPing();
-      const latency = Date.now() - start;
-      const info = provider.getHealthInfo();
-
-      healthStatus = {
-        healthy: true,
-        latency,
-        activeConnections: info.totalCount - info.idleCount,
-        idleConnections: info.idleCount,
-        failureCount: 0,
-        lastCheck: Date.now(),
-      };
-    } catch (error) {
-      healthStatus.failureCount += 1;
-      healthStatus.lastCheck = Date.now();
-      healthStatus.latency = null;
-
-      if (healthStatus.failureCount >= MAX_FAILURES) {
-        healthStatus.healthy = false;
-      }
-
+/**
+ * Perform a one-shot health check for a specific provider.
+ * With session-scoped pools there's no single global provider to
+ * monitor on a timer — each session's pool is checked on demand.
+ */
+export async function checkHealth(provider: DatabaseProvider): Promise<HealthStatus> {
+  const start = Date.now();
+  try {
+    await provider.healthPing();
+    const latency = Date.now() - start;
+    const info = provider.getHealthInfo();
+    return {
+      healthy: true,
+      latency,
+      activeConnections: info.totalCount - info.idleCount,
+      idleConnections: info.idleCount,
+    };
+  } catch {
+    const info = (() => {
       try {
-        const info = provider.getHealthInfo();
-        healthStatus.activeConnections = info.totalCount - info.idleCount;
-        healthStatus.idleConnections = info.idleCount;
+        return provider.getHealthInfo();
       } catch {
-        // pool may be ended
+        return { totalCount: 0, idleCount: 0 };
       }
-    }
-  };
-
-  // Initial check
-  check();
-  healthInterval = setInterval(check, 30_000);
-}
-
-export function stopHealthCheck(): void {
-  if (healthInterval) {
-    clearInterval(healthInterval);
-    healthInterval = null;
+    })();
+    return {
+      healthy: false,
+      latency: null,
+      activeConnections: info.totalCount - info.idleCount,
+      idleConnections: info.idleCount,
+    };
   }
-}
-
-export function getHealthStatus(): HealthStatus {
-  return { ...healthStatus };
-}
-
-export function resetHealthStatus(): void {
-  healthStatus = {
-    healthy: true,
-    latency: null,
-    activeConnections: 0,
-    idleConnections: 0,
-    failureCount: 0,
-    lastCheck: null,
-  };
 }

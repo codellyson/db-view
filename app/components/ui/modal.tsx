@@ -8,6 +8,7 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  preventClose?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -16,7 +17,11 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   children,
   className = "",
+  preventClose = false,
 }) => {
+  const safeClose = () => {
+    if (!preventClose) onClose();
+  };
   const modalRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -49,7 +54,7 @@ export const Modal: React.FC<ModalProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        safeClose();
         return;
       }
 
@@ -84,7 +89,7 @@ export const Modal: React.FC<ModalProps> = ({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, preventClose, safeClose]);
 
   if (!isAnimating && !isOpen) return null;
 
@@ -99,7 +104,7 @@ export const Modal: React.FC<ModalProps> = ({
         className={`fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-150 ease-out ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
-        onClick={onClose}
+        onClick={safeClose}
         aria-hidden="true"
       />
       <div
@@ -118,8 +123,9 @@ export const Modal: React.FC<ModalProps> = ({
               {title}
             </h3>
             <button
-              onClick={onClose}
-              className="text-muted hover:text-primary rounded-md p-1 transition-colors focus:outline-none"
+              onClick={safeClose}
+              disabled={preventClose}
+              className="text-muted hover:text-primary rounded-md p-1 transition-colors focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed"
               aria-label="Close modal"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

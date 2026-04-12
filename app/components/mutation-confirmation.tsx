@@ -34,7 +34,7 @@ export const MutationConfirmation: React.FC<MutationConfirmationProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onCancel} title={`Confirm ${typeLabels[type] || type}`}>
+    <Modal isOpen={isOpen} onClose={onCancel} title={`Confirm ${typeLabels[type] || type}`} preventClose={isLoading}>
       <div className="space-y-4">
         <p className="text-sm text-secondary">
           The following SQL will be executed:

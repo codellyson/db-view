@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensurePool, getPool, getProvider, getDatabaseType } from "@/lib/db";
+import { getSessionProvider } from "@/lib/db";
 import {
   buildUpdateQuery,
   buildInsertQuery,
@@ -33,19 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!getPool()) {
-      if (sessionId) {
-        await ensurePool(sessionId);
-      }
-    }
-
-    const provider = getProvider();
-    if (!provider) {
-      return NextResponse.json(
-        { error: "Not connected to a database" },
-        { status: 401 }
-      );
-    }
+    const { provider } = await getSessionProvider();
 
     const body: MutationRequest = await request.json();
 
@@ -56,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const dialect = getDatabaseType();
+    const dialect = provider.type;
     let sql: string;
     let params: any[];
 

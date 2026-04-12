@@ -1,27 +1,10 @@
 import { NextResponse } from "next/server";
-import { getPool, ensurePool, getProvider } from "@/lib/db";
+import { getSessionProvider } from "@/lib/db";
 import { sanitizeError } from "@/lib/security";
-import { cookies } from "next/headers";
 
 export async function GET() {
   try {
-    if (!getPool()) {
-      const cookieStore = await cookies();
-      const sessionId = cookieStore.get("db-session")?.value;
-      try {
-        await ensurePool(sessionId);
-      } catch (ensureError: any) {
-        return NextResponse.json(
-          { error: ensureError.message || "No database connection. Please connect to a database first." },
-          { status: 400 }
-        );
-      }
-    }
-
-    const provider = getProvider();
-    if (!provider) {
-      return NextResponse.json({ queries: [] });
-    }
+    const { provider } = await getSessionProvider();
 
     let queries: any[] = [];
 

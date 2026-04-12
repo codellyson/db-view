@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensurePool, getPool, getProvider, getDatabaseType } from "@/lib/db";
+import { getSessionProvider } from "@/lib/db";
 import { validateIdentifier } from "@/lib/mutation";
 import { buildBulkInsertQuery } from "@/lib/import-utils";
 import { sanitizeError } from "@/lib/security";
-import { cookies } from "next/headers";
 
 const DEFAULT_BATCH_SIZE = 100;
 
@@ -16,21 +15,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    if (!getPool()) {
-      const cookieStore = await cookies();
-      const sessionId = cookieStore.get("db-session")?.value;
-      if (sessionId) {
-        await ensurePool(sessionId);
-      }
-    }
-
-    const provider = getProvider();
-    if (!provider) {
-      return NextResponse.json(
-        { error: "Not connected to a database" },
-        { status: 401 }
-      );
-    }
+    const { provider } = await getSessionProvider();
 
     const body = await request.json();
     const { schema, table, columns, rows, batchSize = DEFAULT_BATCH_SIZE } = body;
@@ -65,7 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
-    const dialect = getDatabaseType();
+    const dialect = provider.type;
     let insertedRows = 0;
 
     // Execute in batches within a transaction

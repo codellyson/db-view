@@ -64,6 +64,7 @@ export const QueryExecutionConfirmation: React.FC<QueryExecutionConfirmationProp
       isOpen={isOpen}
       onClose={handleCancel}
       title={`Confirm ${statement}`}
+      preventClose={isLoading}
     >
       <div className="space-y-4">
         {isBulkWrite && (

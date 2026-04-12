@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensurePool, getPool, getProvider } from "@/lib/db";
+import { getSessionProvider } from "@/lib/db";
 import { sanitizeError } from "@/lib/security";
-import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
   if (process.env.DBVIEW_READ_ONLY === "true") {
@@ -12,21 +11,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    if (!getPool()) {
-      const cookieStore = await cookies();
-      const sessionId = cookieStore.get("db-session")?.value;
-      if (sessionId) {
-        await ensurePool(sessionId);
-      }
-    }
-
-    const provider = getProvider();
-    if (!provider) {
-      return NextResponse.json(
-        { error: "Not connected to a database" },
-        { status: 401 }
-      );
-    }
+    const { provider } = await getSessionProvider();
 
     const { sql } = await request.json();
 

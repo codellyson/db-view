@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeQuery, ensurePool, getPool } from "@/lib/db";
+import { executeQuery } from "@/lib/db";
 import { validateQuery, sanitizeError } from "@/lib/security";
 import { classifyQuery, requiresTypedConfirmation } from "@/lib/query-classifier";
 import { queryLimiter } from "@/lib/rate-limit";
@@ -19,17 +19,6 @@ export async function POST(request: NextRequest) {
           headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
         }
       );
-    }
-
-    if (!getPool()) {
-      try {
-        await ensurePool(sessionId === "anonymous" ? undefined : sessionId);
-      } catch (ensureError: any) {
-        return NextResponse.json(
-          { error: ensureError.message || "No database connection. Please connect to a database first." },
-          { status: 400 }
-        );
-      }
     }
 
     const body = await request.json();

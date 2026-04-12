@@ -129,10 +129,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    createPool(config, dbType);
-
     const sessionId = generateSessionId();
     storeConnection(sessionId, config);
+    createPool(config, dbType, sessionId);
 
     const cookieStore = await cookies();
     cookieStore.set("db-session", sessionId, {

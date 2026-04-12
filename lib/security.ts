@@ -169,19 +169,20 @@ export function validateInput(
 
 export function sanitizeError(error: any): string {
   if (error instanceof Error) {
-    const message = error.message.toLowerCase();
+    const lower = error.message.toLowerCase();
 
+    // Only redact messages that could leak credentials or server internals.
     if (
-      message.includes("password") ||
-      message.includes("authentication") ||
-      message.includes("permission") ||
-      message.includes("access denied") ||
-      message.includes("syntax error")
+      lower.includes("password") ||
+      lower.includes("authentication") ||
+      lower.includes("credential")
     ) {
-      return "Database operation failed. Please check your connection and try again.";
+      return "Database authentication failed. Please check your credentials and try again.";
     }
 
-    return "An error occurred while processing your request.";
+    // Everything else (syntax errors, missing tables, constraint violations,
+    // type mismatches, etc.) is safe and useful to show the user.
+    return error.message;
   }
 
   return "An unexpected error occurred.";

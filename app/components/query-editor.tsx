@@ -535,6 +535,22 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
         />
       )}
 
+      {/* Query execution indicator */}
+      {isExecuting && (
+        <div className="flex items-center gap-3 py-3 px-1">
+          <div className="relative h-1 flex-1 bg-bg-secondary rounded-full overflow-hidden">
+            <div className="absolute inset-y-0 left-0 w-1/3 bg-accent rounded-full animate-[shimmer_1.2s_ease-in-out_infinite]" />
+          </div>
+          <span className="text-xs text-muted flex-shrink-0">Running query...</span>
+          <style jsx>{`
+            @keyframes shimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(400%); }
+            }
+          `}</style>
+        </div>
+      )}
+
       {/* Active result tab content */}
       {activeTab && (
         <div>
