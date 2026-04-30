@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
@@ -42,20 +42,14 @@ export const metadata: Metadata = {
     title: "DBView — Pocket DB Explorer",
     description: "Your database in your pocket. Browse, query, and explore PostgreSQL and MySQL from any device.",
     siteName: "DBView",
-    images: [
-      {
-        url: "/logo.svg",
-        width: 200,
-        height: 200,
-        alt: "DBView Logo",
-      },
-    ],
+    // OG / Twitter images are produced by `app/opengraph-image.tsx` (a
+    // 1200×630 PNG generated at build/request time). Next picks them up
+    // automatically; no `images` field needed here.
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "DBView — Pocket DB Explorer",
     description: "Your database in your pocket. Mobile-first explorer for PostgreSQL and MySQL.",
-    images: ["/logo.svg"],
   },
   robots: {
     index: true,
@@ -82,15 +76,40 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
   other: {
     "mobile-web-app-capable": "yes",
   },
   category: "database",
+};
+
+// Next 14+ requires `viewport` to be its own export (was deprecated inside
+// `metadata`). `themeColor` lives here too so we can match the active dark
+// theme; CSS color-scheme handles the rest.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d1117" },
+  ],
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "DBView",
+  description:
+    "Pocket DB Explorer — browse tables, run queries, and inspect schemas on any device. Connects directly; nothing leaves your browser.",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Web Browser",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  url: appUrl,
+  publisher: {
+    "@type": "Organization",
+    name: "KreativeKorna Concepts",
+    url: "https://kreativekorna.com",
+  },
 };
 
 export default function RootLayout({
@@ -101,7 +120,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
-        <meta name="theme-color" content="#000000" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </head>
       <body className="antialiased">
         <Providers>{children}</Providers>
