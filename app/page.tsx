@@ -23,14 +23,14 @@ export default function Home() {
             <div className="flex justify-center mb-6">
               <Image
                 src="/logo.svg"
-                alt="DBView"
+                alt="Pocketdb"
                 width={96}
                 height={96}
                 priority
               />
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary mb-3">
-              DBView
+              Pocketdb
             </h1>
             <p className="text-lg text-accent font-medium mb-3">
               Your database in your pocket.

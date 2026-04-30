@@ -47,7 +47,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
       />
       <div className="fixed inset-y-0 left-0 w-[280px] z-50 bg-bg border-r border-border overflow-y-auto shadow-lg">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <span className="text-sm font-semibold text-primary">DBView</span>
+          <span className="text-sm font-semibold text-primary">Pocketdb</span>
           <button
             onClick={onClose}
             className="p-1 rounded-md text-muted hover:text-primary hover:bg-bg-secondary transition-colors"

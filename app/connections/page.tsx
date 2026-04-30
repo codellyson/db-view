@@ -33,14 +33,14 @@ export default function ConnectionsPage() {
                 <div className="flex justify-center mb-6">
                   <Image
                     src="/logo.svg"
-                    alt="DBView"
+                    alt="Pocketdb"
                     width={80}
                     height={80}
                     priority
                   />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">
-                  DBView
+                  Pocketdb
                 </h1>
                 <p className="text-sm text-accent font-medium mb-1">
                   Your database in your pocket.

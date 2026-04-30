@@ -1,6 +1,6 @@
 {
-  "name": "DBView — Pocket DB Explorer",
-  "short_name": "DBView",
+  "name": "Pocketdb — Database Explorer",
+  "short_name": "Pocketdb",
   "description": "Your database in your pocket. Browse tables, run queries, and inspect schemas on any device.",
   "start_url": "/",
   "display": "standalone",

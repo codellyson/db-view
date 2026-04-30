@@ -9,7 +9,7 @@ import { ImageResponse } from 'next/og';
  */
 
 export const runtime = 'edge';
-export const alt = 'DBView — Pocket DB Explorer';
+export const alt = 'Pocketdb — Database Explorer';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -46,7 +46,7 @@ export default async function OGImage() {
           >
             ⌘
           </div>
-          <span style={{ fontSize: 32, fontWeight: 600, color: '#8d96a0' }}>DBView</span>
+          <span style={{ fontSize: 32, fontWeight: 600, color: '#8d96a0' }}>Pocketdb</span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>

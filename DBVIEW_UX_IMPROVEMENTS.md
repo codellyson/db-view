@@ -1,12 +1,12 @@
-# DBView — UX Improvements
+# Pocketdb — UX Improvements
 
-A prioritized backlog of UX fixes and feature work to make DBView feel as good to use as DBeaver, with the polish of a modern web tool. Organized by impact, not by area, so you can work top-down and ship value fast.
+A prioritized backlog of UX fixes and feature work to make Pocketdb feel as good to use as DBeaver, with the polish of a modern web tool. Organized by impact, not by area, so you can work top-down and ship value fast.
 
 ---
 
 ## P0. The heart of the tool
 
-These are the features that determine whether power users (you included) actually enjoy using DBView. Nail these before anything else. If you only build the P0 list, you've built something genuinely good.
+These are the features that determine whether power users (you included) actually enjoy using Pocketdb. Nail these before anything else. If you only build the P0 list, you've built something genuinely good.
 
 ### 1. Inline cell editing
 
@@ -81,7 +81,7 @@ These are things that will visibly bug users (and you) within the first 5 minute
 
 ### 7. Foreign key navigation (your differentiator)
 
-This is the one feature that would set DBView apart. Almost no tool nails it.
+This is the one feature that would set Pocketdb apart. Almost no tool nails it.
 
 - Detect FK columns from the schema (`customer_id`, `product_subscription_id`, etc.).
 - Render FK values as clickable hyperlinks (different color, underline on hover).
@@ -315,7 +315,7 @@ Direct manipulation wins. Forms only when you genuinely need them (creating conn
 
 ## What this gets you
 
-If you ship even just P0 + P1, DBView becomes a tool that's:
+If you ship even just P0 + P1, Pocketdb becomes a tool that's:
 
 - **Faster than DBeaver** for everyday work (web is lighter than Eclipse-based UI).
 - **More approachable than TablePlus** for non-Mac users.

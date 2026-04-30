@@ -12,8 +12,8 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
   title: {
-    default: "DBView — Pocket DB Explorer",
-    template: "%s | DBView",
+    default: "Pocketdb — Database Explorer",
+    template: "%s | Pocketdb",
   },
   description: "Your database in your pocket. Browse tables, run queries, and inspect schemas on any device. Connects directly — nothing leaves your browser.",
   keywords: [
@@ -39,16 +39,16 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    title: "DBView — Pocket DB Explorer",
+    title: "Pocketdb — Database Explorer",
     description: "Your database in your pocket. Browse, query, and explore PostgreSQL and MySQL from any device.",
-    siteName: "DBView",
+    siteName: "Pocketdb",
     // OG / Twitter images are produced by `app/opengraph-image.tsx` (a
     // 1200×630 PNG generated at build/request time). Next picks them up
     // automatically; no `images` field needed here.
   },
   twitter: {
     card: "summary_large_image",
-    title: "DBView — Pocket DB Explorer",
+    title: "Pocketdb — Database Explorer",
     description: "Your database in your pocket. Mobile-first explorer for PostgreSQL and MySQL.",
   },
   robots: {
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "DBView",
+    title: "Pocketdb",
   },
   icons: {
     icon: [
@@ -98,9 +98,9 @@ export const viewport: Viewport = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "DBView",
+  name: "Pocketdb",
   description:
-    "Pocket DB Explorer — browse tables, run queries, and inspect schemas on any device. Connects directly; nothing leaves your browser.",
+    "Database Explorer for the browser — browse tables, run queries, and inspect schemas on any device. Connects directly; nothing leaves your browser.",
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Web Browser",
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },

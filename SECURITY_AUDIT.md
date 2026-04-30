@@ -1,7 +1,7 @@
-# Security Audit Report - DBView
+# Security Audit Report - Pocketdb
 
 **Date:** 2024-01-XX  
-**Application:** DBView - PostgreSQL Database Explorer  
+**Application:** Pocketdb - PostgreSQL Database Explorer  
 **Severity Levels:** CRITICAL | HIGH | MEDIUM | LOW
 
 ---
