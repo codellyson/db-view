@@ -8,6 +8,8 @@ interface ResizableSplitterProps {
   defaultWidth?: number;
   minWidth?: number;
   maxWidth?: number;
+  /** When set, the width is persisted to localStorage under this key. */
+  storageKey?: string;
 }
 
 export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
@@ -16,8 +18,30 @@ export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
   defaultWidth = 240,
   minWidth = 160,
   maxWidth = 600,
+  storageKey,
 }) => {
-  const [width, setWidth] = useState(defaultWidth);
+  const [width, setWidth] = useState(() => {
+    if (!storageKey || typeof window === 'undefined') return defaultWidth;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const n = parseInt(raw, 10);
+        if (!isNaN(n)) return Math.max(minWidth, Math.min(maxWidth, n));
+      }
+    } catch {
+      // ignore
+    }
+    return defaultWidth;
+  });
+
+  useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(storageKey, String(width));
+    } catch {
+      // ignore
+    }
+  }, [storageKey, width]);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef<number>(0);

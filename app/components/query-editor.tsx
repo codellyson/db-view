@@ -10,6 +10,7 @@ import { SqlEditor } from './sql-editor';
 import { useQueryHistory } from '../hooks/use-query-history';
 import { QueryHistory } from './query-history';
 import { formatSQL } from '@/lib/sql-formatter';
+import { getStatementAtCursor } from '@/lib/sql-statements';
 import { api } from '@/lib/api';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
@@ -24,6 +25,7 @@ import { buildDisplaySQL } from '@/lib/mutation';
 import { MutationConfirmation } from './mutation-confirmation';
 import { QueryExecutionConfirmation } from './query-execution-confirmation';
 import { TabBar, type Tab } from './tab-bar';
+import { SaveQueryDialog } from './save-query-dialog';
 
 interface PendingQueryConfirmation {
   sql: string;
@@ -36,10 +38,14 @@ interface PendingQueryConfirmation {
 interface ResultTab {
   id: string;
   label: string;
+  /** the exact SQL that produced this tab — used for dedup and refresh */
+  sql: string;
   rows: any[];
   columns: string[];
   columnTypes: Record<string, string>;
   executionTime: number;
+  /** field metadata returned by the driver — drives editability detection */
+  fields?: QueryFieldInfo[];
 }
 
 interface QueryEditorProps {
@@ -51,7 +57,7 @@ const editorStorageKey = (tabId: string) => `dbview-editor-${tabId}`;
 
 export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId }) => {
   const { databaseType } = useConnection();
-  const { schemaMap, tables, selectedSchema, mutateRow } = useDashboard();
+  const { schemaMap, tables, selectedSchema, mutateRow, saveQuery } = useDashboard();
   const { addToast } = useToast();
   const [query, setQuery] = useState<string>(() => {
     if (!tabId || typeof window === 'undefined') return '';
@@ -74,12 +80,6 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
       // ignore
     }
   }, [query, tabId]);
-  const [results, setResults] = useState<any[]>([]);
-  const [columns, setColumns] = useState<string[]>([]);
-  const [resultFields, setResultFields] = useState<QueryFieldInfo[] | undefined>(undefined);
-  const [executedSql, setExecutedSql] = useState<string>('');
-  const [resultColumnTypes, setResultColumnTypes] = useState<Record<string, string>>({});
-  const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -92,14 +92,24 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
   // Result tabs
   const [resultTabs, setResultTabs] = useState<ResultTab[]>([]);
   const [activeResultTabId, setActiveResultTabId] = useState<string | undefined>();
+  const [resultSearchQuery, setResultSearchQuery] = useState('');
+  const resultSearchInputRef = useRef<HTMLInputElement>(null);
+  const [isSaveQueryOpen, setIsSaveQueryOpen] = useState(false);
+  const [pendingSaveQuery, setPendingSaveQuery] = useState('');
 
   const getExecutableQuery = useCallback(() => {
     const view = editorViewRef.current;
     if (view) {
-      const { from, to } = view.state.selection.main;
+      const { from, to, head } = view.state.selection.main;
       if (from !== to) {
         return view.state.sliceDoc(from, to).trim();
       }
+      // No selection → run only the statement at the cursor. Use the live
+      // editor doc rather than the throttled `query` state so we always get
+      // the current text.
+      const doc = view.state.doc.toString();
+      const stmt = getStatementAtCursor(doc, head);
+      if (stmt) return stmt.text;
     }
     return query.trim();
   }, [query]);
@@ -130,53 +140,82 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     return {};
   };
 
-  const executeQueryRequest = useCallback(async (execQuery: string, confirmed = false) => {
-    setIsExecuting(true);
-    setError(null);
-    setResults([]);
-    setColumns([]);
-    setResultFields(undefined);
-    setExecutionTime(null);
+  // Run a query and write the results to a tab. Re-running the same SQL
+  // string focuses the existing tab and refreshes its rows in place rather
+  // than creating a duplicate. This is the spec from the doc: every run
+  // gets a tab; results never clobber.
+  const executeQueryRequest = useCallback(
+    async (execQuery: string, confirmed = false) => {
+      setIsExecuting(true);
+      setError(null);
 
-    try {
-      const data = await api.post(
-        '/api/query',
-        { query: execQuery, confirmed },
-        { noRetry: true }
-      );
+      try {
+        const data = await api.post(
+          '/api/query',
+          { query: execQuery, confirmed },
+          { noRetry: true }
+        );
 
-      // Server says this needs user confirmation before it'll execute.
-      if (data.needsConfirmation) {
-        const c = data.classification;
-        setPendingQueryConfirm({
-          sql: data.preview,
-          kind: c.kind,
-          statement: c.statement,
-          isBulkWrite: c.isBulkWrite,
-          requiresTypedConfirmation: c.requiresTypedConfirmation,
+        if (data.needsConfirmation) {
+          const c = data.classification;
+          setPendingQueryConfirm({
+            sql: data.preview,
+            kind: c.kind,
+            statement: c.statement,
+            isBulkWrite: c.isBulkWrite,
+            requiresTypedConfirmation: c.requiresTypedConfirmation,
+          });
+          return;
+        }
+
+        const rows = data.rows || [];
+        const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
+        const columnTypes = parseColumnTypes(data);
+        const fields = data.fields as QueryFieldInfo[] | undefined;
+        const execTime = data.executionTime || 0;
+        const label = execQuery.length > 30 ? execQuery.slice(0, 30) + '...' : execQuery;
+
+        const existingId = resultTabs.find((t) => t.sql === execQuery)?.id;
+        const tabId =
+          existingId ?? `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+        setResultTabs((prev) => {
+          const idx = prev.findIndex((t) => t.sql === execQuery);
+          if (idx >= 0) {
+            const updated: ResultTab = {
+              ...prev[idx],
+              rows,
+              columns: cols,
+              columnTypes,
+              executionTime: execTime,
+              fields,
+            };
+            return prev.map((t, i) => (i === idx ? updated : t));
+          }
+          return [
+            ...prev,
+            {
+              id: tabId,
+              label,
+              sql: execQuery,
+              rows,
+              columns: cols,
+              columnTypes,
+              executionTime: execTime,
+              fields,
+            },
+          ];
         });
-        return;
+        setActiveResultTabId(tabId);
+        addQuery(execQuery, execTime, rows.length);
+      } catch (err: any) {
+        setError(err.message || 'Query execution failed');
+      } finally {
+        setIsExecuting(false);
       }
-
-      const rows = data.rows || [];
-      const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
-      setColumns(cols);
-      setResultColumnTypes(parseColumnTypes(data));
-      setResultFields(data.fields as QueryFieldInfo[] | undefined);
-      setExecutedSql(execQuery);
-      setResults(rows);
-      setExecutionTime(data.executionTime || null);
-      addQuery(execQuery, data.executionTime || 0, rows.length);
-      setActiveResultTabId(undefined);
-    } catch (err: any) {
-      setError(err.message || 'Query execution failed');
-      setResults([]);
-      setColumns([]);
-      setResultFields(undefined);
-    } finally {
-      setIsExecuting(false);
-    }
-  }, [addQuery]);
+    },
+    [addQuery, resultTabs]
+  );
 
   const handleExecute = async () => {
     const execQuery = getExecutableQuery();
@@ -190,52 +229,6 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     setPendingQueryConfirm(null);
     await executeQueryRequest(sql, true);
   }, [pendingQueryConfirm, executeQueryRequest]);
-
-  const handleExecuteToTab = async () => {
-    const execQuery = getExecutableQuery();
-    if (!execQuery) return;
-
-    setIsExecuting(true);
-    setError(null);
-
-    try {
-      const data = await api.post('/api/query', { query: execQuery }, { noRetry: true });
-
-      if (data.needsConfirmation) {
-        const c = data.classification;
-        setPendingQueryConfirm({
-          sql: data.preview,
-          kind: c.kind,
-          statement: c.statement,
-          isBulkWrite: c.isBulkWrite,
-          requiresTypedConfirmation: c.requiresTypedConfirmation,
-        });
-        return;
-      }
-
-      const rows = data.rows || [];
-      const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
-      const label = execQuery.length > 30 ? execQuery.slice(0, 30) + '...' : execQuery;
-      const tabId = `qr_${Date.now()}`;
-
-      const newTab: ResultTab = {
-        id: tabId,
-        label,
-        rows,
-        columns: cols,
-        columnTypes: parseColumnTypes(data),
-        executionTime: data.executionTime || 0,
-      };
-
-      setResultTabs((prev) => [...prev, newTab]);
-      setActiveResultTabId(tabId);
-      addQuery(execQuery, data.executionTime || 0, rows.length);
-    } catch (err: any) {
-      setError(err.message || 'Query execution failed');
-    } finally {
-      setIsExecuting(false);
-    }
-  };
 
   useHotkeys(
     'ctrl+enter, meta+enter',
@@ -251,14 +244,33 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     }
   );
 
-  // ─── Result editability ────────────────────────────────────────
+  useHotkeys(
+    'ctrl+f, meta+f',
+    (e) => {
+      e.preventDefault();
+      resultSearchInputRef.current?.focus();
+      resultSearchInputRef.current?.select();
+    },
+    {
+      enabled: isActive && resultTabs.length > 0,
+      preventDefault: true,
+    }
+  );
+
+  // ─── Result editability (per active tab) ──────────────────────
+  // Look up here so the rest of the component can read derived state from
+  // the active tab without scattered `find` calls.
+  const activeTab = resultTabs.find((t) => t.id === activeResultTabId);
+  const activeFields = activeTab?.fields;
+  const activeSql = activeTab?.sql ?? '';
+
   // Detect the unique source (schema, table) from the result fields.
   const candidateSource = useMemo(() => {
-    if (!resultFields || resultFields.length === 0) return null;
+    if (!activeFields || activeFields.length === 0) return null;
     const seen = new Set<string>();
     let schema = '';
     let table = '';
-    for (const f of resultFields) {
+    for (const f of activeFields) {
       if (f.source) {
         const key = `${f.source.schema}.${f.source.table}`;
         if (!seen.has(key)) {
@@ -269,7 +281,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
       }
     }
     return seen.size === 1 ? { schema, table } : null;
-  }, [resultFields]);
+  }, [activeFields]);
 
   const sourceSchemaQuery = useQuery({
     queryKey: ['queryResultSourceSchema', candidateSource?.schema, candidateSource?.table],
@@ -296,8 +308,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
 
   const editability: EditabilityResult = useMemo(() => {
     return analyzeEditability({
-      sql: executedSql,
-      fields: resultFields,
+      sql: activeSql,
+      fields: activeFields,
       getPrimaryKeys: (schema, table) => {
         if (
           candidateSource?.schema === schema &&
@@ -309,17 +321,18 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
         return undefined;
       },
     });
-  }, [executedSql, resultFields, candidateSource, sourcePrimaryKeys]);
+  }, [activeSql, activeFields, candidateSource, sourcePrimaryKeys]);
 
   // When editable: derive per-row-lookup PKs (result-aliased) and
   // the set of read-only result columns (computed expressions, etc.).
   const editableMeta = useMemo(() => {
     if (!editability.editable) return null;
+    if (!activeTab) return null;
     const { columnToSource, primaryKeys: basePks, schema, table } = editability;
-    const resultPrimaryKeys = columns.filter((c) => basePks.includes(columnToSource[c] ?? ''));
-    const readOnlyResultColumns = columns.filter((c) => !(c in columnToSource));
+    const resultPrimaryKeys = activeTab.columns.filter((c) => basePks.includes(columnToSource[c] ?? ''));
+    const readOnlyResultColumns = activeTab.columns.filter((c) => !(c in columnToSource));
     return { schema, table, columnToSource, resultPrimaryKeys, readOnlyResultColumns };
-  }, [editability, columns]);
+  }, [editability, activeTab]);
 
   // Translate a row's result-aliased PKs back to base-table column names.
   const buildBaseWhere = useCallback(
@@ -337,16 +350,16 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
   );
 
   const handleQueryCellUpdate = useCallback(
-    (rowPks: Record<string, any>, column: string, newValue: any) => {
+    ({ pks, column, next }: { pks: Record<string, any>; column: string; original: any; next: any }) => {
       if (!editableMeta) return;
       const baseColumn = editableMeta.columnToSource[column];
-      const where = buildBaseWhere(rowPks);
+      const where = buildBaseWhere(pks);
       if (!baseColumn || !where) return;
       setPendingMutation({
         type: 'UPDATE',
         schema: editableMeta.schema,
         table: editableMeta.table,
-        values: { [baseColumn]: newValue },
+        values: { [baseColumn]: next },
         where,
       });
     },
@@ -354,9 +367,9 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
   );
 
   const handleQueryRowDelete = useCallback(
-    (rowPks: Record<string, any>) => {
+    ({ pks }: { pks: Record<string, any>; snapshot: Record<string, any> }) => {
       if (!editableMeta) return;
-      const where = buildBaseWhere(rowPks);
+      const where = buildBaseWhere(pks);
       if (!where) return;
       setPendingMutation({
         type: 'DELETE',
@@ -368,26 +381,11 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     [editableMeta, buildBaseWhere]
   );
 
+  // Re-run the query backing the active tab and refresh its rows in place.
   const refreshResults = useCallback(async () => {
-    if (!executedSql) return;
-    setIsExecuting(true);
-    setError(null);
-    try {
-      const data = await api.post('/api/query', { query: executedSql }, { noRetry: true });
-      const rows = data.rows || [];
-      const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
-      setColumns(cols);
-      setResultColumnTypes(parseColumnTypes(data));
-      setResultFields(data.fields as QueryFieldInfo[] | undefined);
-      setResults(rows);
-      setExecutionTime(data.executionTime || null);
-      setActiveResultTabId(undefined);
-    } catch (err: any) {
-      setError(err.message || 'Query execution failed');
-    } finally {
-      setIsExecuting(false);
-    }
-  }, [executedSql]);
+    if (!activeTab) return;
+    await executeQueryRequest(activeTab.sql);
+  }, [activeTab, executeQueryRequest]);
 
   const handleConfirmMutation = useCallback(async () => {
     if (!pendingMutation) return;
@@ -417,15 +415,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
 
   const handleClear = () => {
     setQuery('');
-    setResults([]);
-    setColumns([]);
     setError(null);
-    setExecutionTime(null);
   };
-
-  // What to show in results area
-  const activeTab = resultTabs.find((t) => t.id === activeResultTabId);
-  const showInlineResults = !activeResultTabId && results.length > 0;
 
   const tabBarTabs: Tab[] = resultTabs.map((t) => ({
     id: t.id,
@@ -447,14 +438,6 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
               >
                 <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg>
               </button>
-              <button
-                onClick={handleExecuteToTab}
-                disabled={isExecuting || !query.trim()}
-                className="w-7 h-7 flex items-center justify-center rounded text-blue-400 hover:bg-blue-400/15 disabled:opacity-30 transition-colors"
-                title={hasSelection ? 'Selection to Tab' : 'Run to Tab'}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2l8 5-8 5V2z"/><rect x="11" y="3" width="3" height="10" rx="0.5"/></svg>
-              </button>
               <div className="w-5 border-t border-border my-0.5" />
               <button
                 onClick={() => setQuery(formatSQL(query, databaseType))}
@@ -463,6 +446,17 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
                 title="Format SQL"
               >
                 <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="10" height="2" rx="1"/><rect x="1" y="12" width="12" height="2" rx="1"/></svg>
+              </button>
+              <button
+                onClick={() => {
+                  setPendingSaveQuery(query);
+                  setIsSaveQueryOpen(true);
+                }}
+                disabled={isExecuting || !query.trim()}
+                className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
+                title="Save query"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M11 1H3a1 1 0 00-1 1v12l4-3 4 3V2a1 1 0 00-1-1z"/></svg>
               </button>
               <button
                 onClick={handleClear}
@@ -508,30 +502,23 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
               onFavorite={favoriteQuery}
               onDelete={deleteQuery}
               onClear={clearHistory}
+              onSave={(sql) => {
+                setPendingSaveQuery(sql);
+                setIsSaveQueryOpen(true);
+              }}
             />
           )}
         </div>
       </Card>
 
       {/* Result tabs bar */}
-      {(resultTabs.length > 0 || showInlineResults) && (
+      {resultTabs.length > 0 && (
         <TabBar
           tabs={tabBarTabs}
           activeTabId={activeResultTabId}
           onTabSelect={(tabId) => setActiveResultTabId(tabId)}
           onTabClose={closeResultTab}
           onTabCloseAll={() => { setResultTabs([]); setActiveResultTabId(undefined); }}
-          actions={
-            showInlineResults || (!activeResultTabId && results.length === 0) ? undefined : (
-              <button
-                onClick={() => setActiveResultTabId(undefined)}
-                className={`p-1.5 rounded transition-colors ${!activeResultTabId ? 'text-accent bg-accent/10' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
-                title="Show inline result"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg>
-              </button>
-            )
-          }
         />
       )}
 
@@ -554,22 +541,9 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
       {/* Active result tab content */}
       {activeTab && (
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted">
-              {activeTab.rows.length} {activeTab.rows.length === 1 ? 'row' : 'rows'} returned
-            </span>
-            <span className="text-sm text-muted font-mono">{activeTab.executionTime}ms</span>
-          </div>
-          <DataTable columns={activeTab.columns} data={activeTab.rows} isLoading={false} columnTypes={activeTab.columnTypes} />
-        </div>
-      )}
-
-      {/* Inline results (no tab selected) */}
-      {showInlineResults && (
-        <div>
           <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-sm text-muted">
-              {results.length} {results.length === 1 ? 'row' : 'rows'} returned
+              {activeTab.rows.length} {activeTab.rows.length === 1 ? 'row' : 'rows'} returned
             </span>
             <div className="flex items-center gap-2">
               {editableMeta ? (
@@ -579,7 +553,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
                 >
                   Editable
                 </span>
-              ) : editability.editable === false && resultFields && resultFields.length > 0 ? (
+              ) : editability.editable === false && activeFields && activeFields.length > 0 ? (
                 <span
                   className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-bg-secondary text-muted"
                   title={`Read-only — ${describeReason(editability.reason)}${editability.detail ? ` (${editability.detail})` : ''}`}
@@ -587,14 +561,27 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
                   Read-only
                 </span>
               ) : null}
-              {executionTime !== null && (
-                <span className="text-sm text-muted font-mono">{executionTime}ms</span>
-              )}
+              <input
+                ref={resultSearchInputRef}
+                type="text"
+                value={resultSearchQuery}
+                onChange={(e) => setResultSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setResultSearchQuery('');
+                    resultSearchInputRef.current?.blur();
+                  }
+                }}
+                placeholder="Find in result..."
+                className="px-2 py-1 text-xs border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted w-40"
+                aria-label="Find in result"
+              />
+              <span className="text-sm text-muted font-mono">{activeTab.executionTime}ms</span>
               <button
                 onClick={refreshResults}
-                disabled={isExecuting || !executedSql}
+                disabled={isExecuting}
                 className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Refresh results (re-run last query)"
+                title="Refresh results (re-run this tab's query)"
                 aria-label="Refresh results"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className={`h-3.5 w-3.5 ${isExecuting ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -603,23 +590,30 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
               </button>
             </div>
           </div>
-          <DataTable
-            columns={columns}
-            data={results}
-            isLoading={false}
-            columnTypes={resultColumnTypes}
-            primaryKeys={editableMeta?.resultPrimaryKeys}
-            columnSchema={editableMeta ? sourceColumnInfo : undefined}
-            onCellUpdate={editableMeta ? handleQueryCellUpdate : undefined}
-            onRowDelete={editableMeta ? handleQueryRowDelete : undefined}
-            readOnlyColumns={editableMeta?.readOnlyResultColumns}
-          />
+          {activeTab.rows.length === 0 ? (
+            <div className="text-center py-6 text-sm text-muted">
+              Query executed successfully. No rows returned.
+            </div>
+          ) : (
+            <DataTable
+              columns={activeTab.columns}
+              data={activeTab.rows}
+              isLoading={false}
+              columnTypes={activeTab.columnTypes}
+              searchQuery={resultSearchQuery}
+              primaryKeys={editableMeta?.resultPrimaryKeys}
+              columnSchema={editableMeta ? sourceColumnInfo : undefined}
+              onCellUpdate={editableMeta ? handleQueryCellUpdate : undefined}
+              onRowDelete={editableMeta ? handleQueryRowDelete : undefined}
+              readOnlyColumns={editableMeta?.readOnlyResultColumns}
+            />
+          )}
         </div>
       )}
 
-      {results.length === 0 && !activeTab && !error && executionTime !== null && (
+      {!activeTab && resultTabs.length === 0 && !isExecuting && !error && (
         <div className="text-center py-6 text-sm text-muted">
-          Query executed successfully. No rows returned.
+          Run a query to see results here.
         </div>
       )}
 
@@ -647,6 +641,16 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
           isLoading={isExecuting}
         />
       )}
+
+      <SaveQueryDialog
+        isOpen={isSaveQueryOpen}
+        onClose={() => setIsSaveQueryOpen(false)}
+        onSave={(name, tags) => {
+          saveQuery(name, pendingSaveQuery, tags);
+          addToast(`Saved "${name}"`, 'success');
+        }}
+        query={pendingSaveQuery}
+      />
     </div>
   );
 };

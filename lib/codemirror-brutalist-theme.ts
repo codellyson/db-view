@@ -18,8 +18,8 @@ export function createBrutalistTheme(colors: PaletteColors, isDark: boolean) {
       '&': {
         backgroundColor: bg,
         color: fg,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-        fontSize: '14px',
+        fontFamily: 'var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+        fontSize: '13px',
       },
       '.cm-content': {
         caretColor: colors.accent,

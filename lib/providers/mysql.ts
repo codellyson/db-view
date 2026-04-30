@@ -400,6 +400,50 @@ export class MySQLProvider implements DatabaseProvider {
     };
   }
 
+  async getTableRowCounts(schema: string): Promise<Record<string, number>> {
+    const [rows] = await this.pool!.query(
+      `SELECT TABLE_NAME, TABLE_ROWS
+       FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'`,
+      [schema]
+    );
+    const counts: Record<string, number> = {};
+    for (const row of rows as any[]) {
+      const n = Number(row.TABLE_ROWS ?? row.table_rows ?? 0);
+      if (!isNaN(n)) counts[row.TABLE_NAME ?? row.table_name] = n;
+    }
+    return counts;
+  }
+
+  async runTransaction(
+    statements: { sql: string; params: any[] }[]
+  ): Promise<{ rowCounts: number[] }> {
+    const conn = await this.pool!.getConnection();
+    try {
+      await conn.beginTransaction();
+      const rowCounts: number[] = [];
+      for (const stmt of statements) {
+        const [result] = await conn.query(stmt.sql, stmt.params);
+        if (result && typeof result === "object" && "affectedRows" in result) {
+          rowCounts.push((result as any).affectedRows);
+        } else {
+          rowCounts.push(Array.isArray(result) ? result.length : 0);
+        }
+      }
+      await conn.commit();
+      return { rowCounts };
+    } catch (err) {
+      try {
+        await conn.rollback();
+      } catch {
+        // best effort
+      }
+      throw err;
+    } finally {
+      conn.release();
+    }
+  }
+
   // --- Health check ---
 
   getHealthInfo(): { totalCount: number; idleCount: number } {

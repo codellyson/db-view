@@ -107,7 +107,7 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
         } else if (format === "json") {
           content = generateJSONContent(allRows);
         } else {
-          content = generateSQLContent(columns, allRows, tableName, databaseType);
+          content = generateSQLContent(columns, allRows, tableName, { dialect: databaseType });
         }
 
         zip.file(`${tableName}.${ext}`, content);

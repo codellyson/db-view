@@ -14,31 +14,49 @@
   --danger: 239 68 68;
   --success: 34 197 94;
   --warning: 234 179 8;
+  /* --font-sans / --font-mono are injected by next/font in app/layout.tsx. */
 }
 
+/*
+ * Dark palette — warm "mocha" tones (Catppuccin-inspired) instead of cold
+ * slate. Borders sit at the same lightness as bg-secondary so elevation
+ * reads as a soft gradient instead of sharp dividers; that was deliberate
+ * after the previous slate-600 borders felt too harsh.
+ */
+/*
+ * Dark palette — warm espresso. R >= G >= B at every elevation so the UI
+ * reads as warm-dark instead of "blueish black". Accent kept in a softened
+ * indigo so existing accent-tinted utilities don't visually shift.
+ */
 .dark {
-  --bg: 15 17 23;
-  --bg-secondary: 31 41 55;
-  --border: 55 65 81;
-  --text-primary: 249 250 251;
-  --text-secondary: 156 163 175;
-  --text-muted: 107 114 128;
-  --accent: 129 140 248;
-  --accent-hover: 165 180 252;
-  --danger: 248 113 113;
-  --success: 74 222 128;
-  --warning: 250 204 21;
+  --bg: 22 20 18;            /* deep espresso */
+  --bg-secondary: 37 33 30;  /* one elevation up — still warm */
+  --border: 56 50 45;        /* soft warm border */
+  --text-primary: 232 222 210;   /* warm cream */
+  --text-secondary: 178 167 152; /* taupe */
+  --text-muted: 124 114 102;     /* muted warm gray */
+  --accent: 168 180 220;     /* softened indigo — focal but not aggressive */
+  --accent-hover: 195 205 235;
+  --danger: 220 105 95;      /* warm red, not pink */
+  --success: 165 195 130;    /* sage green */
+  --warning: 230 195 115;    /* amber */
 }
 
 @layer base {
   body {
-    @apply bg-bg text-primary;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    @apply bg-bg text-primary font-sans;
   }
 }
 
 html {
   scroll-behavior: smooth;
+  /*
+   * Base font size — data-heavy UI. Drops the rem unit from the browser
+   * default 16px to 13px, so every Tailwind text-xs/sm/base utility scales
+   * down proportionally. Pixel-based literals (text-[10px], text-[11px])
+   * stay where they are.
+   */
+  font-size: 13px;
 }
 
 /* Thin, theme-aware scrollbars */

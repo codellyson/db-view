@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { TableList } from './table-list';
 import { SidebarSkeleton } from './skeletons/sidebar-skeleton';
+import type { SavedQuery } from '@/types';
 
 interface FunctionInfo {
   name: string;
@@ -24,6 +25,20 @@ interface SidebarProps {
   materializedViews?: string[];
   functions?: FunctionInfo[];
   onCreateTable?: () => void;
+  onBatchExport?: () => void;
+  // Sidebar prefs for the main "Tables" list. Owned upstream so the dashboard
+  // can also record opens when tables are selected from elsewhere (FK panel,
+  // table picker, etc.).
+  pinnedTables?: string[];
+  recentTables?: string[];
+  onTogglePin?: (table: string) => void;
+  groupByPrefix?: boolean;
+  onToggleGroupByPrefix?: () => void;
+  rowCounts?: Record<string, number | undefined>;
+  // Saved queries — when provided, render a Saved section.
+  savedQueries?: SavedQuery[];
+  onOpenSavedQuery?: (query: SavedQuery) => void;
+  onDeleteSavedQuery?: (id: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -38,12 +53,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   materializedViews = [],
   functions = [],
   onCreateTable,
+  onBatchExport,
+  pinnedTables,
+  recentTables,
+  onTogglePin,
+  groupByPrefix,
+  onToggleGroupByPrefix,
+  rowCounts,
+  savedQueries,
+  onOpenSavedQuery,
+  onDeleteSavedQuery,
 }) => {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     tables: true,
     views: true,
     matviews: true,
     functions: false,
+    saved: true,
   });
 
   const toggleSection = (section: string) => {
@@ -90,11 +116,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onToggle={() => toggleSection('tables')}
               onAction={onCreateTable}
               actionLabel="Create table"
+              extraActions={
+                onBatchExport && tables.length > 0 ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onBatchExport(); }}
+                    className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded transition-all"
+                    title="Batch export tables"
+                    aria-label="Batch export tables"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                  </button>
+                ) : undefined
+              }
             >
               <TableList
                 tables={tables}
                 selectedTable={selectedTable}
                 onSelect={onTableSelect}
+                pinned={pinnedTables}
+                recent={recentTables}
+                onTogglePin={onTogglePin}
+                groupByPrefix={groupByPrefix}
+                onToggleGroupByPrefix={onToggleGroupByPrefix}
+                rowCounts={rowCounts}
               />
             </SidebarSection>
 
@@ -127,6 +173,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   selectedTable={selectedTable}
                   onSelect={onTableSelect}
                 />
+              </SidebarSection>
+            )}
+
+            {savedQueries && savedQueries.length > 0 && onOpenSavedQuery && (
+              <SidebarSection
+                title="Saved"
+                count={savedQueries.length}
+                icon="S"
+                isExpanded={expandedSections.saved}
+                onToggle={() => toggleSection('saved')}
+              >
+                <ul className="space-y-px">
+                  {savedQueries.map((q) => (
+                    <li key={q.id} className="group flex items-center gap-1">
+                      <button
+                        onClick={() => onOpenSavedQuery(q)}
+                        className="flex-1 text-left px-2.5 py-1.5 text-[13px] rounded-md text-secondary hover:text-primary hover:bg-bg-secondary transition-colors truncate"
+                        title={q.query}
+                      >
+                        <span className="truncate">{q.name}</span>
+                      </button>
+                      {onDeleteSavedQuery && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDeleteSavedQuery(q.id); }}
+                          className="p-1 text-muted/0 group-hover:text-muted hover:!text-danger transition-all"
+                          title="Delete saved query"
+                          aria-label="Delete saved query"
+                        >
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </SidebarSection>
             )}
 
@@ -174,7 +256,8 @@ const SidebarSection: React.FC<{
   children: React.ReactNode;
   onAction?: () => void;
   actionLabel?: string;
-}> = ({ title, count, icon, isExpanded, onToggle, children, onAction, actionLabel }) => (
+  extraActions?: React.ReactNode;
+}> = ({ title, count, icon, isExpanded, onToggle, children, onAction, actionLabel, extraActions }) => (
   <div>
     <div className="flex items-center group/section">
       <button
@@ -195,6 +278,7 @@ const SidebarSection: React.FC<{
         <span>{title}</span>
         <span className="text-muted/50 font-normal">{count}</span>
       </button>
+      {extraActions}
       {onAction && (
         <button
           onClick={(e) => { e.stopPropagation(); onAction(); }}

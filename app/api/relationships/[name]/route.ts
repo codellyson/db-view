@@ -5,9 +5,10 @@ import { cookies } from "next/headers";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
+    const { name } = await params;
     if (!getPool()) {
       const cookieStore = await cookies();
       const sessionId = cookieStore.get("db-session")?.value;
@@ -23,8 +24,8 @@ export async function GET(
 
     const schema = request.nextUrl.searchParams.get("schema") || "public";
     const [relationships, indexes] = await Promise.all([
-      getTableRelationships(params.name, schema),
-      getTableIndexes(params.name, schema),
+      getTableRelationships(name, schema),
+      getTableIndexes(name, schema),
     ]);
 
     return NextResponse.json({ relationships, indexes });

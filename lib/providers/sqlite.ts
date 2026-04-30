@@ -248,6 +248,52 @@ export class SQLiteProvider implements DatabaseProvider {
     return { rows: [], rowCount: result.rowsAffected };
   }
 
+  async getTableRowCounts(_schema: string): Promise<Record<string, number>> {
+    // SQLite has no cheap row-count estimate. Run an actual COUNT(*) per
+    // table — fine for typical dev databases, expensive for very large
+    // ones. Returns whatever we managed to count; failures are skipped so
+    // a single bad table doesn't poison the rest of the result.
+    const counts: Record<string, number> = {};
+    const tables = await this.client!.execute(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
+    );
+    for (const row of tables.rows) {
+      const name = String((row as any).name);
+      try {
+        const r = await this.client!.execute(
+          `SELECT COUNT(*) AS c FROM ${escId(name)}`
+        );
+        const c = Number((r.rows[0] as any)?.c ?? 0);
+        if (!isNaN(c)) counts[name] = c;
+      } catch {
+        // skip — leave count missing
+      }
+    }
+    return counts;
+  }
+
+  async runTransaction(
+    statements: { sql: string; params: any[] }[]
+  ): Promise<{ rowCounts: number[] }> {
+    const tx = await this.client!.transaction("write");
+    try {
+      const rowCounts: number[] = [];
+      for (const stmt of statements) {
+        const result = await tx.execute({ sql: stmt.sql, args: stmt.params });
+        rowCounts.push(result.rowsAffected ?? 0);
+      }
+      await tx.commit();
+      return { rowCounts };
+    } catch (err) {
+      try {
+        await tx.rollback();
+      } catch {
+        // best effort
+      }
+      throw err;
+    }
+  }
+
   // --- Health check ---
 
   getHealthInfo(): { totalCount: number; idleCount: number } {

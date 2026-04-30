@@ -5,9 +5,10 @@ import { cookies } from "next/headers";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
+    const { name } = await params;
     if (!getPool()) {
       const cookieStore = await cookies();
       const sessionId = cookieStore.get("db-session")?.value;
@@ -22,7 +23,7 @@ export async function GET(
     }
 
     const schemaName = request.nextUrl.searchParams.get("schema") || "public";
-    const schema = await getTableSchema(params.name, schemaName);
+    const schema = await getTableSchema(name, schemaName);
     return NextResponse.json({ schema });
   } catch (error: any) {
     const sanitizedError = sanitizeError(error);

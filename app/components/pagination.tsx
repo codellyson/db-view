@@ -9,6 +9,12 @@ interface PaginationProps {
   itemsPerPage: number;
   countIsEstimate?: boolean;
   onItemsPerPageChange?: (size: number) => void;
+  /** Number of active filters; when > 0, the row count line shows the "Filtered from … (N filters)" suffix. */
+  filterCount?: number;
+  /** Approximate unfiltered total for the table, used to render "Filtered from M". */
+  unfilteredTotal?: number;
+  /** When true, render a "Counting…" placeholder instead of the row count. */
+  isLoading?: boolean;
 }
 
 const PAGE_SIZE_OPTIONS = [50, 100, 250, 500];
@@ -21,9 +27,14 @@ export const Pagination: React.FC<PaginationProps> = ({
   itemsPerPage,
   countIsEstimate = false,
   onItemsPerPageChange,
+  filterCount = 0,
+  unfilteredTotal,
+  isLoading = false,
 }) => {
-  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+  const fmt = (n: number) => n.toLocaleString();
+  const totalLabel = countIsEstimate ? `~${fmt(totalItems)}` : fmt(totalItems);
 
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
@@ -64,7 +75,21 @@ export const Pagination: React.FC<PaginationProps> = ({
     <nav aria-label="Pagination" className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 gap-3 sm:gap-4">
       <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
         <span className="text-xs sm:text-sm text-muted">
-          {startItem}-{endItem} of {countIsEstimate ? `~${totalItems.toLocaleString()}` : totalItems.toLocaleString()}
+          {isLoading ? (
+            'Counting…'
+          ) : totalItems === 0 ? (
+            filterCount > 0 ? 'No rows match the filter' : 'No rows'
+          ) : (
+            <>
+              Showing {fmt(startItem)}–{fmt(endItem)} of {totalLabel} {totalItems === 1 ? 'row' : 'rows'}
+              {filterCount > 0 && (
+                <>
+                  {' '}· Filtered{unfilteredTotal !== undefined ? ` from ${fmt(unfilteredTotal)}` : ''}
+                  {` (${filterCount} ${filterCount === 1 ? 'filter' : 'filters'})`}
+                </>
+              )}
+            </>
+          )}
         </span>
         {onItemsPerPageChange && (
           <select

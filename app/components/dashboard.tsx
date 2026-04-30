@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 import { MainContent } from "./main-content";
-import { DataTable } from "./data-table";
+import { DataTable, type DataTableHandle } from "./data-table";
 import { TableSchema } from "./table-schema";
 import { Pagination } from "./pagination";
 import { EmptyState } from "./empty-state";
@@ -13,13 +13,17 @@ import { ErrorState } from "./error-state";
 import { ResizableSplitter } from "./resizable-splitter";
 import { MobileMenu } from "./mobile-menu";
 import { TableList } from "./table-list";
-import { Footer } from "./footer";
 import { ColumnVisibility } from "./column-visibility";
-import { ExportDropdown } from "./export-dropdown";
+import { ExportModal } from "./export-modal";
 import { Breadcrumb } from "./breadcrumb";
 import { RelationshipDisplay } from "./relationship-display";
-import { MutationConfirmation } from "./mutation-confirmation";
-import { RowEditor } from "./row-editor";
+import { PendingChangesBar } from "./pending-changes-bar";
+import { ReviewSqlModal } from "./review-sql-modal";
+import { TablePicker } from "./table-picker";
+import { CommandPalette, type CommandAction } from "./command-palette";
+import { FKSidePanel, type FKQuery } from "./fk-side-panel";
+import { FilterChips } from "./filter-chips";
+import type { ForeignKeyTarget } from "./data-table";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { TableStats } from "./table-stats";
 import { CSVImportDialog } from "./csv-import-dialog";
@@ -31,9 +35,11 @@ import { Button } from "./ui/button";
 import { useConnection } from "../contexts/connection-context";
 import { useToast } from "../contexts/toast-context";
 import { useDashboard } from "../contexts/dashboard-context";
+import { usePendingChanges } from "../contexts/pending-changes-context";
+import { useTheme } from "../contexts/theme-context";
 import { useKeyboardShortcuts, type Shortcut } from "../hooks/use-keyboard-shortcuts";
-import { exportCSV, exportJSON, exportSQL } from "@/lib/export-utils";
-import { buildDisplaySQL, type MutationRequest } from "@/lib/mutation";
+import { useTableListPrefs } from "../hooks/use-table-list-prefs";
+import { useUrlState } from "../hooks/use-url-state";
 import { usePlugins } from "../hooks/use-plugins";
 
 export function Dashboard() {
@@ -62,6 +68,10 @@ export function Dashboard() {
     sortDirection,
     visibleColumns,
     tableSearch,
+    tableFilters,
+    addTableFilter,
+    removeTableFilter,
+    clearTableFilters,
     error,
     itemsPerPage,
     setSelectedTable,
@@ -75,7 +85,6 @@ export function Dashboard() {
     handleSort,
     readOnlyMode,
     primaryKeys,
-    mutateRow,
     refreshTableData,
     tableStats,
     isLoadingStats,
@@ -87,17 +96,28 @@ export function Dashboard() {
     setActiveTab,
     closeAllTabs,
     closeOtherTabs,
+    reorderTabs,
+    toggleTabPin,
     isQueryTab,
     queryTabResults,
     openEditorTab,
     isEditorTab,
+    schemaMap,
+    tableRowCounts,
+    savedQueries,
+    deleteSavedQuery,
   } = useDashboard();
 
+  const pending = usePendingChanges();
+  const { toggleMode } = useTheme();
+  const tableListPrefs = useTableListPrefs(databaseName);
+  useUrlState();
   const { allFormatters } = usePlugins();
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
+  const dataTableRef = useRef<DataTableHandle>(null);
 
   const columnTypes = useMemo(() => {
     const types: Record<string, string> = {};
@@ -106,38 +126,41 @@ export function Dashboard() {
     }
     return types;
   }, [schema]);
+
+  // Per-column FK target lookup for the active table. Used by DataTable to
+  // render header indicators and cell-level navigation chevrons.
+  const foreignKeys = useMemo(() => {
+    const map: Record<string, ForeignKeyTarget> = {};
+    for (const r of relationships) {
+      if (r.source_column && r.target_table) {
+        map[r.source_column] = {
+          schema: r.target_schema || selectedSchema,
+          table: r.target_table,
+          column: r.target_column,
+        };
+      }
+    }
+    return map;
+  }, [relationships, selectedSchema]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [pendingMutation, setPendingMutation] = useState<MutationRequest | null>(null);
-  const [isMutating, setIsMutating] = useState(false);
-  const [isRowEditorOpen, setIsRowEditorOpen] = useState(false);
   const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
   const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
   const [isCreateTableOpen, setIsCreateTableOpen] = useState(false);
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
   const [detailsTab, setDetailsTab] = useState<'schema' | 'stats' | null>(null);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [fkQuery, setFkQuery] = useState<FKQuery | null>(null);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [bulkExportRows, setBulkExportRows] = useState<any[] | null>(null);
 
   const onTableSelect = (table: string) => {
+    tableListPrefs.recordOpen(table);
     handleTableSelect(table);
     setIsMobileMenuOpen(false);
   };
 
-  const handleExportCSV = () => {
-    if (!selectedTable || tableData.length === 0) return;
-    exportCSV(columns, tableData, selectedTable);
-    addToast("CSV exported successfully", "success");
-  };
-
-  const handleExportJSON = () => {
-    if (!selectedTable || tableData.length === 0) return;
-    exportJSON(columns, tableData, selectedTable);
-    addToast("JSON exported successfully", "success");
-  };
-
-  const handleExportSQL = () => {
-    if (!selectedTable || tableData.length === 0) return;
-    exportSQL(columns, tableData, selectedTable, databaseType);
-    addToast("SQL exported successfully", "success");
-  };
 
   const shortcuts: Shortcut[] = useMemo(() => [
     {
@@ -165,8 +188,15 @@ export function Dashboard() {
       category: 'Editing',
       action: () => {
         if (!readOnlyMode && primaryKeys.length > 0 && selectedTable) {
-          setIsRowEditorOpen(true);
+          dataTableRef.current?.scrollToEmptyRow();
         }
+      },
+    },
+    {
+      key: 'r', alt: true, description: 'Refresh table data',
+      category: 'Navigation',
+      action: () => {
+        if (selectedTable) refreshTableData();
       },
     },
     {
@@ -191,61 +221,189 @@ export function Dashboard() {
       key: 'Escape', description: 'Close modal / cancel',
       category: 'General',
       action: () => {
-        if (pendingMutation) setPendingMutation(null);
-        else if (isRowEditorOpen) setIsRowEditorOpen(false);
+        if (isCommandPaletteOpen) setIsCommandPaletteOpen(false);
+        else if (isTablePickerOpen) setIsTablePickerOpen(false);
+        else if (fkQuery) setFkQuery(null);
+        else if (isReviewOpen) setIsReviewOpen(false);
         else if (isShortcutsHelpOpen) setIsShortcutsHelpOpen(false);
       },
     },
-  ], [readOnlyMode, primaryKeys, selectedTable, pendingMutation, isRowEditorOpen, isShortcutsHelpOpen, router, openEditorTab]);
+    {
+      key: 's', meta: true, description: 'Save pending changes (Review SQL)',
+      category: 'Editing',
+      action: () => {
+        if (selectedTable && pending.getCount(selectedSchema, selectedTable) > 0) {
+          setIsReviewOpen(true);
+        }
+      },
+    },
+    {
+      key: 'z', meta: true, description: 'Undo last staged edit',
+      category: 'Editing',
+      action: () => pending.undo(),
+    },
+    {
+      key: 'z', meta: true, shift: true, description: 'Redo staged edit',
+      category: 'Editing',
+      action: () => pending.redo(),
+    },
+    {
+      key: 't', meta: true, description: 'New SQL editor',
+      category: 'Navigation',
+      action: () => openEditorTab(),
+    },
+    {
+      key: 'w', meta: true, description: 'Close active tab',
+      category: 'Navigation',
+      action: () => {
+        if (activeTabId) closeTab(activeTabId);
+      },
+    },
+    {
+      key: 'f', meta: true, description: 'Find in result set',
+      category: 'Navigation',
+      action: () => {
+        // Editor/query tabs register their own Cmd+F; only handle the
+        // table-view case here.
+        if (isEditorTab || isQueryTab) return;
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      },
+    },
+    {
+      key: 'p', meta: true, description: 'Jump to table',
+      category: 'Navigation',
+      action: () => setIsTablePickerOpen((prev) => !prev),
+    },
+    {
+      key: 'k', meta: true, description: 'Command palette',
+      category: 'General',
+      action: () => setIsCommandPaletteOpen((prev) => !prev),
+    },
+    {
+      // Bare `?` (Shift + /) — companion to Cmd+/, matches the doc.
+      key: '?', shift: true, description: 'Show keyboard shortcuts',
+      category: 'General',
+      action: () => setIsShortcutsHelpOpen((prev) => !prev),
+    },
+  ], [readOnlyMode, primaryKeys, selectedTable, selectedSchema, isShortcutsHelpOpen, isReviewOpen, openEditorTab, pending, activeTabId, closeTab, isEditorTab, isQueryTab, isTablePickerOpen, isCommandPaletteOpen, fkQuery, refreshTableData]);
 
   useKeyboardShortcuts(shortcuts);
 
-  const handleCellUpdate = (rowPks: Record<string, any>, column: string, newValue: any) => {
+  const pendingCountForActiveTable = selectedTable
+    ? pending.getCount(selectedSchema, selectedTable)
+    : 0;
+
+  const paletteActions: CommandAction[] = useMemo(() => [
+    {
+      id: 'new-editor',
+      label: 'New SQL editor',
+      category: 'Editor',
+      shortcut: '⌘T',
+      run: () => openEditorTab(),
+    },
+    {
+      id: 'jump-to-table',
+      label: 'Jump to table…',
+      category: 'Navigate',
+      shortcut: '⌘P',
+      run: () => setIsTablePickerOpen(true),
+    },
+    {
+      id: 'save-pending',
+      label: 'Save pending changes',
+      category: 'Edit',
+      shortcut: '⌘S',
+      enabled: pendingCountForActiveTable > 0,
+      run: () => setIsReviewOpen(true),
+    },
+    {
+      id: 'discard-pending',
+      label: 'Discard pending changes',
+      category: 'Edit',
+      enabled: pendingCountForActiveTable > 0,
+      run: () => {
+        if (selectedTable) pending.discardTable({ schema: selectedSchema, table: selectedTable });
+      },
+    },
+    {
+      id: 'refresh-table',
+      label: 'Refresh table data',
+      category: 'Edit',
+      enabled: !!selectedTable,
+      run: () => refreshTableData(),
+    },
+    {
+      id: 'close-tab',
+      label: 'Close active tab',
+      category: 'Navigate',
+      shortcut: '⌘W',
+      enabled: !!activeTabId,
+      run: () => {
+        if (activeTabId) closeTab(activeTabId);
+      },
+    },
+    {
+      id: 'toggle-theme',
+      label: 'Toggle theme (light/dark)',
+      category: 'View',
+      run: () => toggleMode(),
+    },
+    {
+      id: 'show-shortcuts',
+      label: 'Show keyboard shortcuts',
+      category: 'Help',
+      shortcut: '?',
+      run: () => setIsShortcutsHelpOpen(true),
+    },
+  ], [
+    pendingCountForActiveTable,
+    selectedTable,
+    selectedSchema,
+    pending,
+    activeTabId,
+    closeTab,
+    openEditorTab,
+    refreshTableData,
+    toggleMode,
+  ]);
+
+  const handleCellUpdate = ({
+    pks,
+    column,
+    original,
+    next,
+  }: {
+    pks: Record<string, any>;
+    column: string;
+    original: any;
+    next: any;
+  }) => {
     if (!selectedTable) return;
-    const request: MutationRequest = {
-      type: "UPDATE",
+    pending.stageEdit({
       schema: selectedSchema,
       table: selectedTable,
-      values: { [column]: newValue },
-      where: rowPks,
-    };
-    setPendingMutation(request);
+      pks,
+      column,
+      original,
+      next,
+    });
   };
 
-  const handleRowDelete = (rowPks: Record<string, any>) => {
+  const handleRowDelete = ({
+    pks,
+    snapshot,
+  }: {
+    pks: Record<string, any>;
+    snapshot: Record<string, any>;
+  }) => {
     if (!selectedTable) return;
-    const request: MutationRequest = {
-      type: "DELETE",
+    pending.stageDelete({
       schema: selectedSchema,
       table: selectedTable,
-      where: rowPks,
-    };
-    setPendingMutation(request);
-  };
-
-  const handleRowInsert = (values: Record<string, any>) => {
-    if (!selectedTable) return;
-    const request: MutationRequest = {
-      type: "INSERT",
-      schema: selectedSchema,
-      table: selectedTable,
-      values,
-    };
-    setPendingMutation(request);
-    setIsRowEditorOpen(false);
-  };
-
-  const handleConfirmMutation = async () => {
-    if (!pendingMutation) return;
-    setIsMutating(true);
-    try {
-      await mutateRow(pendingMutation);
-      setPendingMutation(null);
-    } catch (err: any) {
-      addToast(err.message || "Mutation failed", "error");
-    } finally {
-      setIsMutating(false);
-    }
+      pks,
+      snapshot,
+    });
   };
 
   if (!isConnected) {
@@ -275,6 +433,7 @@ export function Dashboard() {
       />
     </MobileMenu>
     <ResizableSplitter
+      storageKey={`dbview-sidebar-width-${databaseName ?? 'default'}`}
       left={
         <div ref={sidebarRef}>
         <Sidebar
@@ -289,6 +448,16 @@ export function Dashboard() {
           materializedViews={materializedViews}
           functions={dbFunctions}
           onCreateTable={() => setIsCreateTableOpen(true)}
+          onBatchExport={() => setIsBatchExportOpen(true)}
+          pinnedTables={tableListPrefs.pinned}
+          recentTables={tableListPrefs.recent}
+          onTogglePin={tableListPrefs.togglePin}
+          groupByPrefix={tableListPrefs.groupByPrefix}
+          onToggleGroupByPrefix={() => tableListPrefs.setGroupByPrefix(!tableListPrefs.groupByPrefix)}
+          rowCounts={tableRowCounts}
+          savedQueries={savedQueries}
+          onOpenSavedQuery={(q) => openEditorTab(q.query)}
+          onDeleteSavedQuery={deleteSavedQuery}
         />
         </div>
       }
@@ -297,6 +466,7 @@ export function Dashboard() {
           <Header
             isConnected={isConnected}
             databaseName={databaseName}
+            tableCount={tables.length}
             onMenuToggle={() => setIsMobileMenuOpen(true)}
             onShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
           />
@@ -307,10 +477,12 @@ export function Dashboard() {
             onTabClose={closeTab}
             onTabCloseOthers={closeOtherTabs}
             onTabCloseAll={closeAllTabs}
+            onTabReorder={reorderTabs}
+            onTabTogglePin={toggleTabPin}
             actions={
               <>
                 <button
-                  onClick={openEditorTab}
+                  onClick={() => openEditorTab()}
                   className="p-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded transition-colors"
                   title="New SQL editor (Alt+Q)"
                   aria-label="New SQL editor tab"
@@ -399,7 +571,7 @@ export function Dashboard() {
                       <Button
                         variant="primary"
                         size="sm"
-                        onClick={() => setIsRowEditorOpen(true)}
+                        onClick={() => dataTableRef.current?.scrollToEmptyRow()}
                         disabled={isLoading}
                       >
                         + Add row
@@ -415,20 +587,32 @@ export function Dashboard() {
                         Import CSV
                       </Button>
                     )}
-                    <ExportDropdown
-                      onExportCSV={handleExportCSV}
-                      onExportJSON={handleExportJSON}
-                      onExportSQL={handleExportSQL}
-                      disabled={!selectedTable || tableData.length === 0 || isLoading}
-                    />
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setIsBatchExportOpen(true)}
-                      disabled={tables.length === 0}
+                      onClick={() => setIsExportOpen(true)}
+                      disabled={!selectedTable || tableData.length === 0 || isLoading}
                     >
-                      Batch Export
+                      Export
                     </Button>
+                    <button
+                      onClick={() => refreshTableData()}
+                      disabled={!selectedTable || isLoading}
+                      className="inline-flex items-center justify-center w-8 h-8 text-secondary hover:text-primary hover:bg-bg-secondary rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Refresh table data (Alt+R)"
+                      aria-label="Refresh table data"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
                 {columns.length > 0 && !isLoading && (
@@ -457,7 +641,21 @@ export function Dashboard() {
                     />
                   </div>
                 )}
+                <FilterChips
+                  filters={tableFilters}
+                  onRemove={removeTableFilter}
+                  onClearAll={clearTableFilters}
+                  onEdit={(column) => {
+                    // Edit re-opens the popover via the DataTable's header
+                    // context menu — let the user use right-click on the
+                    // header. For chip click, we don't have a direct hook
+                    // into the popover state without lifting more state.
+                    // For v1 the chip click is also a remove shortcut.
+                    void column;
+                  }}
+                />
                 <DataTable
+                  ref={dataTableRef}
                   columns={columns}
                   data={tableData}
                   isLoading={isLoading}
@@ -468,13 +666,31 @@ export function Dashboard() {
                   searchQuery={tableSearch}
                   primaryKeys={primaryKeys}
                   columnSchema={schema}
+                  schema={selectedSchema}
+                  table={selectedTable}
+                  layoutKey={`${databaseName ?? 'default'}.${selectedSchema}.${selectedTable}`}
                   onCellUpdate={handleCellUpdate}
                   onRowDelete={handleRowDelete}
+                  foreignKeys={foreignKeys}
+                  onForeignKeyClick={(args) =>
+                    setFkQuery({
+                      sourceColumn: args.sourceColumn,
+                      fk: args.fk,
+                      value: args.value,
+                    })
+                  }
+                  filters={tableFilters}
+                  onAddFilter={addTableFilter}
+                  onRemoveFilter={removeTableFilter}
+                  onBulkExport={(rows) => {
+                    setBulkExportRows(rows);
+                    setIsExportOpen(true);
+                  }}
                   readOnlyMode={readOnlyMode}
                   columnTypes={columnTypes}
                   activeFormatters={allFormatters}
                 />
-                {totalItems > 0 && (
+                {(totalItems > 0 || tableFilters.length > 0) && (
                   <Pagination
                     currentPage={currentPage}
                     totalPages={Math.ceil(totalItems / itemsPerPage)}
@@ -482,6 +698,9 @@ export function Dashboard() {
                     totalItems={totalItems}
                     itemsPerPage={itemsPerPage}
                     countIsEstimate={countIsEstimate}
+                    filterCount={tableFilters.length}
+                    unfilteredTotal={selectedTable ? tableRowCounts[selectedTable] : undefined}
+                    isLoading={isLoading}
                     onItemsPerPageChange={(size) => {
                       setItemsPerPage(size);
                       setCurrentPage(1);
@@ -534,34 +753,74 @@ export function Dashboard() {
                 title="What do you want to explore?"
                 description="Pick a table from the sidebar, or open a SQL editor to run a query."
                 action={
-                  <Button variant="primary" size="sm" onClick={openEditorTab}>
+                  <Button variant="primary" size="sm" onClick={() => openEditorTab()}>
                     New SQL editor
                   </Button>
                 }
               />
             )}
           </MainContent>
-          <Footer />
         </div>
       }
     />
-    {pendingMutation && (
-      <MutationConfirmation
-        isOpen={!!pendingMutation}
-        type={pendingMutation.type}
-        sql={buildDisplaySQL(pendingMutation, databaseType)}
-        onConfirm={handleConfirmMutation}
-        onCancel={() => setPendingMutation(null)}
-        isLoading={isMutating}
+    <PendingChangesBar onOpenReview={() => setIsReviewOpen(true)} />
+    <CommandPalette
+      isOpen={isCommandPaletteOpen}
+      onClose={() => setIsCommandPaletteOpen(false)}
+      actions={paletteActions}
+    />
+    {selectedTable && (
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => {
+          setIsExportOpen(false);
+          setBulkExportRows(null);
+        }}
+        schema={selectedSchema}
+        table={selectedTable}
+        databaseType={databaseType}
+        currentColumns={columns}
+        currentRows={bulkExportRows ?? tableData}
+        currentTotal={bulkExportRows ? bulkExportRows.length : totalItems}
+        filters={tableFilters}
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
       />
     )}
+    <FKSidePanel
+      query={fkQuery}
+      onClose={() => setFkQuery(null)}
+      onOpenTable={(s, t) => {
+        if (s !== selectedSchema) handleSchemaChange(s);
+        handleTableSelect(t);
+        setFkQuery(null);
+      }}
+      onFollow={(next) => setFkQuery(next)}
+    />
+    <TablePicker
+      isOpen={isTablePickerOpen}
+      onClose={() => setIsTablePickerOpen(false)}
+      tables={(() => {
+        // Prefer schemaMap (cross-schema). Fall back to current-schema tables.
+        const fromMap = Object.entries(schemaMap).flatMap(([s, ts]) =>
+          (ts as string[]).map((t) => ({ schema: s, table: t }))
+        );
+        if (fromMap.length > 0) return fromMap;
+        return tables.map((t) => ({ schema: selectedSchema, table: t }));
+      })()}
+      onSelect={(entry) => {
+        if (entry.schema !== selectedSchema) {
+          handleSchemaChange(entry.schema);
+        }
+        handleTableSelect(entry.table);
+      }}
+    />
     {selectedTable && (
-      <RowEditor
-        isOpen={isRowEditorOpen}
-        onClose={() => setIsRowEditorOpen(false)}
-        onInsert={handleRowInsert}
-        columns={schema}
-        isLoading={isMutating}
+      <ReviewSqlModal
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
+        schema={selectedSchema}
+        table={selectedTable}
       />
     )}
     <KeyboardShortcutsHelp

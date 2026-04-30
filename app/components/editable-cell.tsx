@@ -2,19 +2,22 @@
 
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { SmartCellDisplay } from './smart-cell-display';
+
+export type SaveIntent = 'right' | 'left' | 'down' | null;
 
 interface EditableCellProps {
   value: any;
   column: string;
   columnType?: string;
-  onSave: (column: string, newValue: any) => void;
+  onSave: (column: string, newValue: any, intent?: SaveIntent) => void;
   onCancel: () => void;
   isEditing: boolean;
   onStartEdit: () => void;
   disabled?: boolean;
 }
 
-type EditorKind = 'text' | 'number' | 'boolean' | 'json' | 'textarea';
+type EditorKind = 'text' | 'number' | 'boolean' | 'json' | 'textarea' | 'date' | 'datetime' | 'uuid';
 
 function inferEditor(columnType?: string, value?: any): EditorKind {
   if (!columnType) return 'text';
@@ -22,6 +25,12 @@ function inferEditor(columnType?: string, value?: any): EditorKind {
 
   if (t === 'boolean' || t === 'bool') return 'boolean';
   if (t === 'json' || t === 'jsonb') return 'json';
+  if (t === 'uuid') return 'uuid';
+  // Date-only types — render with native date picker.
+  if (t === 'date') return 'date';
+  // Timestamp-with/without-tz, datetime — render with datetime-local picker.
+  if (t === 'timestamp' || t === 'timestamptz' || t === 'timestamp without time zone' ||
+      t === 'timestamp with time zone' || t === 'datetime') return 'datetime';
   if (t.includes('int') || t === 'numeric' || t === 'decimal' ||
       t === 'real' || t === 'float' || t.includes('double') ||
       t === 'smallserial' || t === 'serial' || t === 'bigserial') return 'number';
@@ -40,6 +49,18 @@ function formatForEditor(value: any, kind: EditorKind): string {
     } catch {
       return String(value);
     }
+  }
+  if (kind === 'date') {
+    // Coerce to YYYY-MM-DD for the native date input.
+    const s = String(value);
+    const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    return isoMatch ? isoMatch[1] : s;
+  }
+  if (kind === 'datetime') {
+    // Coerce to YYYY-MM-DDTHH:mm for the datetime-local input.
+    const s = String(value);
+    const m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+    return m ? `${m[1]}T${m[2]}` : s;
   }
   return String(value);
 }
@@ -160,22 +181,34 @@ export const EditableCell: React.FC<EditableCellProps> = ({
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [isEditing, onCancel]);
 
-  const save = useCallback(() => {
-    if (editValue === '') {
-      onSave(column, null);
-      return;
-    }
-    if (editorKind === 'json') {
-      try {
-        JSON.parse(editValue);
-        setJsonError(null);
-      } catch (e: any) {
-        setJsonError(e.message);
-        return;
+  // Saves the current editor value with optional navigation intent.
+  // Empty string is preserved as-is — use the "Set NULL" affordance to
+  // explicitly write NULL. The SQL builder coerces empty strings to NULL
+  // for non-text columns, so text columns get a real empty-string and
+  // numeric/date columns get NULL.
+  const save = useCallback(
+    (intent: SaveIntent = null) => {
+      if (editorKind === 'json') {
+        if (editValue === '') {
+          onSave(column, null, intent);
+          return;
+        }
+        try {
+          JSON.parse(editValue);
+          setJsonError(null);
+        } catch (e: any) {
+          setJsonError(e.message);
+          return;
+        }
       }
-    }
-    onSave(column, editValue);
-  }, [column, editValue, editorKind, onSave]);
+      onSave(column, editValue, intent);
+    },
+    [column, editValue, editorKind, onSave]
+  );
+
+  const setNull = useCallback(() => {
+    onSave(column, null);
+  }, [column, onSave]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -183,7 +216,8 @@ export const EditableCell: React.FC<EditableCellProps> = ({
       onCancel();
       return;
     }
-    // Large editors: Enter inserts newline, Mod+Enter saves.
+    // Large editors: let Enter insert newlines and Tab insert tabs natively.
+    // Mod+Enter saves and stays on the cell.
     if (isLargeEditor) {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -191,30 +225,26 @@ export const EditableCell: React.FC<EditableCellProps> = ({
       }
       return;
     }
-    if (e.key === 'Enter' || e.key === 'Tab') {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      save();
+      save('down');
+      return;
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      save(e.shiftKey ? 'left' : 'right');
     }
   };
 
   // ─── Display (non-editing) ────────────────────────────────────
-  const displayValue = value !== null && value !== undefined
-    ? (typeof value === 'object' ? JSON.stringify(value) : String(value))
-    : null;
-
   return (
     <>
       <div
         ref={cellRef}
         className={`truncate ${!disabled ? 'cursor-text' : ''} ${isEditing ? 'opacity-40' : ''}`}
         onDoubleClick={!disabled ? onStartEdit : undefined}
-        title={displayValue || 'NULL'}
       >
-        {displayValue !== null ? (
-          displayValue
-        ) : (
-          <span className="text-muted italic">NULL</span>
-        )}
+        <SmartCellDisplay value={value} column={column} columnType={columnType} />
       </div>
 
       {isEditing && position && typeof window !== 'undefined' &&
@@ -276,6 +306,39 @@ export const EditableCell: React.FC<EditableCellProps> = ({
                     jsonError ? 'border-danger focus:ring-danger' : 'border-border focus:ring-accent'
                   }`}
                 />
+              ) : editorKind === 'uuid' ? (
+                <div className="flex gap-1.5">
+                  <input
+                    ref={inputRef as React.RefObject<HTMLInputElement>}
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="00000000-0000-0000-0000-000000000000"
+                    className="flex-1 min-w-0 px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+                        setEditValue(crypto.randomUUID());
+                      }
+                    }}
+                    className="px-2 py-1.5 text-[11px] font-medium text-secondary hover:text-primary border border-border rounded hover:bg-bg-secondary transition-colors flex-shrink-0"
+                    title="Generate a new UUID"
+                  >
+                    Generate
+                  </button>
+                </div>
+              ) : editorKind === 'date' || editorKind === 'datetime' ? (
+                <input
+                  ref={inputRef as React.RefObject<HTMLInputElement>}
+                  type={editorKind === 'date' ? 'date' : 'datetime-local'}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                />
               ) : (
                 <input
                   ref={inputRef as React.RefObject<HTMLInputElement>}
@@ -296,7 +359,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
             <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-border bg-bg-secondary/30 flex-shrink-0">
               <button
                 type="button"
-                onClick={() => { setEditValue(''); save(); }}
+                onClick={setNull}
                 className="text-[11px] text-muted hover:text-primary transition-colors px-1.5 py-0.5"
                 title="Set this cell to NULL"
               >
@@ -312,7 +375,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={save}
+                  onClick={() => save()}
                   className="px-2.5 py-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded transition-colors"
                 >
                   Save

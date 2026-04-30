@@ -516,6 +516,54 @@ export class PostgreSQLProvider implements DatabaseProvider {
     }
   }
 
+  async getTableRowCounts(schema: string): Promise<Record<string, number>> {
+    const client = await this.connect();
+    try {
+      const result = await client.query(
+        `SELECT c.relname AS table_name, c.reltuples::bigint AS estimate
+         FROM pg_class c
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE c.relkind = 'r' AND n.nspname = $1`,
+        [schema]
+      );
+      const counts: Record<string, number> = {};
+      for (const row of result.rows) {
+        const n = parseInt(String(row.estimate), 10);
+        // pg_class.reltuples is -1 for tables that have never been
+        // ANALYZE'd. Skip those so the sidebar doesn't render "-1".
+        if (!isNaN(n) && n >= 0) counts[row.table_name] = n;
+      }
+      return counts;
+    } finally {
+      client.release();
+    }
+  }
+
+  async runTransaction(
+    statements: { sql: string; params: any[] }[]
+  ): Promise<{ rowCounts: number[] }> {
+    const client = await this.connect();
+    try {
+      await client.query("BEGIN");
+      const rowCounts: number[] = [];
+      for (const stmt of statements) {
+        const result = await client.query(stmt.sql, stmt.params);
+        rowCounts.push(result.rowCount ?? 0);
+      }
+      await client.query("COMMIT");
+      return { rowCounts };
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // already aborted — best effort
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   // --- Health check ---
 
   getHealthInfo(): { totalCount: number; idleCount: number } {

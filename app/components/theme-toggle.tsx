@@ -1,19 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useTheme, ALL_PALETTES, PALETTE_LABELS, type Palette } from '../contexts/theme-context';
-
-const PALETTE_PREVIEW: Record<Palette, string> = {
-  indigo: '#6366f1',
-  blue: '#3b82f6',
-  emerald: '#10b981',
-  rose: '#f43f5e',
-  amber: '#f59e0b',
-  violet: '#8b5cf6',
-};
+import { useTheme } from '../contexts/theme-context';
 
 export const ThemeToggle: React.FC = () => {
-  const { mode, palette, toggleMode, setPalette } = useTheme();
+  const { mode, toggleMode, themeId, setThemeId, themes } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -25,9 +16,9 @@ export const ThemeToggle: React.FC = () => {
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
-          <div className="relative z-50 border border-border bg-bg rounded-lg p-4 space-y-3 shadow-lg w-64">
+          <div className="relative z-50 border border-border bg-bg rounded-lg p-4 space-y-3 shadow-lg w-72">
             <div className="text-xs font-medium text-muted border-b border-border pb-2">
-              Theme
+              Appearance
             </div>
 
             <button
@@ -38,31 +29,48 @@ export const ThemeToggle: React.FC = () => {
             </button>
 
             <div className="text-xs font-medium text-muted border-b border-border pb-2 pt-1">
-              Palette
+              Theme
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              {ALL_PALETTES.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => {
-                    setPalette(p);
-                    setIsOpen(false);
-                  }}
-                  className={`flex flex-col items-center gap-1.5 p-2 rounded-md border text-xs font-medium transition-colors ${
-                    palette === p
-                      ? 'border-accent bg-accent/10 text-accent'
-                      : 'border-border text-secondary hover:bg-bg-secondary'
-                  }`}
-                  title={PALETTE_LABELS[p]}
-                >
-                  <span
-                    className="w-6 h-6 rounded-full"
-                    style={{ backgroundColor: PALETTE_PREVIEW[p] }}
-                  />
-                  <span className="text-[10px] leading-none">{PALETTE_LABELS[p]}</span>
-                </button>
-              ))}
+            <div className="space-y-1.5">
+              {themes.map((t) => {
+                const active = t.id === themeId;
+                const swatchBg = mode === 'dark' ? t.swatch.dark : t.swatch.light;
+                const swatchFg = mode === 'dark' ? t.swatch.light : t.swatch.dark;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setThemeId(t.id);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-left flex items-center gap-2.5 px-2 py-1.5 rounded-md border text-sm transition-colors ${
+                      active
+                        ? 'border-accent bg-accent/10 text-primary'
+                        : 'border-border text-secondary hover:bg-bg-secondary'
+                    }`}
+                  >
+                    <span
+                      className="flex-shrink-0 w-7 h-5 rounded border border-border overflow-hidden flex"
+                      aria-hidden="true"
+                    >
+                      <span style={{ backgroundColor: swatchBg, flex: 1 }} />
+                      <span style={{ backgroundColor: swatchFg, flex: 1 }} />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-medium truncate">{t.label}</span>
+                      {t.description && (
+                        <span className="block text-[11px] text-muted truncate">{t.description}</span>
+                      )}
+                    </span>
+                    {active && (
+                      <span className="text-accent text-xs flex-shrink-0" aria-label="Active">
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </>
@@ -74,7 +82,7 @@ export const ThemeToggle: React.FC = () => {
         aria-label="Open theme settings"
         title="Theme settings"
       >
-        {isOpen ? '\u00d7' : '\u25d1'}
+        {isOpen ? '×' : '◑'}
       </button>
     </div>
   );

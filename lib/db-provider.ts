@@ -63,6 +63,18 @@ export interface DatabaseProvider {
   // Generic parameterized query (used by mutation API)
   query(sql: string, params: any[]): Promise<QueryResult>;
 
+  // Atomic batch — all statements commit together or all roll back.
+  // Used by the staged-changes save flow.
+  runTransaction(
+    statements: { sql: string; params: any[] }[]
+  ): Promise<{ rowCounts: number[] }>;
+
+  // Approximate row counts for every table in `schema`. Implementations
+  // should prefer cheap statistics (Postgres pg_class.reltuples,
+  // MySQL information_schema.tables.table_rows) over full COUNT(*) scans.
+  // Returns a record keyed by table name; missing tables imply unknown.
+  getTableRowCounts(schema: string): Promise<Record<string, number>>;
+
   // Health check support
   getHealthInfo(): { totalCount: number; idleCount: number };
   healthPing(): Promise<void>;

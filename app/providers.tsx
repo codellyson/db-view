@@ -7,6 +7,7 @@ import { ConnectionProvider } from "./contexts/connection-context";
 import { ToastProvider } from "./contexts/toast-context";
 import { ThemeProvider } from "./contexts/theme-context";
 import { DashboardProvider } from "./contexts/dashboard-context";
+import { PendingChangesProvider } from "./contexts/pending-changes-context";
 import { ToastContainer } from "./components/ui/toast";
 import { ThemeToggle } from "./components/theme-toggle";
 import { PostHogProvider } from "./posthog-provider";
@@ -30,7 +31,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <ThemeProvider>
           <ToastProvider>
             <ConnectionProvider>
-              <DashboardProvider>{children}</DashboardProvider>
+              <PendingChangesProvider>
+                <DashboardProvider>{children}</DashboardProvider>
+              </PendingChangesProvider>
             </ConnectionProvider>
             <ToastContainer />
             <ThemeToggle />

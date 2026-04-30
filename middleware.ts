@@ -22,9 +22,13 @@ export function middleware(request: NextRequest) {
   }
 
   // Use session cookie as primary rate limit key (harder to spoof than IP headers).
-  // Fall back to x-real-ip (set by reverse proxies), then connection IP.
+  // Fall back to common reverse-proxy IP headers. (`request.ip` was removed in
+  // Next 15; the platform now expects you to read it from headers explicitly.)
   const sessionId = request.cookies.get('db-session')?.value;
-  const ip = request.headers.get('x-real-ip') || request.ip || '0.0.0.0';
+  const ip =
+    request.headers.get('x-real-ip') ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    '0.0.0.0';
   const rateLimitKey = sessionId || ip;
 
   const { allowed, retryAfter } = checkRateLimit(rateLimitKey, request.nextUrl.pathname);

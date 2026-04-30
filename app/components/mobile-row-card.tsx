@@ -15,8 +15,13 @@ interface MobileRowCardProps {
   canEdit: boolean;
   canDelete: boolean;
   isColumnEditable?: (column: string) => boolean;
-  onCellUpdate?: (rowPks: Record<string, any>, column: string, newValue: any) => void;
-  onRowDelete?: (rowPks: Record<string, any>) => void;
+  onCellUpdate?: (args: {
+    pks: Record<string, any>;
+    column: string;
+    original: any;
+    next: any;
+  }) => void;
+  onRowDelete?: (args: { pks: Record<string, any>; snapshot: Record<string, any> }) => void;
   getRowPrimaryKeys: (row: any) => Record<string, any>;
 }
 
@@ -53,7 +58,12 @@ export const MobileRowCard: React.FC<MobileRowCardProps> = ({
   const isNull = (val: any) => val === null || val === undefined;
 
   const handleSave = useCallback((column: string, newValue: any) => {
-    onCellUpdate?.(getRowPrimaryKeys(row), column, newValue);
+    onCellUpdate?.({
+      pks: getRowPrimaryKeys(row),
+      column,
+      original: row[column],
+      next: newValue,
+    });
     setEditingField(null);
   }, [row, onCellUpdate, getRowPrimaryKeys]);
 
@@ -204,7 +214,7 @@ export const MobileRowCard: React.FC<MobileRowCardProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onRowDelete(getRowPrimaryKeys(row));
+                  onRowDelete({ pks: getRowPrimaryKeys(row), snapshot: row });
                 }}
                 className="text-[11px] text-danger hover:text-danger/80 px-2 py-1 rounded hover:bg-danger/5 transition-colors ml-auto"
               >

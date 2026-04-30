@@ -6,6 +6,9 @@ import { useConnection } from './connection-context';
 import { useToast } from './toast-context';
 import { ColumnInfo } from '@/types';
 import { type MutationRequest } from '@/lib/mutation';
+import { type Filter } from '@/lib/filters';
+import type { SavedQuery } from '@/types';
+import { useSavedQueries } from '../hooks/use-saved-queries';
 import { api } from '@/lib/api';
 import { type TableStatsData } from '../components/table-stats';
 import { type Tab } from '../components/tab-bar';
@@ -18,6 +21,8 @@ interface DashboardContextType {
   setActiveTab: (tabId: string) => void;
   closeAllTabs: () => void;
   closeOtherTabs: (tabId: string) => void;
+  reorderTabs: (fromId: string, toId: string) => void;
+  toggleTabPin: (tabId: string) => void;
   tables: string[];
   schemas: string[];
   selectedSchema: string;
@@ -40,6 +45,11 @@ interface DashboardContextType {
   sortDirection: 'asc' | 'desc' | null;
   visibleColumns: string[];
   tableSearch: string;
+  tableFilters: Filter[];
+  setTableFilters: React.Dispatch<React.SetStateAction<Filter[]>>;
+  addTableFilter: (filter: Filter) => void;
+  removeTableFilter: (column: string) => void;
+  clearTableFilters: () => void;
   error: string | null;
   itemsPerPage: number;
   setItemsPerPage: (size: number) => void;
@@ -48,6 +58,7 @@ interface DashboardContextType {
   tableStats: TableStatsData | null;
   isLoadingStats: boolean;
   schemaMap: Record<string, string[]>;
+  tableRowCounts: Record<string, number>;
   setSelectedSchema: (schema: string) => void;
   setSelectedTable: (table: string | undefined) => void;
   setCurrentPage: (page: number) => void;
@@ -67,8 +78,12 @@ interface DashboardContextType {
   openQueryTab: (label: string, rows: any[], cols: string[], executionTime: number) => void;
   queryTabResults: Record<string, { rows: any[]; columns: string[]; executionTime: number }>;
   isQueryTab: boolean;
-  openEditorTab: () => void;
+  openEditorTab: (initialQuery?: string) => void;
   isEditorTab: boolean;
+  savedQueries: SavedQuery[];
+  saveQuery: (name: string, query: string, tags: string[]) => void;
+  updateSavedQuery: (id: string, updates: Partial<Pick<SavedQuery, 'name' | 'query' | 'tags'>>) => void;
+  deleteSavedQuery: (id: string) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -80,6 +95,7 @@ interface TabUIState {
   sortDirection: 'asc' | 'desc' | null;
   visibleColumns: string[];
   tableSearch: string;
+  tableFilters: Filter[];
 }
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
@@ -87,6 +103,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const { addToast } = useToast();
   const queryClient = useQueryClient();
   const [itemsPerPage, setItemsPerPage] = useState(100);
+  const {
+    savedQueries,
+    saveQuery,
+    updateQuery: updateSavedQuery,
+    deleteQuery: deleteSavedQuery,
+  } = useSavedQueries();
 
   // UI state
   const [selectedTable, setSelectedTable] = useState<string | undefined>();
@@ -96,6 +118,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [tableSearch, setTableSearch] = useState('');
+  const [tableFilters, setTableFilters] = useState<Filter[]>([]);
   const [readOnlyMode, setReadOnlyMode] = useState(false);
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | undefined>();
@@ -112,8 +135,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       sortDirection,
       visibleColumns,
       tableSearch,
+      tableFilters,
     };
-  }, [activeTabId, currentPage, sortColumn, sortDirection, visibleColumns, tableSearch]);
+  }, [activeTabId, currentPage, sortColumn, sortDirection, visibleColumns, tableSearch, tableFilters]);
 
   const restoreTabUIState = useCallback((tabId: string): boolean => {
     const cached = tabUIStateRef.current[tabId];
@@ -123,6 +147,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setSortDirection(cached.sortDirection);
     setVisibleColumns(cached.visibleColumns);
     setTableSearch(cached.tableSearch);
+    setTableFilters(cached.tableFilters ?? []);
     return true;
   }, []);
 
@@ -238,13 +263,29 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     enabled: isConnected,
   });
 
+  const tableCountsQuery = useQuery({
+    queryKey: ['tableCounts', selectedSchema],
+    queryFn: async () => {
+      const data = await api.get(`/api/table-counts?schema=${encodeURIComponent(selectedSchema)}`);
+      return (data.counts || {}) as Record<string, number>;
+    },
+    enabled: isConnected,
+    // Counts are estimates (Postgres reltuples / MySQL TABLE_ROWS) — keep
+    // them cached aggressively to avoid hammering the catalog on every
+    // sidebar mount.
+    staleTime: 1000 * 60 * 5,
+  });
+
   const tableDataQuery = useQuery({
-    queryKey: ['tableData', selectedTable, selectedSchema, currentPage, sortColumn, sortDirection, itemsPerPage],
+    queryKey: ['tableData', selectedTable, selectedSchema, currentPage, sortColumn, sortDirection, itemsPerPage, tableFilters],
     queryFn: async () => {
       const offset = (currentPage - 1) * itemsPerPage;
       let url = `/api/table/${encodeURIComponent(selectedTable!)}?limit=${itemsPerPage}&offset=${offset}&schema=${encodeURIComponent(selectedSchema)}`;
       if (sortColumn && sortDirection) {
         url += `&sortColumn=${encodeURIComponent(sortColumn)}&sortDirection=${sortDirection}`;
+      }
+      if (tableFilters.length > 0) {
+        url += `&filters=${encodeURIComponent(JSON.stringify(tableFilters))}`;
       }
       const data = await api.get(url);
       const rows = data.rows || [];
@@ -316,6 +357,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const relationships = relationshipsQuery.data?.relationships ?? [];
   const indexes = relationshipsQuery.data?.indexes ?? [];
   const schemaMap = schemaMapQuery.data ?? {};
+  const tableRowCounts = tableCountsQuery.data ?? {};
   const tableStats = tableStatsQuery.data ?? null;
 
   const isLoadingTables = tablesQuery.isLoading;
@@ -335,6 +377,26 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const primaryKeys = useMemo(() => {
     return schema.filter((col) => col.isPrimaryKey).map((col) => col.name);
   }, [schema]);
+
+  const addTableFilter = useCallback((filter: Filter) => {
+    setTableFilters((prev) => {
+      // Replace any existing filter on the same column — single filter per
+      // column for v1 keeps the UI simple. Multi-condition is a follow-up.
+      const without = prev.filter((f) => f.column !== filter.column);
+      return [...without, filter];
+    });
+    setCurrentPage(1);
+  }, []);
+
+  const removeTableFilter = useCallback((column: string) => {
+    setTableFilters((prev) => prev.filter((f) => f.column !== column));
+    setCurrentPage(1);
+  }, []);
+
+  const clearTableFilters = useCallback(() => {
+    setTableFilters([]);
+    setCurrentPage(1);
+  }, []);
 
   // ─── Imperative helpers (for backward compat) ───────────────
 
@@ -395,6 +457,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setSortDirection(null);
       setVisibleColumns([]);
       setTableSearch('');
+      setTableFilters([]);
     }
   }, [activeTabId, saveCurrentTabUIState, restoreTabUIState]);
 
@@ -431,6 +494,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
               setSortDirection(null);
               setVisibleColumns([]);
               setTableSearch('');
+              setTableFilters([]);
             }
           }
         } else {
@@ -459,6 +523,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             setSortDirection(null);
             setVisibleColumns([]);
             setTableSearch('');
+            setTableFilters([]);
           }
         }
       }
@@ -467,10 +532,18 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [activeTabId, saveCurrentTabUIState, restoreTabUIState]);
 
   const editorCounterRef = useRef(0);
-  const openEditorTab = useCallback(() => {
+  const openEditorTab = useCallback((initialQuery?: string) => {
     editorCounterRef.current += 1;
     const tabId = `editor:${Date.now()}_${editorCounterRef.current}`;
     const label = `SQL Editor ${editorCounterRef.current}`;
+    if (initialQuery && typeof window !== 'undefined') {
+      // Seed the per-tab editor storage so QueryEditor reads it on mount.
+      try {
+        localStorage.setItem(`dbview-editor-${tabId}`, initialQuery);
+      } catch {
+        // ignore
+      }
+    }
     saveCurrentTabUIState();
     setOpenTabs((prev) => [...prev, { id: tabId, label, type: 'editor' }]);
     setActiveTabId(tabId);
@@ -496,6 +569,24 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const closeOtherTabs = useCallback((tabId: string) => {
     setOpenTabs((prev) => prev.filter((t) => t.id === tabId));
     setActiveTabId(tabId);
+  }, []);
+
+  const reorderTabs = useCallback((fromId: string, toId: string) => {
+    setOpenTabs((prev) => {
+      const fromIdx = prev.findIndex((t) => t.id === fromId);
+      const toIdx = prev.findIndex((t) => t.id === toId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const toggleTabPin = useCallback((tabId: string) => {
+    setOpenTabs((prev) =>
+      prev.map((t) => (t.id === tabId ? { ...t, pinned: !t.pinned } : t))
+    );
   }, []);
 
   const handleSchemaChange = useCallback((newSchema: string) => {
@@ -538,6 +629,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         closeTab,
         setActiveTab,
         closeAllTabs,
+        reorderTabs,
+        toggleTabPin,
         closeOtherTabs,
         tables,
         schemas,
@@ -569,6 +662,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         tableStats,
         isLoadingStats,
         schemaMap,
+        tableRowCounts,
         setSelectedSchema,
         setSelectedTable,
         setCurrentPage,
@@ -576,6 +670,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         setSortDirection,
         setVisibleColumns,
         setTableSearch,
+        tableFilters,
+        setTableFilters,
+        addTableFilter,
+        removeTableFilter,
+        clearTableFilters,
         loadTables,
         loadTableData,
         loadTableSchema,
@@ -590,6 +689,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         isQueryTab: activeTabId?.startsWith('query:') ?? false,
         openEditorTab,
         isEditorTab: activeTabId?.startsWith('editor:') ?? false,
+        savedQueries,
+        saveQuery,
+        updateSavedQuery,
+        deleteSavedQuery,
       }}
     >
       {children}
