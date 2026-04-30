@@ -33,17 +33,17 @@ export default function ConnectionsPage() {
                 <div className="flex justify-center mb-6">
                   <Image
                     src="/logo.svg"
-                    alt="Pocketdb"
+                    alt="JustDB"
                     width={80}
                     height={80}
                     priority
                   />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">
-                  Pocketdb
+                  JustDB
                 </h1>
                 <p className="text-sm text-accent font-medium mb-1">
-                  Your database in your pocket.
+                  Just your data, no bullshit.
                 </p>
                 <p className="text-xs text-muted max-w-sm mx-auto">
                   Connect directly — your credentials never leave this device.

@@ -77,23 +77,23 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Image
               src="/logo.svg"
-              alt="Pocketdb"
+              alt="JustDB"
               width={28}
               height={28}
               priority
             />
-            <span className="text-base font-semibold text-primary">Pocketdb</span>
+            <span className="text-base font-semibold text-primary">JustDB</span>
           </button>
         ) : (
           <div className="flex items-center gap-2">
             <Image
               src="/logo.svg"
-              alt="Pocketdb"
+              alt="JustDB"
               width={28}
               height={28}
               priority
             />
-            <span className="text-base font-semibold text-primary">Pocketdb</span>
+            <span className="text-base font-semibold text-primary">JustDB</span>
           </div>
         )}
         {isConnected && (

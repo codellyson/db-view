@@ -1,7 +1,7 @@
-# Security Audit Report - Pocketdb
+# Security Audit Report - JustDB
 
 **Date:** 2024-01-XX  
-**Application:** Pocketdb - PostgreSQL Database Explorer  
+**Application:** JustDB - PostgreSQL Database Explorer  
 **Severity Levels:** CRITICAL | HIGH | MEDIUM | LOW
 
 ---

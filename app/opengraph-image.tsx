@@ -9,7 +9,7 @@ import { ImageResponse } from 'next/og';
  */
 
 export const runtime = 'edge';
-export const alt = 'Pocketdb — Database Explorer';
+export const alt = 'JustDB — Just your data, no bullshit.';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -46,12 +46,12 @@ export default async function OGImage() {
           >
             ⌘
           </div>
-          <span style={{ fontSize: 32, fontWeight: 600, color: '#8d96a0' }}>Pocketdb</span>
+          <span style={{ fontSize: 32, fontWeight: 600, color: '#8d96a0' }}>JustDB</span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 88, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2 }}>
-            Your database
+            Just your data,
           </div>
           <div
             style={{
@@ -62,7 +62,7 @@ export default async function OGImage() {
               color: '#2f81f7',
             }}
           >
-            in your pocket.
+            no bullshit.
           </div>
           <div style={{ marginTop: 32, fontSize: 32, color: '#8d96a0', maxWidth: 900 }}>
             Browse tables, run queries, and inspect schemas on any device.

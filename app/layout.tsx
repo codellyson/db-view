@@ -12,14 +12,14 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
   title: {
-    default: "Pocketdb — Database Explorer",
-    template: "%s | Pocketdb",
+    default: "JustDB — Just your data, no bullshit.",
+    template: "%s | JustDB",
   },
-  description: "Your database in your pocket. Browse tables, run queries, and inspect schemas on any device. Connects directly — nothing leaves your browser.",
+  description: "Just your data, no bullshit. Browse tables, run queries, and inspect schemas on any device. Connects directly — nothing leaves your browser.",
   keywords: [
     "PostgreSQL",
     "MySQL",
-    "pocket database explorer",
+    "database explorer",
     "mobile database client",
     "SQL query tool",
     "database browser",
@@ -39,17 +39,17 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    title: "Pocketdb — Database Explorer",
-    description: "Your database in your pocket. Browse, query, and explore PostgreSQL and MySQL from any device.",
-    siteName: "Pocketdb",
+    title: "JustDB — Just your data, no bullshit.",
+    description: "Just your data, no bullshit. Browse, query, and explore PostgreSQL and MySQL from any device.",
+    siteName: "JustDB",
     // OG / Twitter images are produced by `app/opengraph-image.tsx` (a
     // 1200×630 PNG generated at build/request time). Next picks them up
     // automatically; no `images` field needed here.
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pocketdb — Database Explorer",
-    description: "Your database in your pocket. Mobile-first explorer for PostgreSQL and MySQL.",
+    title: "JustDB — Just your data, no bullshit.",
+    description: "Just your data, no bullshit. Mobile-first explorer for PostgreSQL and MySQL.",
   },
   robots: {
     index: true,
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Pocketdb",
+    title: "JustDB",
   },
   icons: {
     icon: [
@@ -98,9 +98,9 @@ export const viewport: Viewport = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "Pocketdb",
+  name: "JustDB",
   description:
-    "Database Explorer for the browser — browse tables, run queries, and inspect schemas on any device. Connects directly; nothing leaves your browser.",
+    "Just your data, no bullshit. Browse tables, run queries, and inspect schemas on any device. Connects directly; nothing leaves your browser.",
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Web Browser",
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },

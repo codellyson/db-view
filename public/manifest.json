@@ -1,7 +1,7 @@
 {
-  "name": "Pocketdb — Database Explorer",
-  "short_name": "Pocketdb",
-  "description": "Your database in your pocket. Browse tables, run queries, and inspect schemas on any device.",
+  "name": "JustDB — Just your data, no bullshit.",
+  "short_name": "JustDB",
+  "description": "Just your data, no bullshit. Browse tables, run queries, and inspect schemas on any device.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -26,7 +26,7 @@ export default function OfflinePage() {
           You&apos;re offline
         </h1>
         <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-          Pocketdb needs a network connection to connect to your databases. Check your connection and try again.
+          JustDB needs a network connection to connect to your databases. Check your connection and try again.
         </p>
         <button
           onClick={() => window.location.reload()}
