@@ -67,20 +67,9 @@ export const SmartCellDisplay: React.FC<SmartCellDisplayProps> = ({
     return <span className="text-muted italic">NULL</span>;
   }
 
-  // Boolean → colored pill.
   if (isBoolType(columnType) || typeof value === 'boolean') {
     const truthy = value === true || value === 'true' || value === 't' || value === 1 || value === '1';
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium ${
-          truthy ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'
-        }`}
-        title={String(value)}
-      >
-        {truthy ? '✓' : '✗'}
-        <span>{truthy ? 'true' : 'false'}</span>
-      </span>
-    );
+    return <span title={String(value)}>{truthy ? 'true' : 'false'}</span>;
   }
 
   // UUID → truncated + copy on hover. Detect by type or by string shape.
