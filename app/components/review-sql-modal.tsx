@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal } from './ui/modal';
 import { Button } from './ui/button';
 import { useConnection } from '../contexts/connection-context';
@@ -9,6 +9,8 @@ import { usePendingChanges } from '../contexts/pending-changes-context';
 import { useDashboard } from '../contexts/dashboard-context';
 import { buildDisplaySQL, type MutationRequest } from '@/lib/mutation';
 import { api } from '@/lib/api';
+import { CascadeImpactPanel } from './cascade-impact-panel';
+import type { CascadeNodeRequest, CascadeResult } from '@/lib/cascade';
 
 interface ReviewSqlModalProps {
   isOpen: boolean;
@@ -23,6 +25,14 @@ const typeColor: Record<MutationRequest['type'], string> = {
   DELETE: 'text-danger',
 };
 
+const EXTENDED_OPTIONS = {
+  timeBudgetMs: 30000,
+  maxDepth: 12,
+  maxPerTable: 100000,
+};
+
+const EXTENDED_HTTP_TIMEOUT_MS = 45000;
+
 export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
   isOpen,
   onClose,
@@ -35,8 +45,12 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
   const { refreshTableData } = useDashboard();
   const [isSaving, setIsSaving] = useState(false);
 
-  // Recompute on every open. Cheap; avoids stale state if the user opens,
-  // makes more edits, and reopens.
+  const [cascadeLoading, setCascadeLoading] = useState(false);
+  const [cascadeError, setCascadeError] = useState<string | null>(null);
+  const [cascadeResult, setCascadeResult] = useState<CascadeResult | null>(null);
+  const [extendedAttempted, setExtendedAttempted] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
+
   const requests = useMemo(
     () => (isOpen ? pending.buildMutationRequests({ schema, table }) : []),
     [isOpen, pending, schema, table]
@@ -48,11 +62,95 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
     return result;
   }, [requests]);
 
+  const deleteRequests = useMemo(
+    () => requests.filter((r): r is MutationRequest & { where: Record<string, any> } =>
+      r.type === 'DELETE' && !!r.where
+    ),
+    [requests]
+  );
+
+  const cascadeNodes = useMemo<CascadeNodeRequest[]>(() => {
+    const grouped = new Map<string, CascadeNodeRequest>();
+    for (const r of deleteRequests) {
+      const key = `${r.schema}.${r.table}`;
+      const node = grouped.get(key) ?? { schema: r.schema, table: r.table, pks: [] };
+      node.pks.push(r.where);
+      grouped.set(key, node);
+    }
+    return Array.from(grouped.values());
+  }, [deleteRequests]);
+
+  const runCascade = useCallback(
+    async (extended: boolean) => {
+      if (cascadeNodes.length === 0) return;
+      setCascadeLoading(true);
+      setCascadeError(null);
+      try {
+        const body: { deletes: CascadeNodeRequest[]; options?: typeof EXTENDED_OPTIONS } = {
+          deletes: cascadeNodes,
+        };
+        if (extended) body.options = EXTENDED_OPTIONS;
+
+        const res = await api.post<{ success: boolean } & CascadeResult>(
+          '/api/cascade-preview',
+          body,
+          extended
+            ? { noRetry: true, timeout: EXTENDED_HTTP_TIMEOUT_MS }
+            : { noRetry: true }
+        );
+        setCascadeResult({
+          cascade: res.cascade,
+          setNull: res.setNull,
+          blocked: res.blocked,
+          truncated: res.truncated,
+          elapsedMs: res.elapsedMs,
+          warnings: res.warnings,
+        });
+        if (extended) setExtendedAttempted(true);
+      } catch (err: any) {
+        setCascadeError(err?.message || 'Cascade preview failed');
+      } finally {
+        setCascadeLoading(false);
+      }
+    },
+    [cascadeNodes]
+  );
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCascadeResult(null);
+      setCascadeError(null);
+      setExtendedAttempted(false);
+      setAcknowledged(false);
+      return;
+    }
+    if (cascadeNodes.length === 0) {
+      setCascadeResult(null);
+      setCascadeError(null);
+      return;
+    }
+    setExtendedAttempted(false);
+    setAcknowledged(false);
+    runCascade(false);
+  }, [isOpen, cascadeNodes, runCascade]);
+
+  const hasCascadeImpact =
+    !!cascadeResult &&
+    (cascadeResult.cascade.length > 0 ||
+      cascadeResult.setNull.length > 0 ||
+      cascadeResult.blocked.length > 0 ||
+      cascadeResult.truncated);
+
+  const requiresAck = hasCascadeImpact || !!cascadeError;
+
   const handleSave = async () => {
     if (requests.length === 0) {
       onClose();
       return;
     }
+    if (cascadeLoading) return;
+    if (requiresAck && !acknowledged) return;
+
     setIsSaving(true);
     try {
       await api.post('/api/mutate-batch', { changes: requests }, { noRetry: true });
@@ -87,8 +185,19 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
           <span className="text-muted ml-auto">runs in a single transaction</span>
         </div>
 
+        {deleteRequests.length > 0 && (
+          <CascadeImpactPanel
+            loading={cascadeLoading}
+            error={cascadeError}
+            result={cascadeResult}
+            extendedAttempted={extendedAttempted}
+            onRunFullPreview={() => runCascade(true)}
+            onRetry={() => runCascade(false)}
+          />
+        )}
+
         <div className="border border-border rounded-md overflow-hidden">
-          <div className="max-h-[50vh] overflow-y-auto divide-y divide-border">
+          <div className="max-h-[40vh] overflow-y-auto divide-y divide-border">
             {requests.length === 0 ? (
               <div className="p-4 text-sm text-muted text-center">No pending changes.</div>
             ) : (
@@ -104,6 +213,21 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
           </div>
         </div>
 
+        {requiresAck && !cascadeLoading && (
+          <label className="flex items-start gap-2 px-1 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(e) => setAcknowledged(e.target.checked)}
+              disabled={isSaving}
+              className="mt-0.5 cursor-pointer accent-accent"
+            />
+            <span className="text-xs text-secondary">
+              I&apos;ve reviewed the impact above and want to proceed.
+            </span>
+          </label>
+        )}
+
         <div className="flex gap-2 justify-end">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={isSaving}>
             Cancel
@@ -113,7 +237,12 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
             size="sm"
             onClick={handleSave}
             isLoading={isSaving}
-            disabled={isSaving || requests.length === 0}
+            disabled={
+              isSaving ||
+              requests.length === 0 ||
+              cascadeLoading ||
+              (requiresAck && !acknowledged)
+            }
           >
             Save {requests.length > 0 ? `(${requests.length})` : ''}
           </Button>

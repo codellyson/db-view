@@ -1,6 +1,13 @@
 import { createClient, type Client, type Config } from "@libsql/client";
 import { DBConfig } from "@/types";
-import { DatabaseProvider, ExecuteQueryResult, QueryFieldInfo, QueryResult } from "../db-provider";
+import {
+  DatabaseProvider,
+  ExecuteQueryResult,
+  IncomingForeignKey,
+  QueryFieldInfo,
+  QueryResult,
+  normalizeDeleteRule,
+} from "../db-provider";
 
 function escId(name: string): string {
   return `"${name.replace(/"/g, '""')}"`;
@@ -96,6 +103,34 @@ export class SQLiteProvider implements DatabaseProvider {
       target_table: fk.table,
       target_column: fk.to,
     }));
+  }
+
+  async getIncomingForeignKeys(
+    tableName: string,
+    _schema: string
+  ): Promise<IncomingForeignKey[]> {
+    const tablesResult = await this.client!.execute(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_litestream_%' AND name NOT LIKE 'libsql_%'"
+    );
+    const out: IncomingForeignKey[] = [];
+    for (const row of tablesResult.rows) {
+      const childTable = row.name as string;
+      const fks = await this.client!.execute(
+        `PRAGMA foreign_key_list(${escId(childTable)})`
+      );
+      for (const fk of fks.rows as any[]) {
+        if (fk.table !== tableName) continue;
+        out.push({
+          constraintName: `fk_${childTable}_${fk.from}_${fk.table}_${fk.to}`,
+          childSchema: "main",
+          childTable,
+          childColumn: fk.from,
+          parentColumn: fk.to,
+          deleteRule: normalizeDeleteRule(fk.on_delete),
+        });
+      }
+    }
+    return out;
   }
 
   async getTableData(

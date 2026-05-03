@@ -1,7 +1,14 @@
 import mysql from "mysql2/promise";
 import type { Pool, PoolOptions } from "mysql2/promise";
 import { DBConfig } from "@/types";
-import { DatabaseProvider, ExecuteQueryResult, QueryFieldInfo, QueryResult } from "../db-provider";
+import {
+  DatabaseProvider,
+  ExecuteQueryResult,
+  IncomingForeignKey,
+  QueryFieldInfo,
+  QueryResult,
+  normalizeDeleteRule,
+} from "../db-provider";
 
 function escId(name: string): string {
   return `\`${name.replace(/`/g, "``")}\``;
@@ -174,6 +181,38 @@ export class MySQLProvider implements DatabaseProvider {
       [tableName, schema]
     );
     return rows as any[];
+  }
+
+  async getIncomingForeignKeys(
+    tableName: string,
+    schema: string
+  ): Promise<IncomingForeignKey[]> {
+    const [rows] = await this.pool!.query(
+      `SELECT
+         rc.CONSTRAINT_NAME       AS constraint_name,
+         kcu.TABLE_SCHEMA         AS child_schema,
+         kcu.TABLE_NAME           AS child_table,
+         kcu.COLUMN_NAME          AS child_column,
+         kcu.REFERENCED_COLUMN_NAME AS parent_column,
+         rc.DELETE_RULE           AS delete_rule
+       FROM information_schema.REFERENTIAL_CONSTRAINTS rc
+       JOIN information_schema.KEY_COLUMN_USAGE kcu
+         ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+         AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
+         AND kcu.TABLE_NAME = rc.TABLE_NAME
+       WHERE kcu.REFERENCED_TABLE_NAME = ?
+         AND kcu.REFERENCED_TABLE_SCHEMA = ?
+       ORDER BY rc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION`,
+      [tableName, schema]
+    );
+    return (rows as any[]).map((r) => ({
+      constraintName: r.constraint_name,
+      childSchema: r.child_schema,
+      childTable: r.child_table,
+      childColumn: r.child_column,
+      parentColumn: r.parent_column,
+      deleteRule: normalizeDeleteRule(r.delete_rule),
+    }));
   }
 
   async getTableData(

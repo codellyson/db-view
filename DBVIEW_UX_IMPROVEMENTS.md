@@ -35,6 +35,21 @@ Edits do NOT hit the database immediately. They are staged.
 - `Ctrl/Cmd+S` triggers the same Review SQL flow.
 - `Ctrl/Cmd+Z` reverts a single staged cell edit.
 
+### 2.5. Cascade impact in Review SQL
+
+When the staged changes include any `DELETE`, the Review SQL modal shows a "Cascade impact" panel above the SQL list. This is the safety net that makes cascading deletes feel safe — you see what is about to vanish before you commit.
+
+- **Per-table breakdown**: each child table affected by the cascade graph, with row count and rule. Example: `orders` — 12 rows (CASCADE), `audit_log` — 84 rows (CASCADE), `customers` — 3 rows (SET NULL on `last_order_id`).
+- **Expand to inspect**: click any child-table row to lazy-load up to 100 sample rows, rendered with the same cell-display components as the main grid.
+- **Blocking FKs**: if any `RESTRICT` or `NO ACTION` constraint has dependent rows, render a red banner — "Cannot delete: 4 rows in `invoices` reference this row." — and disable Save until the user unstages or resolves.
+- **Threshold confirmation**: if the total cascaded row count is at or above 100 (configurable per connection), require typed confirmation matching the parent table name. Same pattern as #25.
+- **Truncation hint**: traversal has a time budget and depth cap. When hit, show "Showing first N — actual cascade may be larger" with a "Refine" button that re-runs with higher limits.
+- **SQLite caveat**: if `PRAGMA foreign_keys = OFF`, show a warning that cascade preview is best-effort in this state, since the database itself will not enforce FK rules at delete time.
+
+Optionally, a stage-time badge: when a row is staged for delete, show `+N rows` next to it (cheap pre-check skips this when the parent table has no incoming FKs). Skippable for v1.
+
+The cascade graph is built from reverse-FK introspection — the same data that powers #7 in the "referenced by" direction. Preview runs on a dedicated read-only endpoint; no mutations are issued during preview.
+
 ### 3. Inline new row creation
 
 Replace the modal-style "+ Add row" with a permanent empty row at the top or bottom of the grid.

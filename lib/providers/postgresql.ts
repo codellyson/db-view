@@ -1,6 +1,13 @@
 import { Pool, PoolClient, PoolConfig } from "pg";
 import { DBConfig } from "@/types";
-import { DatabaseProvider, ExecuteQueryResult, QueryFieldInfo, QueryResult } from "../db-provider";
+import {
+  DatabaseProvider,
+  ExecuteQueryResult,
+  IncomingForeignKey,
+  QueryFieldInfo,
+  QueryResult,
+  normalizeDeleteRule,
+} from "../db-provider";
 
 export class PostgreSQLProvider implements DatabaseProvider {
   readonly type = "postgresql" as const;
@@ -313,6 +320,52 @@ export class PostgreSQLProvider implements DatabaseProvider {
         [tableName, schema]
       );
       return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getIncomingForeignKeys(
+    tableName: string,
+    schema: string
+  ): Promise<IncomingForeignKey[]> {
+    const client = await this.connect();
+    try {
+      const result = await client.query(
+        `
+        SELECT
+          rc.constraint_name,
+          tc.table_schema       AS child_schema,
+          tc.table_name         AS child_table,
+          kcu_child.column_name AS child_column,
+          kcu_parent.column_name AS parent_column,
+          rc.delete_rule
+        FROM information_schema.referential_constraints rc
+        JOIN information_schema.table_constraints tc
+          ON tc.constraint_name = rc.constraint_name
+          AND tc.constraint_schema = rc.constraint_schema
+          AND tc.constraint_type = 'FOREIGN KEY'
+        JOIN information_schema.key_column_usage kcu_child
+          ON kcu_child.constraint_name = rc.constraint_name
+          AND kcu_child.constraint_schema = rc.constraint_schema
+        JOIN information_schema.key_column_usage kcu_parent
+          ON kcu_parent.constraint_name = rc.unique_constraint_name
+          AND kcu_parent.constraint_schema = rc.unique_constraint_schema
+          AND kcu_parent.ordinal_position = kcu_child.position_in_unique_constraint
+        WHERE kcu_parent.table_name = $1
+          AND kcu_parent.table_schema = $2
+        ORDER BY rc.constraint_name, kcu_child.ordinal_position;
+        `,
+        [tableName, schema]
+      );
+      return result.rows.map((r: any) => ({
+        constraintName: r.constraint_name,
+        childSchema: r.child_schema,
+        childTable: r.child_table,
+        childColumn: r.child_column,
+        parentColumn: r.parent_column,
+        deleteRule: normalizeDeleteRule(r.delete_rule),
+      }));
     } finally {
       client.release();
     }

@@ -22,6 +22,31 @@ export interface ExecuteQueryResult {
   fields?: QueryFieldInfo[];
 }
 
+export type DeleteRule = "CASCADE" | "RESTRICT" | "NO ACTION" | "SET NULL" | "SET DEFAULT";
+
+export interface IncomingForeignKey {
+  constraintName: string;
+  childSchema: string;
+  childTable: string;
+  childColumn: string;
+  parentColumn: string;
+  deleteRule: DeleteRule;
+}
+
+export function normalizeDeleteRule(raw: string | null | undefined): DeleteRule {
+  const v = (raw ?? "NO ACTION").toUpperCase().trim();
+  if (
+    v === "CASCADE" ||
+    v === "RESTRICT" ||
+    v === "NO ACTION" ||
+    v === "SET NULL" ||
+    v === "SET DEFAULT"
+  ) {
+    return v;
+  }
+  return "NO ACTION";
+}
+
 export interface DatabaseProvider {
   readonly type: DatabaseType;
 
@@ -49,6 +74,11 @@ export interface DatabaseProvider {
   ): Promise<{ rows: any[]; total: number; countIsEstimate?: boolean }>;
   getTableIndexes(tableName: string, schema: string): Promise<any[]>;
   getTableStats(tableName: string, schema: string): Promise<any>;
+
+  getIncomingForeignKeys(
+    tableName: string,
+    schema: string
+  ): Promise<IncomingForeignKey[]>;
 
   // Query execution
   executeQuery(
