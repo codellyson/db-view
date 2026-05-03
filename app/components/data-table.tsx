@@ -97,6 +97,14 @@ interface DataTableProps {
   readOnlyColumns?: string[];
   columnTypes?: Record<string, string>;
   activeFormatters?: ColumnFormatter[];
+  // Optional override for translating a row to its primary-key map. Needed
+  // for query results where the displayed columns are aliases and the PK
+  // values must be read via the alias-to-source map.
+  pksFromRow?: (row: any) => Record<string, any>;
+  // Display column → base column. When provided, per-column pending lookups
+  // (staged edits, unstage actions) translate the display name back to the
+  // base name keyed by the pending store.
+  columnToSource?: Record<string, string>;
 }
 
 const ROW_HEIGHT = 36;
@@ -152,6 +160,8 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
     readOnlyColumns,
     columnTypes = {},
     activeFormatters = [],
+    pksFromRow,
+    columnToSource,
   },
   ref
 ) {
@@ -309,13 +319,19 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
 
   const getRowPrimaryKeys = useCallback(
     (row: any): Record<string, any> => {
+      if (pksFromRow) return pksFromRow(row);
       const pks: Record<string, any> = {};
       for (const pk of primaryKeys) {
         pks[pk] = row[pk];
       }
       return pks;
     },
-    [primaryKeys]
+    [primaryKeys, pksFromRow]
+  );
+
+  const baseColumn = useCallback(
+    (col: string) => columnToSource?.[col] ?? col,
+    [columnToSource]
   );
 
   // Width of the fixed left chrome (checkbox + row number columns) so the
@@ -700,7 +716,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
     const rowKey = primaryKeys.length > 0 ? rowKeyFromPks(rowPks) : null;
     const stagedEdit = rowKey ? tablePending.edits[rowKey] : undefined;
     const stagedDelete = rowKey ? tablePending.deletes[rowKey] : undefined;
-    const isCellStaged = !!stagedEdit?.changes[column];
+    const isCellStaged = !!stagedEdit?.changes[baseColumn(column)];
 
     const items: ContextMenuEntry[] = [
       { label: 'Copy value', onClick: () => copyToClipboard(valueStr) },
@@ -729,7 +745,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
       if (isCellStaged && schema && table && rowKey) {
         items.push({
           label: 'Revert change',
-          onClick: () => pending.unstageEdit({ schema, table, rowKey, column }),
+          onClick: () => pending.unstageEdit({ schema, table, rowKey, column: baseColumn(column) }),
         });
       }
     }
@@ -780,7 +796,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
     const rowPks = primaryKeys.length > 0 ? getRowPrimaryKeys(row) : null;
     const rowKey = rowPks ? rowKeyFromPks(rowPks) : null;
     const stagedEdit = rowKey ? tablePending.edits[rowKey] : undefined;
-    const stagedCell = stagedEdit?.changes[column];
+    const stagedCell = stagedEdit?.changes[baseColumn(column)];
     const isStagedDelete = rowKey ? !!tablePending.deletes[rowKey] : false;
 
     // When a cell has a pending edit, show the staged `next` value so the
@@ -1289,7 +1305,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                     {displayColumns.map((column) => {
                       const frozen = isFrozen(column);
                       const colLeft = frozen ? getColumnLeft(column) : undefined;
-                      const isStagedCell = !!stagedEdit?.changes[column];
+                      const isStagedCell = !!stagedEdit?.changes[baseColumn(column)];
                       const isSelected = selectedCell?.row === rowIndex && selectedCell?.col === column;
                       return (
                         <div

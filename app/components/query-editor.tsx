@@ -15,14 +15,12 @@ import { api } from '@/lib/api';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
 import { useToast } from '../contexts/toast-context';
-import { useQuery } from '@tanstack/react-query';
+import { usePendingChanges } from '../contexts/pending-changes-context';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { pgOidToType } from '@/lib/pg-types';
 import { analyzeEditability, describeReason, type EditabilityResult } from '@/lib/query-editability';
 import type { QueryFieldInfo } from '@/lib/db-provider';
 import type { ColumnInfo } from '@/types';
-import type { MutationRequest } from '@/lib/mutation';
-import { buildDisplaySQL } from '@/lib/mutation';
-import { MutationConfirmation } from './mutation-confirmation';
 import { QueryExecutionConfirmation } from './query-execution-confirmation';
 import { TabBar, type Tab } from './tab-bar';
 import { SaveQueryDialog } from './save-query-dialog';
@@ -51,14 +49,26 @@ interface ResultTab {
 interface QueryEditorProps {
   isActive?: boolean;
   tabId?: string;
+  onForeignKeyClick?: (args: {
+    sourceColumn: string;
+    fk: { schema: string; table: string; column: string };
+    value: any;
+  }) => void;
+  onEditableTargetChange?: (target: { schema: string; table: string } | null) => void;
 }
 
 const editorStorageKey = (tabId: string) => `dbview-editor-${tabId}`;
 
-export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId }) => {
+export const QueryEditor: React.FC<QueryEditorProps> = ({
+  isActive = true,
+  tabId,
+  onForeignKeyClick,
+  onEditableTargetChange,
+}) => {
   const { databaseType } = useConnection();
-  const { schemaMap, tables, selectedSchema, mutateRow, saveQuery } = useDashboard();
+  const { schemaMap, tables, selectedSchema, saveQuery } = useDashboard();
   const { addToast } = useToast();
+  const pending = usePendingChanges();
   const [query, setQuery] = useState<string>(() => {
     if (!tabId || typeof window === 'undefined') return '';
     try {
@@ -85,8 +95,6 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
   const [showHistory, setShowHistory] = useState(false);
   const editorViewRef = useRef<EditorView | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
-  const [pendingMutation, setPendingMutation] = useState<MutationRequest | null>(null);
-  const [isMutating, setIsMutating] = useState(false);
   const [pendingQueryConfirm, setPendingQueryConfirm] = useState<PendingQueryConfirmation | null>(null);
 
   // Result tabs
@@ -306,6 +314,66 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     [sourceColumnInfo]
   );
 
+  const uniqueSourceTables = useMemo(() => {
+    if (!activeFields || activeFields.length === 0) return [] as Array<{ schema: string; table: string }>;
+    const seen = new Set<string>();
+    const out: Array<{ schema: string; table: string }> = [];
+    for (const f of activeFields) {
+      if (!f.source) continue;
+      const key = `${f.source.schema}.${f.source.table}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ schema: f.source.schema, table: f.source.table });
+    }
+    return out;
+  }, [activeFields]);
+
+  const sourceRelationshipQueries = useQueries({
+    queries: uniqueSourceTables.map((st) => ({
+      queryKey: ['queryResultRelationships', st.schema, st.table] as const,
+      queryFn: async () => {
+        const data = await api.get(
+          `/api/relationships/${encodeURIComponent(st.table)}?schema=${encodeURIComponent(st.schema)}`
+        );
+        return ((data.relationships ?? []) as Array<{
+          source_column: string;
+          target_schema: string;
+          target_table: string;
+          target_column: string;
+        }>);
+      },
+      staleTime: 60_000,
+    })),
+  });
+
+  const resultForeignKeys = useMemo(() => {
+    if (!activeFields || activeFields.length === 0) return {} as Record<string, { schema: string; table: string; column: string }>;
+    const relsBySource: Record<string, Record<string, { schema: string; table: string; column: string }>> = {};
+    uniqueSourceTables.forEach((st, i) => {
+      const data = sourceRelationshipQueries[i]?.data;
+      if (!data) return;
+      const map: Record<string, { schema: string; table: string; column: string }> = {};
+      for (const r of data) {
+        if (!r.source_column || !r.target_table) continue;
+        map[r.source_column] = {
+          schema: r.target_schema || st.schema,
+          table: r.target_table,
+          column: r.target_column,
+        };
+      }
+      relsBySource[`${st.schema}.${st.table}`] = map;
+    });
+    const out: Record<string, { schema: string; table: string; column: string }> = {};
+    for (const f of activeFields) {
+      if (!f.source) continue;
+      const sourceMap = relsBySource[`${f.source.schema}.${f.source.table}`];
+      if (!sourceMap) continue;
+      const fk = sourceMap[f.source.column];
+      if (fk) out[f.name] = fk;
+    }
+    return out;
+  }, [activeFields, uniqueSourceTables, sourceRelationshipQueries]);
+
   const editability: EditabilityResult = useMemo(() => {
     return analyzeEditability({
       sql: activeSql,
@@ -329,56 +397,62 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     if (!editability.editable) return null;
     if (!activeTab) return null;
     const { columnToSource, primaryKeys: basePks, schema, table } = editability;
-    const resultPrimaryKeys = activeTab.columns.filter((c) => basePks.includes(columnToSource[c] ?? ''));
     const readOnlyResultColumns = activeTab.columns.filter((c) => !(c in columnToSource));
-    return { schema, table, columnToSource, resultPrimaryKeys, readOnlyResultColumns };
+    // Reverse map: base column → result column. Used to read a row's PK
+    // values via the alias when the result has aliased columns.
+    const sourceToResult: Record<string, string> = {};
+    for (const [resultCol, baseCol] of Object.entries(columnToSource)) {
+      sourceToResult[baseCol] = resultCol;
+    }
+    return { schema, table, columnToSource, sourceToResult, basePrimaryKeys: basePks, readOnlyResultColumns };
   }, [editability, activeTab]);
 
-  // Translate a row's result-aliased PKs back to base-table column names.
-  const buildBaseWhere = useCallback(
-    (rowPks: Record<string, any>): Record<string, any> | null => {
-      if (!editableMeta) return null;
-      const where: Record<string, any> = {};
-      for (const [resultCol, val] of Object.entries(rowPks)) {
-        const baseCol = editableMeta.columnToSource[resultCol];
-        if (!baseCol) return null;
-        where[baseCol] = val;
+  // Build the row's primary-key map keyed by *base* column names, using the
+  // alias map to read values out of result-aliased rows. This is what the
+  // pending-changes store uses, so passing this to DataTable lets row
+  // highlighting line up with staged edits.
+  const pksFromRow = useCallback(
+    (row: any): Record<string, any> => {
+      if (!editableMeta) return {};
+      const out: Record<string, any> = {};
+      for (const basePk of editableMeta.basePrimaryKeys) {
+        const resultCol = editableMeta.sourceToResult[basePk];
+        if (!resultCol) continue;
+        out[basePk] = row[resultCol];
       }
-      return where;
+      return out;
     },
     [editableMeta]
   );
 
   const handleQueryCellUpdate = useCallback(
-    ({ pks, column, next }: { pks: Record<string, any>; column: string; original: any; next: any }) => {
+    ({ pks, column, original, next }: { pks: Record<string, any>; column: string; original: any; next: any }) => {
       if (!editableMeta) return;
       const baseColumn = editableMeta.columnToSource[column];
-      const where = buildBaseWhere(pks);
-      if (!baseColumn || !where) return;
-      setPendingMutation({
-        type: 'UPDATE',
+      if (!baseColumn) return;
+      pending.stageEdit({
         schema: editableMeta.schema,
         table: editableMeta.table,
-        values: { [baseColumn]: next },
-        where,
+        pks,
+        column: baseColumn,
+        original,
+        next,
       });
     },
-    [editableMeta, buildBaseWhere]
+    [editableMeta, pending]
   );
 
   const handleQueryRowDelete = useCallback(
-    ({ pks }: { pks: Record<string, any>; snapshot: Record<string, any> }) => {
+    ({ pks, snapshot }: { pks: Record<string, any>; snapshot: Record<string, any> }) => {
       if (!editableMeta) return;
-      const where = buildBaseWhere(pks);
-      if (!where) return;
-      setPendingMutation({
-        type: 'DELETE',
+      pending.stageDelete({
         schema: editableMeta.schema,
         table: editableMeta.table,
-        where,
+        pks,
+        snapshot,
       });
     },
-    [editableMeta, buildBaseWhere]
+    [editableMeta, pending]
   );
 
   // Re-run the query backing the active tab and refresh its rows in place.
@@ -387,19 +461,20 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
     await executeQueryRequest(activeTab.sql);
   }, [activeTab, executeQueryRequest]);
 
-  const handleConfirmMutation = useCallback(async () => {
-    if (!pendingMutation) return;
-    setIsMutating(true);
-    try {
-      await mutateRow(pendingMutation);
-      setPendingMutation(null);
-      await refreshResults();
-    } catch (err: any) {
-      addToast(err.message || 'Mutation failed', 'error');
-    } finally {
-      setIsMutating(false);
+  // Report the current editable target to the parent (Dashboard) so the
+  // PendingChangesBar / Review SQL modal can scope to this query's source
+  // table when the editor tab is active.
+  useEffect(() => {
+    if (!isActive || !onEditableTargetChange) return;
+    if (editableMeta) {
+      onEditableTargetChange({ schema: editableMeta.schema, table: editableMeta.table });
+    } else {
+      onEditableTargetChange(null);
     }
-  }, [pendingMutation, mutateRow, refreshResults, addToast]);
+    return () => {
+      if (onEditableTargetChange) onEditableTargetChange(null);
+    };
+  }, [isActive, editableMeta, onEditableTargetChange]);
 
   const closeResultTab = useCallback((tabId: string) => {
     setResultTabs((prev) => {
@@ -601,11 +676,26 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
               isLoading={false}
               columnTypes={activeTab.columnTypes}
               searchQuery={resultSearchQuery}
-              primaryKeys={editableMeta?.resultPrimaryKeys}
+              schema={editableMeta?.schema}
+              table={editableMeta?.table}
+              primaryKeys={editableMeta?.basePrimaryKeys}
+              pksFromRow={editableMeta ? pksFromRow : undefined}
+              columnToSource={editableMeta?.columnToSource}
               columnSchema={editableMeta ? sourceColumnInfo : undefined}
               onCellUpdate={editableMeta ? handleQueryCellUpdate : undefined}
               onRowDelete={editableMeta ? handleQueryRowDelete : undefined}
               readOnlyColumns={editableMeta?.readOnlyResultColumns}
+              foreignKeys={resultForeignKeys}
+              onForeignKeyClick={
+                onForeignKeyClick
+                  ? (args) =>
+                      onForeignKeyClick({
+                        sourceColumn: args.sourceColumn,
+                        fk: args.fk,
+                        value: args.value,
+                      })
+                  : undefined
+              }
             />
           )}
         </div>
@@ -615,17 +705,6 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({ isActive = true, tabId
         <div className="text-center py-6 text-sm text-muted">
           Run a query to see results here.
         </div>
-      )}
-
-      {pendingMutation && (
-        <MutationConfirmation
-          isOpen={!!pendingMutation}
-          type={pendingMutation.type}
-          sql={buildDisplaySQL(pendingMutation, databaseType)}
-          onConfirm={handleConfirmMutation}
-          onCancel={() => setPendingMutation(null)}
-          isLoading={isMutating}
-        />
       )}
 
       {pendingQueryConfirm && (

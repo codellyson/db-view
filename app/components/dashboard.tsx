@@ -152,6 +152,11 @@ export function Dashboard() {
   const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [fkQuery, setFkQuery] = useState<FKQuery | null>(null);
+  const [editorEditableTarget, setEditorEditableTarget] = useState<{ schema: string; table: string } | null>(null);
+
+  const reviewTarget: { schema: string; table: string } | null = selectedTable
+    ? { schema: selectedSchema, table: selectedTable }
+    : editorEditableTarget;
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [bulkExportRows, setBulkExportRows] = useState<any[] | null>(null);
 
@@ -232,7 +237,7 @@ export function Dashboard() {
       key: 's', meta: true, description: 'Save pending changes (Review SQL)',
       category: 'Editing',
       action: () => {
-        if (selectedTable && pending.getCount(selectedSchema, selectedTable) > 0) {
+        if (reviewTarget && pending.getCount(reviewTarget.schema, reviewTarget.table) > 0) {
           setIsReviewOpen(true);
         }
       },
@@ -290,8 +295,8 @@ export function Dashboard() {
 
   useKeyboardShortcuts(shortcuts);
 
-  const pendingCountForActiveTable = selectedTable
-    ? pending.getCount(selectedSchema, selectedTable)
+  const pendingCountForActiveTable = reviewTarget
+    ? pending.getCount(reviewTarget.schema, reviewTarget.table)
     : 0;
 
   const paletteActions: CommandAction[] = useMemo(() => [
@@ -323,7 +328,7 @@ export function Dashboard() {
       category: 'Edit',
       enabled: pendingCountForActiveTable > 0,
       run: () => {
-        if (selectedTable) pending.discardTable({ schema: selectedSchema, table: selectedTable });
+        if (reviewTarget) pending.discardTable({ schema: reviewTarget.schema, table: reviewTarget.table });
       },
     },
     {
@@ -520,7 +525,18 @@ export function Dashboard() {
                       key={tab.id}
                       className={tab.id === activeTabId ? 'flex-1 flex flex-col min-h-0' : 'hidden'}
                     >
-                      <QueryEditor tabId={tab.id} isActive={tab.id === activeTabId} />
+                      <QueryEditor
+                        tabId={tab.id}
+                        isActive={tab.id === activeTabId}
+                        onForeignKeyClick={(args) =>
+                          setFkQuery({
+                            sourceColumn: args.sourceColumn,
+                            fk: args.fk,
+                            value: args.value,
+                          })
+                        }
+                        onEditableTargetChange={setEditorEditableTarget}
+                      />
                     </div>
                   ))}
                 </div>
@@ -763,7 +779,7 @@ export function Dashboard() {
         </div>
       }
     />
-    <PendingChangesBar onOpenReview={() => setIsReviewOpen(true)} />
+    <PendingChangesBar onOpenReview={() => setIsReviewOpen(true)} target={reviewTarget} />
     <CommandPalette
       isOpen={isCommandPaletteOpen}
       onClose={() => setIsCommandPaletteOpen(false)}
@@ -815,12 +831,12 @@ export function Dashboard() {
         handleTableSelect(entry.table);
       }}
     />
-    {selectedTable && (
+    {reviewTarget && (
       <ReviewSqlModal
         isOpen={isReviewOpen}
         onClose={() => setIsReviewOpen(false)}
-        schema={selectedSchema}
-        table={selectedTable}
+        schema={reviewTarget.schema}
+        table={reviewTarget.table}
       />
     )}
     <KeyboardShortcutsHelp

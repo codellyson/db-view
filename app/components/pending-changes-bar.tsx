@@ -3,24 +3,17 @@
 import React from 'react';
 import { Button } from './ui/button';
 import { usePendingChanges } from '../contexts/pending-changes-context';
-import { useDashboard } from '../contexts/dashboard-context';
 
 interface PendingChangesBarProps {
   onOpenReview: () => void;
+  target: { schema: string; table: string } | null;
 }
 
-/**
- * Floating action bar shown at the bottom of the viewport when the active
- * table has staged changes. Lets the user discard or review-and-save them.
- * The Review SQL modal lives in the parent so a global Cmd+S hotkey can
- * open it without depending on this bar.
- */
-export const PendingChangesBar: React.FC<PendingChangesBarProps> = ({ onOpenReview }) => {
+export const PendingChangesBar: React.FC<PendingChangesBarProps> = ({ onOpenReview, target }) => {
   const pending = usePendingChanges();
-  const { selectedSchema, selectedTable } = useDashboard();
 
-  const count = selectedTable ? pending.getCount(selectedSchema, selectedTable) : 0;
-  if (!selectedTable || count === 0) return null;
+  const count = target ? pending.getCount(target.schema, target.table) : 0;
+  if (!target || count === 0) return null;
 
   return (
     <div
@@ -34,7 +27,7 @@ export const PendingChangesBar: React.FC<PendingChangesBarProps> = ({ onOpenRevi
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => pending.discardTable({ schema: selectedSchema, table: selectedTable })}
+          onClick={() => pending.discardTable({ schema: target.schema, table: target.table })}
         >
           Discard
         </Button>
