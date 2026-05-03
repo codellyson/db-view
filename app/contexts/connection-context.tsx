@@ -1,8 +1,20 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { DBConfig, SavedConnection } from '@/types';
 import { api } from '@/lib/api';
+import { useToast } from './toast-context';
+
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const ACTIVITY_THROTTLE_MS = 5_000;
+const ACTIVITY_CHANNEL = 'justdb-activity';
+const ACTIVITY_EVENTS: Array<keyof DocumentEventMap> = [
+  'mousedown',
+  'keydown',
+  'scroll',
+  'touchstart',
+  'visibilitychange',
+];
 
 interface ConnectionContextType {
   isConnected: boolean;
@@ -31,6 +43,9 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   const [savedConnections, setSavedConnections] = useState<SavedConnection[]>([]);
   const [databaseType, setDatabaseType] = useState<"postgresql" | "mysql" | "sqlite">("postgresql");
   const [error, setError] = useState<string | null>(null);
+  const { addToast } = useToast();
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastActivityRef = useRef<number>(0);
 
   const loadSavedConnections = useCallback(async () => {
     try {
@@ -125,7 +140,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const disconnect = async () => {
+  const disconnect = useCallback(async () => {
     try {
       await api.post('/api/disconnect', undefined, { noRetry: true });
       setIsConnected(false);
@@ -139,7 +154,61 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     } catch (err: any) {
       setError(err.message || 'Disconnect failed');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isConnected) {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      return;
+    }
+
+    const channel =
+      typeof BroadcastChannel !== 'undefined'
+        ? new BroadcastChannel(ACTIVITY_CHANNEL)
+        : null;
+
+    const arm = () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        void disconnect();
+        addToast('Disconnected after 30 minutes of inactivity', 'info');
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    const noteActivity = (broadcast: boolean) => {
+      const now = Date.now();
+      if (now - lastActivityRef.current < ACTIVITY_THROTTLE_MS) return;
+      lastActivityRef.current = now;
+      arm();
+      if (broadcast && channel) channel.postMessage({ t: now });
+    };
+
+    lastActivityRef.current = Date.now();
+    arm();
+
+    const onLocalActivity = () => noteActivity(true);
+    const onRemoteActivity = () => noteActivity(false);
+
+    ACTIVITY_EVENTS.forEach((ev) =>
+      document.addEventListener(ev, onLocalActivity, { passive: true })
+    );
+    if (channel) channel.addEventListener('message', onRemoteActivity);
+
+    return () => {
+      ACTIVITY_EVENTS.forEach((ev) => document.removeEventListener(ev, onLocalActivity));
+      if (channel) {
+        channel.removeEventListener('message', onRemoteActivity);
+        channel.close();
+      }
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+    };
+  }, [isConnected, disconnect, addToast]);
 
   const saveConnection = async (name: string, config: DBConfig) => {
     const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substring(7)}`;
