@@ -12,8 +12,11 @@ if (
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_TOKEN, {
     api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
     person_profiles: "identified_only",
-    capture_pageview: false, // We capture manually below
+    capture_pageview: false,
     capture_pageleave: true,
+    disable_session_recording: true,
+    disable_surveys: true,
+    enable_heatmaps: false,
   });
 }
 
