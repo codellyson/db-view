@@ -61,6 +61,8 @@ POSTGRES_PASSWORD=your_password
 
 The `tauri-spike` branch wraps this app as a native desktop binary so users' DB credentials never leave their machine. The Rust side (in [src-tauri/](src-tauri/)) holds `tokio-postgres` connections; the Next.js UI loads in the Tauri webview and talks to Rust via `invoke()`.
 
+Migration plan from spike → v1: [docs/tauri-migration.md](docs/tauri-migration.md).
+
 ### Prerequisites by OS
 
 | OS | Required |
