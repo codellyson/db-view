@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value as JsonValue;
+use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_postgres::{
-    types::{FromSql, Type},
+    types::{FromSql, ToSql, Type},
     Client, Row,
 };
 
@@ -33,11 +33,25 @@ pub struct QueryResult {
 }
 
 pub struct PgConnection {
-    client: Arc<Mutex<Client>>,
+    // tokio-postgres Client is Sync and designed for concurrent queries on a
+    // single connection (it pipelines internally). Wrapping it in a Mutex
+    // would serialize them and — worse — leave the connection in a bad state
+    // if a future holding the lock is cancelled mid-query. We keep an
+    // Arc<Client> behind a brief Mutex only so reconnect can swap it.
+    client: Mutex<Arc<Client>>,
+    config: DbConfig,
 }
 
 impl PgConnection {
-    pub async fn connect(config: &DbConfig) -> Result<Self, tokio_postgres::Error> {
+    pub async fn connect(config: DbConfig) -> Result<Self, tokio_postgres::Error> {
+        let client = Self::open_client(&config).await?;
+        Ok(Self {
+            client: Mutex::new(Arc::new(client)),
+            config,
+        })
+    }
+
+    async fn open_client(config: &DbConfig) -> Result<Client, tokio_postgres::Error> {
         let mut pg_config = tokio_postgres::Config::new();
         pg_config
             .host(&config.host)
@@ -71,15 +85,47 @@ impl PgConnection {
             });
             client
         };
+        Ok(client)
+    }
 
-        Ok(Self {
-            client: Arc::new(Mutex::new(client)),
-        })
+    async fn current_client(&self) -> Arc<Client> {
+        self.client.lock().await.clone()
+    }
+
+    async fn force_reconnect(&self) -> Result<Arc<Client>, tokio_postgres::Error> {
+        // Open the new connection without holding the lock — TLS + auth is
+        // hundreds of ms. Brief race where two callers both reconnect; the
+        // last writer wins, the loser's Client is dropped.
+        let new_client = Arc::new(Self::open_client(&self.config).await?);
+        let mut guard = self.client.lock().await;
+        *guard = new_client.clone();
+        Ok(new_client)
     }
 
     pub async fn query(&self, sql: &str) -> Result<QueryResult, tokio_postgres::Error> {
-        let client = self.client.lock().await;
+        self.query_with_params(sql, &[]).await
+    }
 
+    pub async fn query_with_params(
+        &self,
+        sql: &str,
+        params: &[String],
+    ) -> Result<QueryResult, tokio_postgres::Error> {
+        let client = self.current_client().await;
+        match Self::run_query(&client, sql, params).await {
+            Err(e) if is_connection_closed(&e) => {
+                let new_client = self.force_reconnect().await?;
+                Self::run_query(&new_client, sql, params).await
+            }
+            other => other,
+        }
+    }
+
+    async fn run_query(
+        client: &Client,
+        sql: &str,
+        params: &[String],
+    ) -> Result<QueryResult, tokio_postgres::Error> {
         let stmt = client.prepare(sql).await?;
 
         let columns: Vec<ColumnMeta> = stmt
@@ -91,7 +137,9 @@ impl PgConnection {
             })
             .collect();
 
-        let rows = client.query(&stmt, &[]).await?;
+        let param_refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|s| s as &(dyn ToSql + Sync)).collect();
+        let rows = client.query(&stmt, &param_refs).await?;
 
         let serialized: Vec<Vec<JsonValue>> = rows
             .iter()
@@ -108,6 +156,61 @@ impl PgConnection {
             rows: serialized,
         })
     }
+
+    // Convenience: run a query and return rows as JSON objects keyed by column
+    // name. Matches the row shape the dashboard expects from the SaaS pg driver.
+    pub async fn query_objects(
+        &self,
+        sql: &str,
+        params: &[String],
+    ) -> Result<Vec<JsonValue>, tokio_postgres::Error> {
+        let result = self.query_with_params(sql, params).await?;
+        Ok(rows_as_objects(&result))
+    }
+}
+
+fn rows_as_objects(result: &QueryResult) -> Vec<JsonValue> {
+    result
+        .rows
+        .iter()
+        .map(|row| {
+            let mut obj = JsonMap::with_capacity(result.columns.len());
+            for (i, col) in result.columns.iter().enumerate() {
+                obj.insert(
+                    col.name.clone(),
+                    row.get(i).cloned().unwrap_or(JsonValue::Null),
+                );
+            }
+            JsonValue::Object(obj)
+        })
+        .collect()
+}
+
+// Postgres identifier validator. Matches the same regex the TS providers use
+// (`/^[a-zA-Z_][a-zA-Z0-9_]*$/`) — narrow on purpose to keep injection
+// surfaces small. Quoted identifiers with arbitrary content aren't supported.
+fn is_valid_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+pub fn quote_identifier(name: &str) -> Result<String, String> {
+    if !is_valid_identifier(name) {
+        return Err(format!("Invalid identifier: {name}"));
+    }
+    Ok(format!("\"{name}\""))
+}
+
+fn is_connection_closed(err: &tokio_postgres::Error) -> bool {
+    let s = err.to_string().to_lowercase();
+    s.contains("connection closed")
+        || s.contains("connection is closed")
+        || s.contains("connection reset")
+        || s.contains("broken pipe")
 }
 
 // Converts a single column of a tokio_postgres Row into serde_json::Value.

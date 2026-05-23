@@ -10,9 +10,9 @@ This plan is the path from the `tauri-spike` branch (commit `e419b3c`) to a ship
 
 | Phase | Outcome | Endpoints ported | Risk |
 | --- | --- | --- | --- |
-| 0 | Spike (done) | `connect`, `query`, `disconnect` (proof-of-concept) | retired |
-| 0.5 | Dual-build config: SaaS keeps `/api`, desktop excludes it | none | medium — Next.js `output: 'export'` doesn't tolerate `/api` |
-| 1 | Read-only browsing works in desktop window | `connect`, `disconnect`, `tables`, `schemas`, `table` (data), `health` | low |
+| 0 ✅ | Spike (done) | `connect`, `query`, `disconnect` (proof-of-concept) | retired |
+| 0.5 ✅ | Dual-build config: SaaS keeps `/api`, desktop excludes it | none | medium — Next.js `output: 'export'` doesn't tolerate `/api` |
+| 1 ✅ | Read-only browsing works in desktop window | `connect`, `disconnect`, `tables`, `schemas`, `table` (data + columns), `health` | low |
 | 2 | Mutations + edit flow | `mutate`, `mutate-batch`, `lookup-row` | medium — staged-edit/FK-navigator UI surface |
 | 3 | DDL + schema explorer | `ddl`, `schema*`, `relationships`, `cascade-preview` | medium — pg_catalog queries are pg-specific |
 | 4 | Explain + perf + extras | `explain`, `performance`, `functions`, `views`, `table-counts`, `table-stats` | low |
@@ -80,8 +80,9 @@ This script is already referenced by `src-tauri/tauri.conf.json#beforeBuildComma
 
 ### UI changes
 
-- **`lib/api-client.ts` abstraction** — single module that all components import. Detects `window.__TAURI_INTERNALS__` at runtime and routes to either `fetch('/api/x')` or `invoke('x')`. Components don't change.
-- **Migrate call sites incrementally** — start with the connection form, table list, and table viewer.
+- **Dispatcher at the existing `lib/api.ts` choke point** — turned out the SaaS already centralizes all HTTP through `lib/api.ts`. We gated `request()` on `window.__TAURI_INTERNALS__` and delegate to a new `lib/api-tauri.ts` dispatcher when in the desktop runtime. No call sites changed.
+- **`lib/api-tauri.ts`** owns the route → command translation. Static routes (e.g. `POST /api/connect`) and parametric ones (e.g. `GET /api/table/<name>`, `GET /api/schema/<name>`) are dispatched to `invoke()`. Session id is held in module memory — the SaaS stores it in an httpOnly cookie, which doesn't apply on desktop.
+- **Stub strategy for partial phase coverage** — the dashboard fires ~10 mount-time reads; throwing for every unimplemented one floods the dev overlay. Stubs return typed empty defaults (`{ views: [] }`, `{ counts: {} }`, …) so the UI stays quiet without faking data. Writes still throw to keep the gap visible. Each stub logs once with its phase so the work surface is searchable.
 - **Strip rate-limit + CSRF checks in desktop mode** — they're meaningless when the server is local and there's only one user.
 
 ### Rust additions
@@ -257,6 +258,8 @@ Justifications for removing them:
 
 Keep for now; revisit if it adds friction.
 
+**Phase 1 update**: the spike wrapped `tokio_postgres::Client` in a `Mutex<Client>` for "safety." This was wrong on two counts: tokio-postgres `Client` is `Sync` and *designed* for concurrent queries (it pipelines internally), and a future holding the mutex while cancelled mid-query leaves the connection in a corrupt state — manifests as "connection closed" errors on every subsequent query. We replaced it with `Mutex<Arc<Client>>` (lock only to clone the Arc out, or swap on reconnect), plus a `force_reconnect()` path that retries once when a query returns a connection-closed error. The retry handles transient drops (Neon pooler, idle timeouts) without surfacing them to the user. See decision log.
+
 ### TLS verification
 
 The spike hard-codes `danger_accept_invalid_certs(true)` when SSL is on, matching the current web behavior. This is wrong for production. Plan:
@@ -296,6 +299,9 @@ Tracking choices made during the spike that should outlive it:
 | 2026-05-22 | Dedicated dev port 3030 | User runs multiple Next.js apps locally; 3000/3001 are usually taken |
 | 2026-05-22 | WebKit/WSL env vars baked into `tauri:dev` script | WSLg + WebKitGTK is fragile; baking the workarounds means devs don't have to remember them. No-op on macOS/Windows. |
 | 2026-05-22 | Spike validated without final visual confirmation on Windows | Architecture pieces all proven; final confirmation gated only on installing MSVC Build Tools on a Windows machine, which is one-time setup separate from architectural risk. |
+| 2026-05-23 | Dispatcher lives in `lib/api-tauri.ts`, gated from existing `lib/api.ts` | The SaaS already centralized HTTP through `lib/api.ts`; gating there means zero call-site churn. New file isolates the Tauri-only deps from the SaaS bundle. |
+| 2026-05-23 | Removed `Mutex<Client>`; added `force_reconnect()` retry on connection-closed | `Mutex<Client>` serialized concurrent dashboard queries and could corrupt the connection on future-cancellation. tokio-postgres `Client` is `Sync` by design. Reconnect-on-closed absorbs transient Neon/pooler drops without bubbling to the UI. |
+| 2026-05-23 | Stub unimplemented mount-time reads with typed empty defaults | The dashboard fires ~10 reads on mount; throwing for unwired routes flooded the dev overlay during Phase 1. Stubs return shape-compatible empties (`{ views: [] }` etc.) so the UI is quiet but never *fake* — write paths still throw so the gap is visible. Each stub logs once with its phase. |
 
 ---
 

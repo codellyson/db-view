@@ -13,7 +13,7 @@
     "windows": [
       {
         "title": "JustDB",
-        "url": "/tauri-test",
+        "url": "/connections",
         "width": 1280,
         "height": 800,
         "minWidth": 800,

@@ -133,6 +133,14 @@ async function request<T>(
   data?: any,
   options: ApiOptions = {}
 ): Promise<T> {
+  // In a Tauri webview there is no /api/* server. Route through invoke().
+  // The dispatcher lives in its own module so @tauri-apps/api/core stays out
+  // of the SaaS bundle.
+  if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+    const { dispatch } = await import('./api-tauri');
+    return dispatch<T>(method, url, data);
+  }
+
   const { noRetry, retries = 2, ...axiosConfig } = options;
   const shouldRetry = noRetry !== undefined ? !noRetry : method === 'GET';
   const maxAttempts = shouldRetry ? retries + 1 : 1;
