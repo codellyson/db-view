@@ -109,7 +109,7 @@ impl PgConnection {
     pub async fn query_with_params(
         &self,
         sql: &str,
-        params: &[String],
+        params: &[Option<String>],
     ) -> Result<QueryResult, tokio_postgres::Error> {
         let client = self.current_client().await;
         match Self::run_query(&client, sql, params).await {
@@ -124,7 +124,7 @@ impl PgConnection {
     async fn run_query(
         client: &Client,
         sql: &str,
-        params: &[String],
+        params: &[Option<String>],
     ) -> Result<QueryResult, tokio_postgres::Error> {
         let stmt = client.prepare(sql).await?;
 
@@ -138,7 +138,7 @@ impl PgConnection {
             .collect();
 
         let param_refs: Vec<&(dyn ToSql + Sync)> =
-            params.iter().map(|s| s as &(dyn ToSql + Sync)).collect();
+            params.iter().map(|p| p as &(dyn ToSql + Sync)).collect();
         let rows = client.query(&stmt, &param_refs).await?;
 
         let serialized: Vec<Vec<JsonValue>> = rows
@@ -162,14 +162,64 @@ impl PgConnection {
     pub async fn query_objects(
         &self,
         sql: &str,
-        params: &[String],
+        params: &[Option<String>],
     ) -> Result<Vec<JsonValue>, tokio_postgres::Error> {
         let result = self.query_with_params(sql, params).await?;
         Ok(rows_as_objects(&result))
     }
+
+    // Execute a statement that doesn't return rows (or whose returned rows
+    // we don't care about). Returns the affected-row count. Used by UPDATE
+    // and DELETE — INSERT uses query() because RETURNING * gives us the new row.
+    pub async fn execute(
+        &self,
+        sql: &str,
+        params: &[Option<String>],
+    ) -> Result<u64, tokio_postgres::Error> {
+        let client = self.current_client().await;
+        match Self::run_execute(&client, sql, params).await {
+            Err(e) if is_connection_closed(&e) => {
+                let new_client = self.force_reconnect().await?;
+                Self::run_execute(&new_client, sql, params).await
+            }
+            other => other,
+        }
+    }
+
+    async fn run_execute(
+        client: &Client,
+        sql: &str,
+        params: &[Option<String>],
+    ) -> Result<u64, tokio_postgres::Error> {
+        let stmt = client.prepare(sql).await?;
+        let param_refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|p| p as &(dyn ToSql + Sync)).collect();
+        client.execute(&stmt, &param_refs).await
+    }
+
+    // Run a sequence of statements inside a transaction. All succeed or all
+    // roll back. tokio-postgres `Transaction` needs `&mut Client`, which is
+    // incompatible with our `Arc<Client>` sharing model, so we open a fresh
+    // dedicated client per batch. Expensive (TLS handshake) but desktop write
+    // volume is low and correctness wins. Statements are full SQL with any
+    // values already escaped and inlined — params aren't supported here.
+    pub async fn run_transaction(
+        &self,
+        statements: &[String],
+    ) -> Result<Vec<u64>, tokio_postgres::Error> {
+        let mut tx_client = Self::open_client(&self.config).await?;
+        let tx = tx_client.transaction().await?;
+        let mut row_counts = Vec::with_capacity(statements.len());
+        for sql in statements {
+            let n = tx.execute(sql.as_str(), &[]).await?;
+            row_counts.push(n);
+        }
+        tx.commit().await?;
+        Ok(row_counts)
+    }
 }
 
-fn rows_as_objects(result: &QueryResult) -> Vec<JsonValue> {
+pub fn rows_as_objects(result: &QueryResult) -> Vec<JsonValue> {
     result
         .rows
         .iter()
@@ -203,6 +253,28 @@ pub fn quote_identifier(name: &str) -> Result<String, String> {
         return Err(format!("Invalid identifier: {name}"));
     }
     Ok(format!("\"{name}\""))
+}
+
+// Postgres SQL literal: single-quoted, embedded ' doubled. Assumes
+// standard_conforming_strings=on (default since 9.1) — backslashes are
+// literal, not escape characters.
+pub fn pg_quote_literal(s: &str) -> String {
+    let escaped = s.replace('\'', "''");
+    format!("'{escaped}'")
+}
+
+// Stringify a JsonValue for use in a SQL literal. Numbers/bools become their
+// textual form, strings pass through, arrays/objects serialize as JSON text.
+// Postgres coerces text → column type at parse time (same as the Node pg
+// driver's default unknown-typed-param behavior).
+pub fn json_to_text(val: &JsonValue) -> String {
+    match val {
+        JsonValue::Null => String::new(),
+        JsonValue::String(s) => s.clone(),
+        JsonValue::Bool(b) => b.to_string(),
+        JsonValue::Number(n) => n.to_string(),
+        other => other.to_string(),
+    }
 }
 
 fn is_connection_closed(err: &tokio_postgres::Error) -> bool {

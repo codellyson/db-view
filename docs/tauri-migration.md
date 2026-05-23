@@ -13,7 +13,7 @@ This plan is the path from the `tauri-spike` branch (commit `e419b3c`) to a ship
 | 0 ✅ | Spike (done) | `connect`, `query`, `disconnect` (proof-of-concept) | retired |
 | 0.5 ✅ | Dual-build config: SaaS keeps `/api`, desktop excludes it | none | medium — Next.js `output: 'export'` doesn't tolerate `/api` |
 | 1 ✅ | Read-only browsing works in desktop window | `connect`, `disconnect`, `tables`, `schemas`, `table` (data + columns), `health` | low |
-| 2 | Mutations + edit flow | `mutate`, `mutate-batch`, `lookup-row` | medium — staged-edit/FK-navigator UI surface |
+| 2 ✅ | Mutations + edit flow | `mutate`, `mutate-batch`, `lookup-row` | medium — staged-edit/FK-navigator UI surface |
 | 3 | DDL + schema explorer | `ddl`, `schema*`, `relationships`, `cascade-preview` | medium — pg_catalog queries are pg-specific |
 | 4 | Explain + perf + extras | `explain`, `performance`, `functions`, `views`, `table-counts`, `table-stats` | low |
 | 5 | Import/export + saved connections in OS keychain | `import`, `upload-sqlite`, `saved-connections` | medium — filesystem semantics differ, keychain is platform-specific |
@@ -113,9 +113,13 @@ Bring desktop to parity with the SaaS for the most common write workflow: inline
 
 The current TypeScript `lib/query-classifier.ts` does keyword-level classification and bulk-write detection. Port it to Rust **verbatim** — same READ/WRITE/DDL/BLOCKED keyword sets, same CTE-embedded-write detection, same typed-confirmation rules for `DROP`/`TRUNCATE`/bareword `UPDATE`/`DELETE`. The Rust side returns the same classification struct the UI already knows how to handle. No UX regression.
 
+**Phase 2 deferral**: the classifier port was *not* needed for Phase 2's actual scope. The Phase 2 endpoints (`mutate`, `mutate-batch`, `lookup-row`) take structured `MutationRequest` objects — they always have a `WHERE` for UPDATE/DELETE and don't accept raw SQL, so the bulk-write/blocked-keyword checks don't apply. The classifier matters when porting `/api/query` (the raw SQL editor flow), which is currently a Phase 4 deferral. Until then, the spike's `db_query` accepts any SQL with no client-side gating — fine for a desktop tool, but worth flagging.
+
 ### Cross-cutting
 
 - The web version's typed-confirmation handshake (server returns `needsConfirmation: true`, client re-posts with `confirmed: true`) should be **kept** in the Rust commands. It's UX scaffolding, not a security boundary — the only check that matters is the user typing the verb. But preserving the handshake means `lib/api-client.ts` can hide the fetch/invoke difference entirely.
+
+**Phase 2 update — parameter encoding**: tokio-postgres binds parameters in *binary* format with strict type matching, so a `String` cannot be sent to a `uuid`/`int`/`numeric` column slot (the high-level error is "error serializing parameter N"). The Node `pg` driver dodges this by sending params with type OID 0 (unknown), letting Postgres coerce text → column type. To match that semantically, Phase 2 inlines values as SQL literals (`pg_quote_literal`) instead of binding them via parameters. Postgres parses the SQL text and coerces literals to column types — same outcome as the SaaS, with no per-type Rust glue. See decision log.
 
 ### Acceptance
 
@@ -302,6 +306,8 @@ Tracking choices made during the spike that should outlive it:
 | 2026-05-23 | Dispatcher lives in `lib/api-tauri.ts`, gated from existing `lib/api.ts` | The SaaS already centralized HTTP through `lib/api.ts`; gating there means zero call-site churn. New file isolates the Tauri-only deps from the SaaS bundle. |
 | 2026-05-23 | Removed `Mutex<Client>`; added `force_reconnect()` retry on connection-closed | `Mutex<Client>` serialized concurrent dashboard queries and could corrupt the connection on future-cancellation. tokio-postgres `Client` is `Sync` by design. Reconnect-on-closed absorbs transient Neon/pooler drops without bubbling to the UI. |
 | 2026-05-23 | Stub unimplemented mount-time reads with typed empty defaults | The dashboard fires ~10 reads on mount; throwing for unwired routes flooded the dev overlay during Phase 1. Stubs return shape-compatible empties (`{ views: [] }` etc.) so the UI is quiet but never *fake* — write paths still throw so the gap is visible. Each stub logs once with its phase. |
+| 2026-05-23 | Phase 2 mutations inline values as SQL literals, not bound params | tokio-postgres uses binary parameter encoding with strict type matching — `String` won't bind to `uuid`/`int`/`numeric` columns. Inlining `pg_quote_literal`-escaped values lets Postgres coerce text → column type just like the Node pg driver does. Identifiers are still regex-validated, so injection surface is the same as the SaaS. Transactions for `mutate-batch` open a dedicated client (tokio-postgres `Transaction` needs `&mut Client`, incompatible with our `Arc<Client>`). |
+| 2026-05-23 | Query-classifier port deferred to whenever `/api/query` is wired | Phase 2's actual endpoints take structured `MutationRequest` objects, so the bulk-write / blocked-keyword classifier doesn't apply. It matters for the raw SQL editor; that path stays on the spike's unguarded `db_query` until then. |
 
 ---
 

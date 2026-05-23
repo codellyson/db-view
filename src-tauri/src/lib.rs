@@ -1,6 +1,8 @@
+mod mutation;
 mod postgres;
 
 use dashmap::DashMap;
+use mutation::MutationRequest;
 use postgres::{DbConfig, PgConnection, QueryResult};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -159,7 +161,7 @@ async fn db_list_tables(
              FROM information_schema.tables
              WHERE table_schema = $1 AND table_type = 'BASE TABLE'
              ORDER BY table_name",
-            &[schema],
+            &[Some(schema)],
         )
         .await
         .map_err(|e| CommandError::Query(e.to_string()))?;
@@ -207,7 +209,7 @@ async fn db_table_rows(
              FROM pg_class c
              JOIN pg_namespace n ON n.oid = c.relnamespace
              WHERE c.relname = $1 AND n.nspname = $2",
-            &[table.clone(), schema.clone()],
+            &[Some(table.clone()), Some(schema.clone())],
         )
         .await
         .map_err(|e| CommandError::Query(e.to_string()))?;
@@ -262,6 +264,139 @@ fn first_column_strings(rows: &[Vec<JsonValue>]) -> Vec<String> {
         .collect()
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MutateResponse {
+    success: bool,
+    affected_rows: Option<i64>,
+    rows: Vec<JsonValue>,
+}
+
+#[tauri::command]
+async fn db_mutate(
+    session_id: String,
+    body: MutationRequest,
+    state: State<'_, AppState>,
+) -> CommandResult<MutateResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    let sql = mutation::build(&body).map_err(CommandError::Query)?;
+
+    match body.kind {
+        mutation::MutationKind::INSERT => {
+            // INSERT … RETURNING * — use query() so we get the new row back.
+            let result = conn
+                .query(&sql)
+                .await
+                .map_err(|e| CommandError::Query(e.to_string()))?;
+            let rows = postgres::rows_as_objects(&result);
+            Ok(MutateResponse {
+                success: true,
+                affected_rows: Some(rows.len() as i64),
+                rows,
+            })
+        }
+        mutation::MutationKind::UPDATE | mutation::MutationKind::DELETE => {
+            let affected = conn
+                .execute(&sql, &[])
+                .await
+                .map_err(|e| CommandError::Query(e.to_string()))?;
+            Ok(MutateResponse {
+                success: true,
+                affected_rows: Some(affected as i64),
+                rows: vec![],
+            })
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MutateBatchResponse {
+    success: bool,
+    row_counts: Vec<i64>,
+}
+
+#[tauri::command]
+async fn db_mutate_batch(
+    session_id: String,
+    changes: Vec<MutationRequest>,
+    state: State<'_, AppState>,
+) -> CommandResult<MutateBatchResponse> {
+    if changes.is_empty() {
+        return Err(CommandError::Query(
+            "Batch requires a non-empty `changes` array".into(),
+        ));
+    }
+
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    let mut statements: Vec<String> = Vec::with_capacity(changes.len());
+    for (i, change) in changes.iter().enumerate() {
+        let sql = mutation::build(change)
+            .map_err(|e| CommandError::Query(format!("Change at index {i}: {e}")))?;
+        statements.push(sql);
+    }
+
+    let row_counts = conn
+        .run_transaction(&statements)
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    Ok(MutateBatchResponse {
+        success: true,
+        row_counts: row_counts.into_iter().map(|n| n as i64).collect(),
+    })
+}
+
+#[derive(Serialize)]
+struct LookupResponse {
+    rows: Vec<JsonValue>,
+}
+
+#[tauri::command]
+async fn db_lookup_row(
+    session_id: String,
+    schema: String,
+    table: String,
+    column: String,
+    value: JsonValue,
+    state: State<'_, AppState>,
+) -> CommandResult<LookupResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    let q_schema = postgres::quote_identifier(&schema).map_err(CommandError::Query)?;
+    let q_table = postgres::quote_identifier(&table).map_err(CommandError::Query)?;
+    let q_column = postgres::quote_identifier(&column).map_err(CommandError::Query)?;
+
+    let literal = match value {
+        JsonValue::Null => "NULL".into(),
+        ref other => postgres::pg_quote_literal(&postgres::json_to_text(other)),
+    };
+
+    let sql = format!(
+        "SELECT * FROM {q_schema}.{q_table} WHERE {q_column} = {literal} LIMIT 2"
+    );
+
+    let rows = conn
+        .query_objects(&sql, &[])
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+    Ok(LookupResponse { rows })
+}
+
 #[tauri::command]
 async fn db_table_schema(
     session_id: String,
@@ -297,7 +432,7 @@ async fn db_table_schema(
          WHERE c.table_name = $1
            AND c.table_schema = $2
          ORDER BY c.ordinal_position",
-        &[table, schema],
+        &[Some(table), Some(schema)],
     )
     .await
     .map_err(|e| CommandError::Query(e.to_string()))
@@ -326,6 +461,9 @@ pub fn run() {
             db_list_tables,
             db_table_rows,
             db_table_schema,
+            db_mutate,
+            db_mutate_batch,
+            db_lookup_row,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

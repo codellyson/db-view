@@ -142,6 +142,9 @@ const STATIC_ROUTES: Record<string, (ctx: HandlerCtx) => Promise<unknown>> = {
   "GET /api/health": handleHealth,
   "GET /api/schemas": handleSchemas,
   "GET /api/tables": handleTables,
+  "POST /api/mutate": handleMutate,
+  "POST /api/mutate-batch": handleMutateBatch,
+  "POST /api/lookup-row": handleLookupRow,
 };
 
 async function handleConnect({ invoke, body }: HandlerCtx): Promise<unknown> {
@@ -236,6 +239,49 @@ async function handleTableRows(
     offset,
     sortColumn,
     sortDirection,
+  });
+}
+
+async function handleMutate({ invoke, body }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] /api/mutate requires a body");
+  }
+  return invoke("db_mutate", { sessionId: sid, body });
+}
+
+async function handleMutateBatch({ invoke, body }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] /api/mutate-batch requires a body");
+  }
+  const changes = (body as { changes?: unknown }).changes;
+  if (!Array.isArray(changes) || changes.length === 0) {
+    throw new Error("[api-tauri] /api/mutate-batch requires a non-empty `changes` array");
+  }
+  return invoke("db_mutate_batch", { sessionId: sid, changes });
+}
+
+async function handleLookupRow({ invoke, body }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] /api/lookup-row requires a body");
+  }
+  const { schema, table, column, value } = body as {
+    schema?: string;
+    table?: string;
+    column?: string;
+    value?: unknown;
+  };
+  if (!schema || !table || !column) {
+    throw new Error("[api-tauri] /api/lookup-row needs schema, table, and column");
+  }
+  return invoke("db_lookup_row", {
+    sessionId: sid,
+    schema,
+    table,
+    column,
+    value: value ?? null,
   });
 }
 
