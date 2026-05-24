@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { useConnection } from "../contexts/connection-context";
 import { ConnectionForm } from "../components/connection-form";
 import { SavedConnections } from "../components/saved-connections";
@@ -10,6 +11,15 @@ import { useRouter } from "next/navigation";
 export default function ConnectionsPage() {
   const { isConnected, isConnecting, databaseName, connect, error } = useConnection();
   const router = useRouter();
+
+  // Web-only notice: the SaaS round-trips credentials through a shared server,
+  // so it's only suitable for evaluation. The desktop build keeps credentials
+  // local (OS keychain) and bypasses the server entirely. Initial state is
+  // `false` so the Tauri webview never flashes the warning on hydration.
+  const [showWebNotice, setShowWebNotice] = useState(false);
+  useEffect(() => {
+    setShowWebNotice(!("__TAURI_INTERNALS__" in window));
+  }, []);
 
   const handleConnect = async (config: any, name?: string) => {
     try {
@@ -47,6 +57,20 @@ export default function ConnectionsPage() {
                 </p>
                 <p className="text-xs text-muted max-w-sm mx-auto">
                   Connect directly — your credentials never leave this device.
+                </p>
+              </div>
+            )}
+
+            {!isConnected && showWebNotice && (
+              <div className="mb-6 p-4 bg-warning/10 border border-warning/30 rounded-md">
+                <p className="text-sm font-semibold text-warning mb-1">
+                  This web version is for evaluation only
+                </p>
+                <p className="text-xs text-muted leading-relaxed">
+                  Connections you make here pass through a shared server, so
+                  please don&apos;t use production database credentials. For
+                  real work, install the desktop app — credentials stay on
+                  your machine (OS keychain) and never leave it.
                 </p>
               </div>
             )}
