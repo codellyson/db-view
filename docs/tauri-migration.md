@@ -15,7 +15,7 @@ This plan is the path from the `tauri-spike` branch (commit `e419b3c`) to a ship
 | 1 ✅ | Read-only browsing works in desktop window | `connect`, `disconnect`, `tables`, `schemas`, `table` (data + columns), `health` | low |
 | 2 ✅ | Mutations + edit flow | `mutate`, `mutate-batch`, `lookup-row` | medium — staged-edit/FK-navigator UI surface |
 | 3 ◐ | DDL + schema explorer | `ddl`, `schema-map`, `relationships` + indexes; `cascade-preview` deferred | medium — pg_catalog queries are pg-specific |
-| 4 | Explain + perf + extras | `explain`, `performance`, `functions`, `views`, `table-counts`, `table-stats` | low |
+| 4 ◐ | Explain + perf + extras | `views`, `functions`, `table-counts`, `table-stats`; `explain` + `performance/*` deferred (not surfaced in current dashboard) | low |
 | 5 | Import/export + saved connections in OS keychain | `import`, `upload-sqlite`, `saved-connections` | medium — filesystem semantics differ, keychain is platform-specific |
 | 6 | Polish + ship | n/a | medium — code signing, auto-update, bundle size |
 
@@ -311,6 +311,7 @@ Tracking choices made during the spike that should outlive it:
 | 2026-05-24 | Phase 3 ships `ddl`, `schema-map`, `relationships+indexes`; `cascade-preview` returns shape-correct empties | `cascade-preview` is ~370 lines of FK-graph BFS inside a savepoint+rollback and only feeds the Review-SQL impact panel — committing deletes still works without it. The other three unblock the dashboard's schema explorer, FK side-panel, table-creation wizard, and query-editor relationships fetch. `schema-overview` deferred outright: no consumer in the current UI. |
 | 2026-05-24 | Indexes query uses `jsonb_agg` instead of `array_agg` | Our `postgres_value_to_json` doesn't decode pg array types yet (`_text`, `_int4`, …) — they fall through to the string fallback. `jsonb_agg` returns a `jsonb` value our handler already decodes into a `JsonValue::Array`, so the dashboard's `index.columns` field arrives as a real JS array. Same data, no Rust array-decode work needed. |
 | 2026-05-24 | Static route table is a switch inside a function, not a top-level object literal | Turbopack transpiles `async function handler() {}` into `const handler = async function() {}`, breaking declaration-hoisting. A top-level `STATIC_ROUTES = { … handlerName … }` evaluates before those `const` bindings are initialized and throws `ReferenceError`. Resolving the handler at *call* time (inside `matchStaticRoute`) sidesteps the TDZ entirely. |
+| 2026-05-24 | Phase 4 ships `views`, `functions`, `table-counts`, `table-stats`; `explain` + `performance/*` deferred | The dashboard consumes the first four (sidebar sections + per-table Stats tab); `explain` is the SQL-editor's "EXPLAIN" button and `performance/*` would feed an admin panel that isn't in the current UI. Defer until either surface lands. With Phase 4's set wired, all the Phase 1-mount stubs are gone — only `saved-connections` (Phase 5 keychain work) remains on the stubbed read list. |
 
 ---
 

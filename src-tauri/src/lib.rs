@@ -446,6 +446,186 @@ async fn db_schema_map(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ViewsResponse {
+    views: Vec<String>,
+    materialized_views: Vec<String>,
+}
+
+#[tauri::command]
+async fn db_views(
+    session_id: String,
+    schema: String,
+    state: State<'_, AppState>,
+) -> CommandResult<ViewsResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    let views_res = conn
+        .query_with_params(
+            "SELECT table_name FROM information_schema.views
+             WHERE table_schema = $1
+             ORDER BY table_name",
+            &[Some(schema.clone())],
+        )
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    let matviews_res = conn
+        .query_with_params(
+            "SELECT matviewname AS name FROM pg_matviews
+             WHERE schemaname = $1
+             ORDER BY matviewname",
+            &[Some(schema)],
+        )
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    Ok(ViewsResponse {
+        views: first_column_strings(&views_res.rows),
+        materialized_views: first_column_strings(&matviews_res.rows),
+    })
+}
+
+#[derive(Serialize)]
+struct FunctionsResponse {
+    functions: Vec<JsonValue>,
+}
+
+#[tauri::command]
+async fn db_functions(
+    session_id: String,
+    schema: String,
+    state: State<'_, AppState>,
+) -> CommandResult<FunctionsResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    let functions = conn
+        .query_objects(
+            "SELECT
+                p.proname AS name,
+                pg_get_function_arguments(p.oid) AS arguments,
+                t.typname AS return_type,
+                l.lanname AS language,
+                CASE p.prokind
+                  WHEN 'f' THEN 'function'
+                  WHEN 'p' THEN 'procedure'
+                  WHEN 'a' THEN 'aggregate'
+                  WHEN 'w' THEN 'window'
+                END AS kind
+             FROM pg_proc p
+             JOIN pg_namespace n ON p.pronamespace = n.oid
+             JOIN pg_type t ON p.prorettype = t.oid
+             JOIN pg_language l ON p.prolang = l.oid
+             WHERE n.nspname = $1
+               AND p.prokind IN ('f', 'p')
+             ORDER BY p.proname",
+            &[Some(schema)],
+        )
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    Ok(FunctionsResponse { functions })
+}
+
+#[derive(Serialize)]
+struct TableCountsResponse {
+    counts: std::collections::BTreeMap<String, i64>,
+}
+
+#[tauri::command]
+async fn db_table_counts(
+    session_id: String,
+    schema: String,
+    state: State<'_, AppState>,
+) -> CommandResult<TableCountsResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    let res = conn
+        .query_with_params(
+            "SELECT c.relname AS table_name, c.reltuples::bigint AS estimate
+             FROM pg_class c
+             JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE c.relkind = 'r' AND n.nspname = $1",
+            &[Some(schema)],
+        )
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    let mut counts: std::collections::BTreeMap<String, i64> =
+        std::collections::BTreeMap::new();
+    for row in &res.rows {
+        let name = row.first().and_then(|v| v.as_str()).unwrap_or_default();
+        let estimate = row.get(1).and_then(|v| v.as_i64()).unwrap_or(-1);
+        // pg_class.reltuples is -1 for tables that have never been ANALYZE'd.
+        // Skip those — surfacing "-1" in the sidebar would mislead.
+        if name.is_empty() || estimate < 0 {
+            continue;
+        }
+        counts.insert(name.to_string(), estimate);
+    }
+    Ok(TableCountsResponse { counts })
+}
+
+#[derive(Serialize)]
+struct TableStatsResponse {
+    stats: Option<JsonValue>,
+}
+
+#[tauri::command]
+async fn db_table_stats(
+    session_id: String,
+    table: String,
+    schema: String,
+    state: State<'_, AppState>,
+) -> CommandResult<TableStatsResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    let rows = conn
+        .query_objects(
+            "SELECT
+                pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size,
+                pg_size_pretty(pg_relation_size(c.oid))       AS table_size,
+                pg_size_pretty(pg_indexes_size(c.oid))        AS index_size,
+                c.reltuples::bigint                            AS estimated_rows,
+                s.seq_scan,
+                s.idx_scan,
+                s.n_live_tup                                   AS live_rows,
+                s.n_dead_tup                                   AS dead_rows,
+                s.last_vacuum,
+                s.last_autovacuum,
+                s.last_analyze,
+                s.last_autoanalyze
+             FROM pg_class c
+             JOIN pg_namespace n ON n.oid = c.relnamespace
+             LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
+             WHERE c.relname = $1 AND n.nspname = $2",
+            &[Some(table), Some(schema)],
+        )
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    Ok(TableStatsResponse {
+        stats: rows.into_iter().next(),
+    })
+}
+
+#[derive(Serialize)]
 struct RelationshipsResponse {
     relationships: Vec<JsonValue>,
     indexes: Vec<JsonValue>,
@@ -626,6 +806,10 @@ pub fn run() {
             db_ddl,
             db_schema_map,
             db_relationships,
+            db_views,
+            db_functions,
+            db_table_counts,
+            db_table_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

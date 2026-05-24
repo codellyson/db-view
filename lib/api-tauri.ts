@@ -87,6 +87,11 @@ function matchRoute(
       const name = decodeURIComponent(m[1]);
       return (ctx) => handleRelationships({ ...ctx, pathParam: name });
     }
+    m = path.match(/^\/api\/table-stats\/([^/]+)$/);
+    if (m) {
+      const name = decodeURIComponent(m[1]);
+      return (ctx) => handleTableStats({ ...ctx, pathParam: name });
+    }
   }
 
   // Stubbed routes — known-future endpoints the dashboard hits on mount.
@@ -103,9 +108,6 @@ function matchRoute(
 // Phase pointers refer to docs/tauri-migration.md.
 const STATIC_STUBS: Record<string, { phase: string; value: unknown }> = {
   "GET /api/saved-connections": { phase: "Phase 5", value: { connections: [] } },
-  "GET /api/views":             { phase: "Phase 4", value: { views: [], materializedViews: [] } },
-  "GET /api/functions":         { phase: "Phase 4", value: { functions: [] } },
-  "GET /api/table-counts":      { phase: "Phase 4", value: { counts: {} } },
 };
 
 interface StubMatch {
@@ -123,12 +125,6 @@ function matchStub(method: HttpMethod, path: string): (() => unknown) | null {
     // /api/schema/<name>          → empty column list   (Phase 3)
     // /api/relationships/<name>   → no FKs              (Phase 3)
     // /api/table-stats/<name>     → null stats          (Phase 4)
-    const parametric: Array<[RegExp, StubMatch]> = [
-      [/^\/api\/table-stats\/[^/]+$/,   { key, phase: "Phase 4", value: { stats: null } }],
-    ];
-    for (const [re, match] of parametric) {
-      if (re.test(path)) return () => returnStub(match);
-    }
   }
   return null;
 }
@@ -158,6 +154,9 @@ function matchStaticRoute(
     case "POST /api/ddl": return handleDdl;
     case "GET /api/schema-map": return handleSchemaMap;
     case "POST /api/cascade-preview": return handleCascadePreview;
+    case "GET /api/views": return handleViews;
+    case "GET /api/functions": return handleFunctions;
+    case "GET /api/table-counts": return handleTableCounts;
     default: return null;
   }
 }
@@ -303,6 +302,34 @@ async function handleRelationships(
   if (!pathParam) throw new Error("[api-tauri] /api/relationships requires a table name");
   const schema = params.get("schema") || "public";
   return invoke("db_relationships", { sessionId: sid, table: pathParam, schema });
+}
+
+async function handleViews({ invoke, params }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  const schema = params.get("schema") || "public";
+  return invoke("db_views", { sessionId: sid, schema });
+}
+
+async function handleFunctions({ invoke, params }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  const schema = params.get("schema") || "public";
+  return invoke("db_functions", { sessionId: sid, schema });
+}
+
+async function handleTableCounts({ invoke, params }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  const schema = params.get("schema") || "public";
+  return invoke("db_table_counts", { sessionId: sid, schema });
+}
+
+async function handleTableStats(
+  ctx: HandlerCtx & { pathParam?: string },
+): Promise<unknown> {
+  const sid = requireSession();
+  const { invoke, params, pathParam } = ctx;
+  if (!pathParam) throw new Error("[api-tauri] /api/table-stats requires a table name");
+  const schema = params.get("schema") || "public";
+  return invoke("db_table_stats", { sessionId: sid, table: pathParam, schema });
 }
 
 // Cascade-preview is left as a structurally-correct empty result for now.
