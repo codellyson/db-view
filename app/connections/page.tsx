@@ -55,9 +55,11 @@ export default function ConnectionsPage() {
                 <p className="text-sm text-accent font-medium mb-1">
                   Just your data, no bullshit.
                 </p>
-                <p className="text-xs text-muted max-w-sm mx-auto">
-                  Connect directly — your credentials never leave this device.
-                </p>
+                {!showWebNotice && (
+                  <p className="text-xs text-muted max-w-sm mx-auto">
+                    Connect directly — your credentials never leave this device.
+                  </p>
+                )}
               </div>
             )}
 
