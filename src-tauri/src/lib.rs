@@ -1,9 +1,11 @@
 mod mutation;
 mod postgres;
+mod saved_connections;
 
 use dashmap::DashMap;
 use mutation::MutationRequest;
 use postgres::{DbConfig, PgConnection, QueryResult};
+use saved_connections::{ClientSavedConnection, SavedConnection};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
@@ -255,6 +257,51 @@ async fn db_table_rows(
         limit,
         offset,
         count_is_estimate,
+    })
+}
+
+#[tauri::command]
+async fn db_saved_list() -> CommandResult<Vec<ClientSavedConnection>> {
+    saved_connections::list_sanitized().map_err(CommandError::Query)
+}
+
+#[tauri::command]
+async fn db_saved_create(
+    id: String,
+    name: String,
+    config: DbConfig,
+) -> CommandResult<ClientSavedConnection> {
+    saved_connections::save(id, name, config).map_err(CommandError::Query)
+}
+
+#[tauri::command]
+async fn db_saved_delete(id: String) -> CommandResult<()> {
+    saved_connections::delete(&id).map_err(CommandError::Query)
+}
+
+#[tauri::command]
+async fn db_saved_connect(
+    id: String,
+    state: State<'_, AppState>,
+) -> CommandResult<ConnectResponse> {
+    let saved: SavedConnection = saved_connections::get(&id)
+        .map_err(CommandError::Query)?
+        .ok_or_else(|| CommandError::Query(format!("No saved connection with id {id}")))?;
+
+    let database = saved.config.database.clone();
+    let conn = PgConnection::connect(saved.config)
+        .await
+        .map_err(|e| CommandError::Connection(e.to_string()))?;
+
+    let session_id = uuid::Uuid::new_v4().to_string();
+    state.sessions.insert(session_id.clone(), Arc::new(conn));
+
+    // Bump lastUsed timestamp; failures here don't abort the connect.
+    saved_connections::mark_used(&id);
+
+    Ok(ConnectResponse {
+        session_id,
+        database,
     })
 }
 
@@ -810,6 +857,10 @@ pub fn run() {
             db_functions,
             db_table_counts,
             db_table_stats,
+            db_saved_list,
+            db_saved_create,
+            db_saved_delete,
+            db_saved_connect,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

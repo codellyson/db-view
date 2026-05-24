@@ -31,3 +31,4 @@ uuid = { version = "1", features = ["v4"] }
 thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
 rust_decimal = { version = "1", features = ["serde-float", "db-postgres"] }
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }

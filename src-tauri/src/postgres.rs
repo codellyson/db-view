@@ -7,7 +7,7 @@ use tokio_postgres::{
     Client, Row,
 };
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DbConfig {
     pub host: String,
     pub port: u16,

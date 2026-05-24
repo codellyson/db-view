@@ -106,9 +106,7 @@ function matchRoute(
 
 // Stubs for routes the dashboard fires that we'll wire in later phases.
 // Phase pointers refer to docs/tauri-migration.md.
-const STATIC_STUBS: Record<string, { phase: string; value: unknown }> = {
-  "GET /api/saved-connections": { phase: "Phase 5", value: { connections: [] } },
-};
+const STATIC_STUBS: Record<string, { phase: string; value: unknown }> = {};
 
 interface StubMatch {
   key: string;
@@ -142,21 +140,29 @@ function matchStaticRoute(
   method: HttpMethod,
   path: string,
 ): ((ctx: HandlerCtx) => Promise<unknown>) | null {
+  // Each case returns an arrow that defers the handler-name lookup until
+  // invocation. Direct `return handlerName;` triggers the lookup at
+  // case-match time, which can hit a TDZ during HMR transitions because
+  // Turbopack transpiles `async function h() {}` into `const h = async …`.
   switch (`${method} ${path}`) {
-    case "POST /api/connect": return handleConnect;
-    case "POST /api/disconnect": return handleDisconnect;
-    case "GET /api/health": return handleHealth;
-    case "GET /api/schemas": return handleSchemas;
-    case "GET /api/tables": return handleTables;
-    case "POST /api/mutate": return handleMutate;
-    case "POST /api/mutate-batch": return handleMutateBatch;
-    case "POST /api/lookup-row": return handleLookupRow;
-    case "POST /api/ddl": return handleDdl;
-    case "GET /api/schema-map": return handleSchemaMap;
-    case "POST /api/cascade-preview": return handleCascadePreview;
-    case "GET /api/views": return handleViews;
-    case "GET /api/functions": return handleFunctions;
-    case "GET /api/table-counts": return handleTableCounts;
+    case "POST /api/connect":             return (ctx) => handleConnect(ctx);
+    case "POST /api/disconnect":          return (ctx) => handleDisconnect(ctx);
+    case "GET /api/health":               return (ctx) => handleHealth(ctx);
+    case "GET /api/schemas":              return (ctx) => handleSchemas(ctx);
+    case "GET /api/tables":               return (ctx) => handleTables(ctx);
+    case "POST /api/mutate":              return (ctx) => handleMutate(ctx);
+    case "POST /api/mutate-batch":        return (ctx) => handleMutateBatch(ctx);
+    case "POST /api/lookup-row":          return (ctx) => handleLookupRow(ctx);
+    case "POST /api/ddl":                 return (ctx) => handleDdl(ctx);
+    case "GET /api/schema-map":           return (ctx) => handleSchemaMap(ctx);
+    case "POST /api/cascade-preview":     return () => handleCascadePreview();
+    case "GET /api/views":                return (ctx) => handleViews(ctx);
+    case "GET /api/functions":            return (ctx) => handleFunctions(ctx);
+    case "GET /api/table-counts":         return (ctx) => handleTableCounts(ctx);
+    case "GET /api/saved-connections":    return (ctx) => handleSavedList(ctx);
+    case "POST /api/saved-connections":   return (ctx) => handleSavedCreate(ctx);
+    case "DELETE /api/saved-connections": return (ctx) => handleSavedDelete(ctx);
+    case "PATCH /api/saved-connections":  return (ctx) => handleSavedConnect(ctx);
     default: return null;
   }
 }
@@ -330,6 +336,57 @@ async function handleTableStats(
   if (!pathParam) throw new Error("[api-tauri] /api/table-stats requires a table name");
   const schema = params.get("schema") || "public";
   return invoke("db_table_stats", { sessionId: sid, table: pathParam, schema });
+}
+
+async function handleSavedList({ invoke }: HandlerCtx): Promise<unknown> {
+  const connections = await invoke<unknown[]>("db_saved_list");
+  return { connections };
+}
+
+async function handleSavedCreate({ invoke, body }: HandlerCtx): Promise<unknown> {
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] POST /api/saved-connections requires a body");
+  }
+  const { id, name, config } = body as {
+    id?: string;
+    name?: string;
+    config?: unknown;
+  };
+  if (!id || !name || !config) {
+    throw new Error("[api-tauri] id, name, and config are required");
+  }
+  const connection = await invoke("db_saved_create", { id, name, config });
+  return { connection };
+}
+
+async function handleSavedDelete({ invoke, body }: HandlerCtx): Promise<unknown> {
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] DELETE /api/saved-connections requires a body");
+  }
+  const { id } = body as { id?: string };
+  if (!id) throw new Error("[api-tauri] Connection id is required");
+  await invoke("db_saved_delete", { id });
+  return { success: true };
+}
+
+async function handleSavedConnect({ invoke, body }: HandlerCtx): Promise<unknown> {
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] PATCH /api/saved-connections requires a body");
+  }
+  const { id } = body as { id?: string };
+  if (!id) throw new Error("[api-tauri] Connection id is required");
+  const res = await invoke<{ session_id: string; database: string }>(
+    "db_saved_connect",
+    { id },
+  );
+  // Mirror handleConnect: stash the new session id for subsequent calls and
+  // shape-match the SaaS PATCH response.
+  sessionId = res.session_id;
+  return {
+    success: true,
+    database: res.database,
+    type: "postgresql",
+  };
 }
 
 // Cascade-preview is left as a structurally-correct empty result for now.
