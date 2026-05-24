@@ -1,3 +1,4 @@
+mod cascade;
 mod mutation;
 mod postgres;
 mod saved_connections;
@@ -258,6 +259,36 @@ async fn db_table_rows(
         offset,
         count_is_estimate,
     })
+}
+
+#[tauri::command]
+async fn db_cascade_preview(
+    session_id: String,
+    deletes: Vec<cascade::CascadeNodeRequest>,
+    options: Option<cascade::CascadeOptions>,
+    state: State<'_, AppState>,
+) -> CommandResult<cascade::CascadeResult> {
+    if deletes.is_empty() {
+        return Err(CommandError::Query(
+            "`deletes` must be a non-empty array".into(),
+        ));
+    }
+    for (i, d) in deletes.iter().enumerate() {
+        postgres::quote_identifier(&d.schema).map_err(|e| {
+            CommandError::Query(format!("deletes[{i}].schema: {e}"))
+        })?;
+        postgres::quote_identifier(&d.table).map_err(|e| {
+            CommandError::Query(format!("deletes[{i}].table: {e}"))
+        })?;
+    }
+
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    Ok(cascade::preview(&conn, deletes, options).await)
 }
 
 #[derive(Serialize)]
@@ -931,6 +962,7 @@ pub fn run() {
             db_saved_delete,
             db_saved_connect,
             db_run_query,
+            db_cascade_preview,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

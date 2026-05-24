@@ -156,7 +156,7 @@ function matchStaticRoute(
     case "POST /api/lookup-row":          return (ctx) => handleLookupRow(ctx);
     case "POST /api/ddl":                 return (ctx) => handleDdl(ctx);
     case "GET /api/schema-map":           return (ctx) => handleSchemaMap(ctx);
-    case "POST /api/cascade-preview":     return () => handleCascadePreview();
+    case "POST /api/cascade-preview":     return (ctx) => handleCascadePreview(ctx);
     case "GET /api/views":                return (ctx) => handleViews(ctx);
     case "GET /api/functions":            return (ctx) => handleFunctions(ctx);
     case "GET /api/table-counts":         return (ctx) => handleTableCounts(ctx);
@@ -445,22 +445,16 @@ async function handleQuery({ invoke, body }: HandlerCtx): Promise<unknown> {
   };
 }
 
-// Cascade-preview is left as a structurally-correct empty result for now.
-// The Review-SQL modal consumes { cascade, setNull, blocked, truncated,
-// elapsedMs, warnings } — returning empties means the modal renders cleanly
-// and the user can still commit the deletes; only the cascade-impact panel
-// is uninformative. A real port lives in lib/cascade.ts (~370 lines of
-// FK-graph BFS inside a savepoint+rollback) and is its own follow-up.
-async function handleCascadePreview(): Promise<unknown> {
-  return {
-    success: true,
-    cascade: [],
-    setNull: [],
-    blocked: [],
-    truncated: false,
-    elapsedMs: 0,
-    warnings: ["Cascade preview not yet implemented on desktop"],
-  };
+async function handleCascadePreview({ invoke, body }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] /api/cascade-preview requires a body");
+  }
+  const { deletes, options } = body as { deletes?: unknown; options?: unknown };
+  if (!Array.isArray(deletes) || deletes.length === 0) {
+    throw new Error("[api-tauri] `deletes` must be a non-empty array");
+  }
+  return invoke("db_cascade_preview", { sessionId: sid, deletes, options });
 }
 
 async function handleLookupRow({ invoke, body }: HandlerCtx): Promise<unknown> {
