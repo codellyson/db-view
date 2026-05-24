@@ -1,0 +1,28 @@
+# Normalize all text files to LF in the repo; Git checks them out with
+# native line endings when core.autocrlf=true. Prevents Windows checkouts
+# from showing every text file as "modified" on subsequent edits.
+
+* text=auto eol=lf
+
+# Scripts that MUST keep CRLF (Windows-only)
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Common binaries — never touch line endings
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.icns  binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.tar   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
