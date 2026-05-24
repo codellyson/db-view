@@ -178,12 +178,35 @@ async function handleConnect({ invoke, body }: HandlerCtx): Promise<unknown> {
     { config },
   );
   sessionId = res.session_id;
-  // Shape-match app/api/connect/route.ts so connection-context doesn't care
-  // it's talking to Tauri. saveName/saveId is a no-op until Phase 5 (OS keychain).
+
+  // If the user ticked "save this connection", persist to the OS keychain
+  // in the same round-trip — mirrors app/api/connect/route.ts which writes
+  // to its encrypted cookie inside the same POST. The connection-context
+  // looks for `savedConnection` on the response to update local state.
+  let savedConnection: unknown;
+  if (body && typeof body === "object") {
+    const { saveName, saveId } = body as { saveName?: unknown; saveId?: unknown };
+    if (typeof saveName === "string" && saveName.trim() && typeof saveId === "string" && saveId) {
+      try {
+        savedConnection = await invoke("db_saved_create", {
+          id: saveId,
+          name: saveName,
+          config,
+        });
+      } catch (e) {
+        // Don't fail the connect just because the keychain write failed
+        // (e.g. Linux without gnome-keyring / KWallet). Log and continue —
+        // the user is connected, the connection just isn't persisted.
+        console.error("[api-tauri] saved-connection write failed:", e);
+      }
+    }
+  }
+
   return {
     success: true,
     database: res.database,
     type: config.type ?? "postgresql",
+    savedConnection,
   };
 }
 
