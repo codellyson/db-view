@@ -19,6 +19,7 @@
  */
 
 import type { InvokeArgs } from "@tauri-apps/api/core";
+import { classifyQuery, requiresTypedConfirmation } from "./query-classifier";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 type InvokeFn = <T>(cmd: string, args?: InvokeArgs) => Promise<T>;
@@ -163,6 +164,7 @@ function matchStaticRoute(
     case "POST /api/saved-connections":   return (ctx) => handleSavedCreate(ctx);
     case "DELETE /api/saved-connections": return (ctx) => handleSavedDelete(ctx);
     case "PATCH /api/saved-connections":  return (ctx) => handleSavedConnect(ctx);
+    case "POST /api/query":               return (ctx) => handleQuery(ctx);
     default: return null;
   }
 }
@@ -386,6 +388,60 @@ async function handleSavedConnect({ invoke, body }: HandlerCtx): Promise<unknown
     success: true,
     database: res.database,
     type: "postgresql",
+  };
+}
+
+// SQL editor's run-query path. Classifies the SQL in JS using the existing
+// lib/query-classifier (same module the SaaS shipped to clients), gates
+// write/DDL on a confirmation handshake, then hands the cleared SQL to
+// db_run_query. Doc-decided to keep the classifier in TS on desktop rather
+// than porting to Rust: classifier-as-safety only matters across a hostile
+// client/server boundary, which doesn't exist when the user owns the binary.
+async function handleQuery({ invoke, body }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] POST /api/query requires a body");
+  }
+  const { query, confirmed } = body as { query?: string; confirmed?: boolean };
+  if (typeof query !== "string" || !query.trim()) {
+    throw new Error("[api-tauri] query is required");
+  }
+
+  const classification = classifyQuery(query);
+
+  if (classification.kind === "blocked" || classification.kind === "unknown") {
+    throw new Error(
+      classification.reason ||
+        `Statements of type ${classification.statement || "(unknown)"} are not allowed`,
+    );
+  }
+
+  if ((classification.kind === "write" || classification.kind === "ddl") && !confirmed) {
+    return {
+      needsConfirmation: true,
+      classification: {
+        kind: classification.kind,
+        statement: classification.statement,
+        isBulkWrite: classification.isBulkWrite,
+        requiresTypedConfirmation: requiresTypedConfirmation(classification),
+      },
+      preview: query,
+    };
+  }
+
+  const result = await invoke<{
+    rows: unknown[];
+    executionTime: number;
+    fields: unknown[];
+  }>("db_run_query", { sessionId: sid, sql: query });
+
+  return {
+    ...result,
+    classification: {
+      kind: classification.kind,
+      statement: classification.statement,
+      isBulkWrite: classification.isBulkWrite,
+    },
   };
 }
 

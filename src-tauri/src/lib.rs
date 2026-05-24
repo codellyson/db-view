@@ -260,6 +260,75 @@ async fn db_table_rows(
     })
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct QueryField {
+    name: String,
+    data_type_id: Option<u32>,
+    // FK source (which base-table column produced this output column) needs
+    // pg_class/pg_attribute lookups via OIDs. The SaaS resolves this in
+    // PostgreSQLProvider.resolveFieldSources; on desktop we surface `null`
+    // for now — the FK-navigator on result rows just won't activate. Wire
+    // when the polish phase has time.
+    source: Option<()>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RunQueryResponse {
+    rows: Vec<JsonValue>,
+    execution_time: u64,
+    fields: Vec<QueryField>,
+}
+
+#[tauri::command]
+async fn db_run_query(
+    session_id: String,
+    sql: String,
+    state: State<'_, AppState>,
+) -> CommandResult<RunQueryResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    // Match the SaaS executeQuery: 30s budget, return rows as objects keyed by
+    // column name, plus per-column type OIDs so the editor can pick the right
+    // renderer.
+    let start = std::time::Instant::now();
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        conn.query(&sql),
+    )
+    .await
+    .map_err(|_| CommandError::Query("Query timeout exceeded (30s)".into()))?
+    .map_err(|e| CommandError::Query(e.to_string()))?;
+    let execution_time = start.elapsed().as_millis() as u64;
+
+    let fields: Vec<QueryField> = result
+        .columns
+        .iter()
+        .map(|c| QueryField {
+            name: c.name.clone(),
+            // tokio-postgres exposes the type OID via `Type::oid()`; we need
+            // to re-query that from the column metadata, but our QueryResult
+            // only carries `data_type: String` (name). The pg_type name lookup
+            // could resolve back to an OID via pg_type — skip for now and
+            // emit None. The SQL editor falls back to text rendering.
+            data_type_id: None,
+            source: None,
+        })
+        .collect();
+
+    let rows = postgres::rows_as_objects(&result);
+    Ok(RunQueryResponse {
+        rows,
+        execution_time,
+        fields,
+    })
+}
+
 #[tauri::command]
 async fn db_saved_list() -> CommandResult<Vec<ClientSavedConnection>> {
     saved_connections::list_sanitized().map_err(CommandError::Query)
@@ -861,6 +930,7 @@ pub fn run() {
             db_saved_create,
             db_saved_delete,
             db_saved_connect,
+            db_run_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
