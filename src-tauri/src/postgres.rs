@@ -23,6 +23,16 @@ pub struct ColumnMeta {
     pub name: String,
     #[serde(rename = "type")]
     pub data_type: String,
+    // Postgres OIDs from the prepared statement's row description. Used by
+    // db_run_query to resolve back to base-table (schema, table, column) so
+    // the SQL editor's result rows can hand off to the FK navigator. None
+    // when the column isn't backed by a table (literals, expressions).
+    #[serde(rename = "tableOid", skip_serializing_if = "Option::is_none")]
+    pub table_oid: Option<u32>,
+    #[serde(rename = "columnId", skip_serializing_if = "Option::is_none")]
+    pub column_id: Option<i16>,
+    #[serde(rename = "dataTypeId", skip_serializing_if = "Option::is_none")]
+    pub data_type_id: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -131,9 +141,18 @@ impl PgConnection {
         let columns: Vec<ColumnMeta> = stmt
             .columns()
             .iter()
-            .map(|c| ColumnMeta {
-                name: c.name().to_string(),
-                data_type: c.type_().name().to_string(),
+            .map(|c| {
+                let t_oid = c.table_oid();
+                let c_id = c.column_id();
+                ColumnMeta {
+                    name: c.name().to_string(),
+                    data_type: c.type_().name().to_string(),
+                    // tokio-postgres returns 0 for "no table" / "no column"; surface
+                    // that as None so downstream callers don't try to resolve OID 0.
+                    table_oid: t_oid.filter(|&v| v != 0),
+                    column_id: c_id.filter(|&v| v != 0),
+                    data_type_id: Some(c.type_().oid()),
+                }
             })
             .collect();
 

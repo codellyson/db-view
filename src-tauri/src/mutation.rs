@@ -183,3 +183,44 @@ fn literal_for_where(val: &JsonValue) -> String {
         other => pg_quote_literal(&json_to_text(other)),
     }
 }
+
+// Bulk insert builder for /api/import (CSV import flow). One statement per
+// call covering `rows.len()` value tuples. Used in chunks of `batchSize`
+// inside a single transaction so the whole import is atomic.
+pub fn build_bulk_insert(
+    schema: &str,
+    table: &str,
+    columns: &[String],
+    rows: &[Vec<JsonValue>],
+) -> Result<String, String> {
+    if columns.is_empty() {
+        return Err("INSERT requires at least one column".into());
+    }
+    if rows.is_empty() {
+        return Err("INSERT requires at least one row".into());
+    }
+    let qualified = qualified_table(schema, table)?;
+    let mut q_cols = Vec::with_capacity(columns.len());
+    for c in columns {
+        q_cols.push(quote_identifier(c)?);
+    }
+
+    let value_tuples: Vec<String> = rows
+        .iter()
+        .map(|row| {
+            let lits: Vec<String> = (0..columns.len())
+                .map(|i| match row.get(i) {
+                    None | Some(JsonValue::Null) => "NULL".into(),
+                    Some(other) => pg_quote_literal(&json_to_text(other)),
+                })
+                .collect();
+            format!("({})", lits.join(", "))
+        })
+        .collect();
+
+    Ok(format!(
+        "INSERT INTO {qualified} ({}) VALUES {}",
+        q_cols.join(", "),
+        value_tuples.join(", "),
+    ))
+}

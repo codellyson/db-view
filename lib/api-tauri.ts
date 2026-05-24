@@ -166,6 +166,7 @@ function matchStaticRoute(
     case "PATCH /api/saved-connections":  return (ctx) => handleSavedConnect(ctx);
     case "POST /api/query":               return (ctx) => handleQuery(ctx);
     case "POST /api/explain":             return (ctx) => handleExplain(ctx);
+    case "POST /api/import":              return (ctx) => handleImport(ctx);
     default: return null;
   }
 }
@@ -444,6 +445,34 @@ async function handleQuery({ invoke, body }: HandlerCtx): Promise<unknown> {
       isBulkWrite: classification.isBulkWrite,
     },
   };
+}
+
+async function handleImport({ invoke, body }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] /api/import requires a body");
+  }
+  const { schema, table, columns, rows, batchSize } = body as {
+    schema?: string;
+    table?: string;
+    columns?: unknown;
+    rows?: unknown;
+    batchSize?: number;
+  };
+  if (!schema || !table) {
+    throw new Error("[api-tauri] schema and table are required");
+  }
+  if (!Array.isArray(columns) || !Array.isArray(rows)) {
+    throw new Error("[api-tauri] columns and rows must be arrays");
+  }
+  return invoke("db_import", {
+    sessionId: sid,
+    schema,
+    table,
+    columns,
+    rows,
+    batchSize,
+  });
 }
 
 async function handleExplain({ invoke, body }: HandlerCtx): Promise<unknown> {

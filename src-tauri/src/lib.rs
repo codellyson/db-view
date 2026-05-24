@@ -261,6 +261,61 @@ async fn db_table_rows(
     })
 }
 
+const DEFAULT_IMPORT_BATCH_SIZE: usize = 100;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportResponse {
+    success: bool,
+    inserted_rows: usize,
+}
+
+#[tauri::command]
+async fn db_import(
+    session_id: String,
+    schema: String,
+    table: String,
+    columns: Vec<String>,
+    rows: Vec<Vec<JsonValue>>,
+    batch_size: Option<usize>,
+    state: State<'_, AppState>,
+) -> CommandResult<ImportResponse> {
+    if columns.is_empty() {
+        return Err(CommandError::Query("`columns` must be non-empty".into()));
+    }
+    if rows.is_empty() {
+        return Err(CommandError::Query("No rows to import".into()));
+    }
+    postgres::quote_identifier(&schema).map_err(CommandError::Query)?;
+    postgres::quote_identifier(&table).map_err(CommandError::Query)?;
+    for c in &columns {
+        postgres::quote_identifier(c).map_err(CommandError::Query)?;
+    }
+
+    let batch = batch_size.unwrap_or(DEFAULT_IMPORT_BATCH_SIZE).max(1);
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    let mut statements: Vec<String> = Vec::with_capacity(rows.len().div_ceil(batch));
+    for chunk in rows.chunks(batch) {
+        let sql = mutation::build_bulk_insert(&schema, &table, &columns, chunk)
+            .map_err(CommandError::Query)?;
+        statements.push(sql);
+    }
+
+    conn.run_transaction(&statements)
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    Ok(ImportResponse {
+        success: true,
+        inserted_rows: rows.len(),
+    })
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ExplainResponse {
@@ -348,15 +403,23 @@ async fn db_cascade_preview(
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+struct FieldSource {
+    schema: String,
+    table: String,
+    column: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct QueryField {
     name: String,
     data_type_id: Option<u32>,
-    // FK source (which base-table column produced this output column) needs
-    // pg_class/pg_attribute lookups via OIDs. The SaaS resolves this in
-    // PostgreSQLProvider.resolveFieldSources; on desktop we surface `null`
-    // for now — the FK-navigator on result rows just won't activate. Wire
-    // when the polish phase has time.
-    source: Option<()>,
+    // FK source: which base-table column produced this output column.
+    // Resolved from the prepared statement's tableOid + columnId via two
+    // pg_catalog lookups so the SQL editor's FK navigator can activate on
+    // result rows. None for computed columns (literals, expressions, function
+    // results) or when the underlying relation was dropped.
+    source: Option<FieldSource>,
 }
 
 #[derive(Serialize)]
@@ -392,18 +455,32 @@ async fn db_run_query(
     .map_err(|e| CommandError::Query(e.to_string()))?;
     let execution_time = start.elapsed().as_millis() as u64;
 
+    // Resolve base-table sources for any result columns that came from a
+    // real relation. Mirrors PostgreSQLProvider.resolveFieldSources on the
+    // SaaS side. Two best-effort pg_catalog queries; failures just leave
+    // source = None for the affected columns.
+    let (oid_map, col_map) = resolve_field_sources(&conn, &result.columns).await;
+
     let fields: Vec<QueryField> = result
         .columns
         .iter()
-        .map(|c| QueryField {
-            name: c.name.clone(),
-            // tokio-postgres exposes the type OID via `Type::oid()`; we need
-            // to re-query that from the column metadata, but our QueryResult
-            // only carries `data_type: String` (name). The pg_type name lookup
-            // could resolve back to an OID via pg_type — skip for now and
-            // emit None. The SQL editor falls back to text rendering.
-            data_type_id: None,
-            source: None,
+        .map(|c| {
+            let source = match (c.table_oid, c.column_id) {
+                (Some(t_oid), Some(c_id)) => match (oid_map.get(&t_oid), col_map.get(&(t_oid, c_id))) {
+                    (Some((schema, table)), Some(column)) => Some(FieldSource {
+                        schema: schema.clone(),
+                        table: table.clone(),
+                        column: column.clone(),
+                    }),
+                    _ => None,
+                },
+                _ => None,
+            };
+            QueryField {
+                name: c.name.clone(),
+                data_type_id: c.data_type_id,
+                source,
+            }
         })
         .collect();
 
@@ -413,6 +490,83 @@ async fn db_run_query(
         execution_time,
         fields,
     })
+}
+
+// Two pg_catalog lookups in parallel: which (schema, table) each table_oid
+// belongs to, and which column name each (table_oid, column_id) pair points
+// at. OIDs are integers we control, so inlining them in the IN clause is
+// safe — no injection surface.
+async fn resolve_field_sources(
+    conn: &Arc<PgConnection>,
+    columns: &[postgres::ColumnMeta],
+) -> (
+    std::collections::HashMap<u32, (String, String)>,
+    std::collections::HashMap<(u32, i16), String>,
+) {
+    let mut oid_set: std::collections::HashSet<u32> = std::collections::HashSet::new();
+    let mut pairs: Vec<(u32, i16)> = Vec::new();
+    for c in columns {
+        if let Some(t_oid) = c.table_oid {
+            oid_set.insert(t_oid);
+            if let Some(c_id) = c.column_id {
+                pairs.push((t_oid, c_id));
+            }
+        }
+    }
+
+    let mut oid_map: std::collections::HashMap<u32, (String, String)> =
+        std::collections::HashMap::new();
+    let mut col_map: std::collections::HashMap<(u32, i16), String> =
+        std::collections::HashMap::new();
+
+    if !oid_set.is_empty() {
+        let oids_csv = oid_set
+            .iter()
+            .map(|o| o.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "SELECT c.oid::int AS oid, n.nspname AS schema, c.relname AS table
+             FROM pg_class c
+             JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE c.oid IN ({oids_csv})"
+        );
+        if let Ok(res) = conn.query(&sql).await {
+            for row in &res.rows {
+                let oid = row.first().and_then(|v| v.as_i64()).map(|n| n as u32);
+                let schema = row.get(1).and_then(|v| v.as_str()).map(String::from);
+                let table = row.get(2).and_then(|v| v.as_str()).map(String::from);
+                if let (Some(o), Some(s), Some(t)) = (oid, schema, table) {
+                    oid_map.insert(o, (s, t));
+                }
+            }
+        }
+    }
+
+    if !pairs.is_empty() {
+        let pairs_csv = pairs
+            .iter()
+            .map(|(t, c)| format!("({t}, {c})"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "SELECT attrelid::int AS table_id, attnum::int AS col_id, attname AS name
+             FROM pg_attribute
+             WHERE (attrelid, attnum) IN ({pairs_csv})"
+        );
+        if let Ok(res) = conn.query(&sql).await {
+            for row in &res.rows {
+                let t_id = row.first().and_then(|v| v.as_i64()).map(|n| n as u32);
+                let c_id = row.get(1).and_then(|v| v.as_i64()).map(|n| n as i16);
+                let name = row.get(2).and_then(|v| v.as_str()).map(String::from);
+                if let (Some(t), Some(c), Some(n)) = (t_id, c_id, name) {
+                    col_map.insert((t, c), n);
+                }
+            }
+        }
+    }
+
+    (oid_map, col_map)
 }
 
 #[tauri::command]
@@ -1019,6 +1173,7 @@ pub fn run() {
             db_run_query,
             db_cascade_preview,
             db_explain,
+            db_import,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
