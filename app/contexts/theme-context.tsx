@@ -9,6 +9,7 @@ import {
   rgbTripletToHex,
   type ThemePlugin,
 } from "@/lib/theme-plugins";
+import { isTauriRuntime } from "@/lib/api-tauri";
 
 type Mode = "light" | "dark";
 
@@ -82,6 +83,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.dataset.theme = t.id;
     localStorage.setItem(THEME_KEY, t.id);
   }, [themeId, mode, mounted]);
+
+  // Sync the native window title bar with the app mode when running in
+  // Tauri. Without this, Windows renders the title bar in the OS theme
+  // (e.g. dark) while the app is in the opposite mode (e.g. light).
+  useEffect(() => {
+    if (!mounted || !isTauriRuntime()) return;
+    let cancelled = false;
+    (async () => {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      if (cancelled) return;
+      const win = getCurrentWindow();
+      console.log("[theme] setTheme ->", mode);
+      await win.setTheme(mode);
+      console.log("[theme] setTheme done");
+    })().catch((err) => {
+      console.error("[theme] setTheme failed:", err);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, mounted]);
 
   const theme = useMemo(() => findTheme(themeId), [themeId]);
   const variant = mode === "dark" ? theme.dark : theme.light;
