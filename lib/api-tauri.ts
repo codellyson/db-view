@@ -63,9 +63,12 @@ function matchRoute(
   method: HttpMethod,
   path: string,
 ): ((ctx: HandlerCtx) => Promise<unknown>) | null {
-  // Static routes first.
-  const key = `${method} ${path}`;
-  if (STATIC_ROUTES[key]) return STATIC_ROUTES[key];
+  // Static routes first. Resolved inside a function (not a top-level object
+  // literal) because Turbopack transpiles `async function handler() {}` to
+  // `const handler = async function() {}`, and a top-level table literal
+  // evaluates before those bindings are initialized → ReferenceError.
+  const staticHandler = matchStaticRoute(method, path);
+  if (staticHandler) return staticHandler;
 
   // Parametric routes.
   if (method === "GET") {
@@ -78,6 +81,11 @@ function matchRoute(
     if (m) {
       const name = decodeURIComponent(m[1]);
       return (ctx) => handleTableSchema({ ...ctx, pathParam: name });
+    }
+    m = path.match(/^\/api\/relationships\/([^/]+)$/);
+    if (m) {
+      const name = decodeURIComponent(m[1]);
+      return (ctx) => handleRelationships({ ...ctx, pathParam: name });
     }
   }
 
@@ -97,7 +105,6 @@ const STATIC_STUBS: Record<string, { phase: string; value: unknown }> = {
   "GET /api/saved-connections": { phase: "Phase 5", value: { connections: [] } },
   "GET /api/views":             { phase: "Phase 4", value: { views: [], materializedViews: [] } },
   "GET /api/functions":         { phase: "Phase 4", value: { functions: [] } },
-  "GET /api/schema-map":        { phase: "Phase 3", value: { schemaMap: {} } },
   "GET /api/table-counts":      { phase: "Phase 4", value: { counts: {} } },
 };
 
@@ -117,7 +124,6 @@ function matchStub(method: HttpMethod, path: string): (() => unknown) | null {
     // /api/relationships/<name>   → no FKs              (Phase 3)
     // /api/table-stats/<name>     → null stats          (Phase 4)
     const parametric: Array<[RegExp, StubMatch]> = [
-      [/^\/api\/relationships\/[^/]+$/, { key, phase: "Phase 3", value: { relationships: [], incomingForeignKeys: [] } }],
       [/^\/api\/table-stats\/[^/]+$/,   { key, phase: "Phase 4", value: { stats: null } }],
     ];
     for (const [re, match] of parametric) {
@@ -136,16 +142,25 @@ function returnStub(match: StubMatch): unknown {
   return match.value;
 }
 
-const STATIC_ROUTES: Record<string, (ctx: HandlerCtx) => Promise<unknown>> = {
-  "POST /api/connect": handleConnect,
-  "POST /api/disconnect": handleDisconnect,
-  "GET /api/health": handleHealth,
-  "GET /api/schemas": handleSchemas,
-  "GET /api/tables": handleTables,
-  "POST /api/mutate": handleMutate,
-  "POST /api/mutate-batch": handleMutateBatch,
-  "POST /api/lookup-row": handleLookupRow,
-};
+function matchStaticRoute(
+  method: HttpMethod,
+  path: string,
+): ((ctx: HandlerCtx) => Promise<unknown>) | null {
+  switch (`${method} ${path}`) {
+    case "POST /api/connect": return handleConnect;
+    case "POST /api/disconnect": return handleDisconnect;
+    case "GET /api/health": return handleHealth;
+    case "GET /api/schemas": return handleSchemas;
+    case "GET /api/tables": return handleTables;
+    case "POST /api/mutate": return handleMutate;
+    case "POST /api/mutate-batch": return handleMutateBatch;
+    case "POST /api/lookup-row": return handleLookupRow;
+    case "POST /api/ddl": return handleDdl;
+    case "GET /api/schema-map": return handleSchemaMap;
+    case "POST /api/cascade-preview": return handleCascadePreview;
+    default: return null;
+  }
+}
 
 async function handleConnect({ invoke, body }: HandlerCtx): Promise<unknown> {
   const config = extractConnectConfig(body);
@@ -260,6 +275,52 @@ async function handleMutateBatch({ invoke, body }: HandlerCtx): Promise<unknown>
     throw new Error("[api-tauri] /api/mutate-batch requires a non-empty `changes` array");
   }
   return invoke("db_mutate_batch", { sessionId: sid, changes });
+}
+
+async function handleDdl({ invoke, body }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] /api/ddl requires a body");
+  }
+  const { sql } = body as { sql?: unknown };
+  if (typeof sql !== "string" || !sql) {
+    throw new Error("[api-tauri] /api/ddl requires sql");
+  }
+  return invoke("db_ddl", { sessionId: sid, sql });
+}
+
+async function handleSchemaMap({ invoke, params }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  const schema = params.get("schema") || "public";
+  return invoke("db_schema_map", { sessionId: sid, schema });
+}
+
+async function handleRelationships(
+  ctx: HandlerCtx & { pathParam?: string },
+): Promise<unknown> {
+  const sid = requireSession();
+  const { invoke, params, pathParam } = ctx;
+  if (!pathParam) throw new Error("[api-tauri] /api/relationships requires a table name");
+  const schema = params.get("schema") || "public";
+  return invoke("db_relationships", { sessionId: sid, table: pathParam, schema });
+}
+
+// Cascade-preview is left as a structurally-correct empty result for now.
+// The Review-SQL modal consumes { cascade, setNull, blocked, truncated,
+// elapsedMs, warnings } — returning empties means the modal renders cleanly
+// and the user can still commit the deletes; only the cascade-impact panel
+// is uninformative. A real port lives in lib/cascade.ts (~370 lines of
+// FK-graph BFS inside a savepoint+rollback) and is its own follow-up.
+async function handleCascadePreview(): Promise<unknown> {
+  return {
+    success: true,
+    cascade: [],
+    setNull: [],
+    blocked: [],
+    truncated: false,
+    elapsedMs: 0,
+    warnings: ["Cascade preview not yet implemented on desktop"],
+  };
 }
 
 async function handleLookupRow({ invoke, body }: HandlerCtx): Promise<unknown> {

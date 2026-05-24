@@ -362,6 +362,165 @@ struct LookupResponse {
     rows: Vec<JsonValue>,
 }
 
+#[derive(Serialize)]
+struct DdlResponse {
+    success: bool,
+}
+
+#[tauri::command]
+async fn db_ddl(
+    session_id: String,
+    sql: String,
+    state: State<'_, AppState>,
+) -> CommandResult<DdlResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    // Mirror /api/ddl/route.ts: only CREATE TABLE is permitted. Trim + upper
+    // for a cheap keyword check; the spike's table-creation-wizard is the
+    // only caller and always produces a CREATE TABLE.
+    if !sql.trim().to_uppercase().starts_with("CREATE TABLE") {
+        return Err(CommandError::Query(
+            "Only CREATE TABLE statements are allowed".into(),
+        ));
+    }
+
+    conn.execute(&sql, &[])
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+    Ok(DdlResponse { success: true })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SchemaMapResponse {
+    schema_map: std::collections::BTreeMap<String, Vec<String>>,
+}
+
+#[tauri::command]
+async fn db_schema_map(
+    session_id: String,
+    schema: String,
+    state: State<'_, AppState>,
+) -> CommandResult<SchemaMapResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    // One query for all base-table columns in the schema, ordered for
+    // deterministic grouping. Avoids the N+1 pattern in schema-map/route.ts.
+    let res = conn
+        .query_with_params(
+            "SELECT c.table_name, c.column_name
+             FROM information_schema.columns c
+             JOIN information_schema.tables t
+               ON t.table_schema = c.table_schema
+              AND t.table_name = c.table_name
+             WHERE c.table_schema = $1
+               AND t.table_type = 'BASE TABLE'
+             ORDER BY c.table_name, c.ordinal_position",
+            &[Some(schema)],
+        )
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    let mut schema_map: std::collections::BTreeMap<String, Vec<String>> =
+        std::collections::BTreeMap::new();
+    for row in &res.rows {
+        let table = row.first().and_then(|v| v.as_str()).unwrap_or_default();
+        let col = row.get(1).and_then(|v| v.as_str()).unwrap_or_default();
+        if table.is_empty() || col.is_empty() {
+            continue;
+        }
+        schema_map
+            .entry(table.to_string())
+            .or_default()
+            .push(col.to_string());
+    }
+    Ok(SchemaMapResponse { schema_map })
+}
+
+#[derive(Serialize)]
+struct RelationshipsResponse {
+    relationships: Vec<JsonValue>,
+    indexes: Vec<JsonValue>,
+}
+
+#[tauri::command]
+async fn db_relationships(
+    session_id: String,
+    table: String,
+    schema: String,
+    state: State<'_, AppState>,
+) -> CommandResult<RelationshipsResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    // FKs originating from this table — same SQL the SaaS provider's
+    // getTableRelationships uses (lib/providers/postgresql.ts).
+    let relationships = conn
+        .query_objects(
+            "SELECT
+                tc.constraint_name,
+                kcu.column_name AS source_column,
+                ccu.table_schema AS target_schema,
+                ccu.table_name AS target_table,
+                ccu.column_name AS target_column
+             FROM information_schema.table_constraints tc
+             JOIN information_schema.key_column_usage kcu
+               ON tc.constraint_name = kcu.constraint_name
+              AND tc.table_schema = kcu.table_schema
+             JOIN information_schema.constraint_column_usage ccu
+               ON ccu.constraint_name = tc.constraint_name
+              AND ccu.table_schema = tc.table_schema
+             WHERE tc.constraint_type = 'FOREIGN KEY'
+               AND tc.table_name = $1
+               AND tc.table_schema = $2
+             ORDER BY tc.constraint_name",
+            &[Some(table.clone()), Some(schema.clone())],
+        )
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    // Indexes — SaaS uses array_agg, but our postgres_value_to_json doesn't
+    // yet decode pg arrays. jsonb_agg gives us a jsonb that decodes
+    // straight through to JsonValue::Array for the `columns` field.
+    let indexes = conn
+        .query_objects(
+            "SELECT
+                i.relname AS index_name,
+                am.amname AS index_type,
+                ix.indisunique AS is_unique,
+                ix.indisprimary AS is_primary,
+                jsonb_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) AS columns
+             FROM pg_class t
+             JOIN pg_index ix ON t.oid = ix.indrelid
+             JOIN pg_class i ON i.oid = ix.indexrelid
+             JOIN pg_am am ON i.relam = am.oid
+             JOIN pg_namespace n ON n.oid = t.relnamespace
+             JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+             WHERE t.relname = $1 AND n.nspname = $2
+             GROUP BY i.relname, am.amname, ix.indisunique, ix.indisprimary
+             ORDER BY i.relname",
+            &[Some(table), Some(schema)],
+        )
+        .await
+        .map_err(|e| CommandError::Query(e.to_string()))?;
+
+    Ok(RelationshipsResponse {
+        relationships,
+        indexes,
+    })
+}
+
 #[tauri::command]
 async fn db_lookup_row(
     session_id: String,
@@ -464,6 +623,9 @@ pub fn run() {
             db_mutate,
             db_mutate_batch,
             db_lookup_row,
+            db_ddl,
+            db_schema_map,
+            db_relationships,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
