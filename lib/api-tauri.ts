@@ -165,6 +165,7 @@ function matchStaticRoute(
     case "DELETE /api/saved-connections": return (ctx) => handleSavedDelete(ctx);
     case "PATCH /api/saved-connections":  return (ctx) => handleSavedConnect(ctx);
     case "POST /api/query":               return (ctx) => handleQuery(ctx);
+    case "POST /api/explain":             return (ctx) => handleExplain(ctx);
     default: return null;
   }
 }
@@ -443,6 +444,18 @@ async function handleQuery({ invoke, body }: HandlerCtx): Promise<unknown> {
       isBulkWrite: classification.isBulkWrite,
     },
   };
+}
+
+async function handleExplain({ invoke, body }: HandlerCtx): Promise<unknown> {
+  const sid = requireSession();
+  if (!body || typeof body !== "object") {
+    throw new Error("[api-tauri] /api/explain requires a body");
+  }
+  const { query } = body as { query?: string };
+  if (typeof query !== "string" || !query.trim()) {
+    throw new Error("[api-tauri] query is required");
+  }
+  return invoke("db_explain", { sessionId: sid, query });
 }
 
 async function handleCascadePreview({ invoke, body }: HandlerCtx): Promise<unknown> {

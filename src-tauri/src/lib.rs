@@ -261,6 +261,61 @@ async fn db_table_rows(
     })
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExplainResponse {
+    plan: JsonValue,
+    execution_time: u64,
+}
+
+#[tauri::command]
+async fn db_explain(
+    session_id: String,
+    query: String,
+    state: State<'_, AppState>,
+) -> CommandResult<ExplainResponse> {
+    let conn = state
+        .sessions
+        .get(&session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+
+    // SaaS guard: EXPLAIN is meaningful only on SELECT / WITH queries.
+    // Refusing other statements here mirrors app/api/explain/route.ts.
+    let trimmed = query.trim().to_uppercase();
+    if !trimmed.starts_with("SELECT") && !trimmed.starts_with("WITH") {
+        return Err(CommandError::Query(
+            "EXPLAIN is only available for SELECT queries".into(),
+        ));
+    }
+
+    let sql = format!("EXPLAIN (FORMAT JSON) {query}");
+    let start = std::time::Instant::now();
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        conn.query(&sql),
+    )
+    .await
+    .map_err(|_| CommandError::Query("EXPLAIN timeout exceeded (30s)".into()))?
+    .map_err(|e| CommandError::Query(e.to_string()))?;
+    let execution_time = start.elapsed().as_millis() as u64;
+
+    // EXPLAIN (FORMAT JSON) returns exactly one row, one column ("QUERY PLAN")
+    // holding the plan as JSONB. Our JSONB handler already decodes it to
+    // JsonValue; the SaaS reads it via row["QUERY PLAN"], we get it positionally.
+    let plan = result
+        .rows
+        .first()
+        .and_then(|r| r.first())
+        .cloned()
+        .unwrap_or(JsonValue::Null);
+
+    Ok(ExplainResponse {
+        plan,
+        execution_time,
+    })
+}
+
 #[tauri::command]
 async fn db_cascade_preview(
     session_id: String,
@@ -963,6 +1018,7 @@ pub fn run() {
             db_saved_connect,
             db_run_query,
             db_cascade_preview,
+            db_explain,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

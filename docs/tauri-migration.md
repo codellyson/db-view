@@ -15,7 +15,7 @@ This plan is the path from the `tauri-spike` branch (commit `e419b3c`) to a ship
 | 1 ✅ | Read-only browsing works in desktop window | `connect`, `disconnect`, `tables`, `schemas`, `table` (data + columns), `health` | low |
 | 2 ✅ | Mutations + edit flow | `mutate`, `mutate-batch`, `lookup-row` | medium — staged-edit/FK-navigator UI surface |
 | 3 ✅ | DDL + schema explorer | `ddl`, `schema-map`, `relationships` + indexes, `cascade-preview` | medium — pg_catalog queries are pg-specific |
-| 4 ◐ | Explain + perf + extras | `views`, `functions`, `table-counts`, `table-stats`; `explain` + `performance/*` deferred (not surfaced in current dashboard) | low |
+| 4 ◐ | Explain + perf + extras | `views`, `functions`, `table-counts`, `table-stats`, `explain`; `performance/*` deferred (no admin panel in current dashboard) | low |
 | 5 ◐ | Import/export + saved connections in OS keychain | `saved-connections` (full GET/POST/DELETE/PATCH on OS keychain); `import` + `upload-sqlite` deferred until file-picker UX is needed | medium — filesystem semantics differ, keychain is platform-specific |
 | 6 | Polish + ship | n/a | medium — code signing, auto-update, bundle size |
 
