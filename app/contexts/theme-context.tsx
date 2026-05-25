@@ -84,26 +84,32 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(THEME_KEY, t.id);
   }, [themeId, mode, mounted]);
 
-  // Sync the native window title bar with the app mode when running in
-  // Tauri. Without this, Windows renders the title bar in the OS theme
-  // (e.g. dark) while the app is in the opposite mode (e.g. light).
+  // Sync native window chrome with the active theme when running in Tauri:
+  //   - setTheme keeps scrollbars / context menus in the right palette
+  //   - setBackgroundColor matches the OS window bg to the theme's page bg,
+  //     which prevents the white flash that would otherwise show during
+  //     resize before the webview repaints (decorations are off)
   useEffect(() => {
     if (!mounted || !isTauriRuntime()) return;
+    const t = findTheme(themeId);
+    const variant = mode === "dark" ? t.dark : t.light;
+    const [r, g, b] = variant.bg.split(" ").map(Number) as [number, number, number];
     let cancelled = false;
     (async () => {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       if (cancelled) return;
       const win = getCurrentWindow();
-      console.log("[theme] setTheme ->", mode);
-      await win.setTheme(mode);
-      console.log("[theme] setTheme done");
+      await Promise.all([
+        win.setTheme(mode),
+        win.setBackgroundColor([r, g, b]),
+      ]);
     })().catch((err) => {
-      console.error("[theme] setTheme failed:", err);
+      console.error("[theme] tauri sync failed:", err);
     });
     return () => {
       cancelled = true;
     };
-  }, [mode, mounted]);
+  }, [mode, themeId, mounted]);
 
   const theme = useMemo(() => findTheme(themeId), [themeId]);
   const variant = mode === "dark" ? theme.dark : theme.light;
