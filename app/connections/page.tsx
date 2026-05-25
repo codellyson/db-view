@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useConnection } from "../contexts/connection-context";
 import { ConnectionForm } from "../components/connection-form";
@@ -69,10 +70,14 @@ export default function ConnectionsPage() {
                   This web version is for evaluation only
                 </p>
                 <p className="text-xs text-muted leading-relaxed">
-                  Connections you make here pass through a shared server, so
-                  please don&apos;t use production database credentials. For
-                  real work, install the desktop app — credentials stay on
-                  your machine (OS keychain) and never leave it.
+                  Don&apos;t use production credentials.{" "}
+                  <Link
+                    href="/"
+                    className="text-warning underline underline-offset-2 hover:no-underline"
+                  >
+                    Install the desktop app
+                  </Link>{" "}
+                  for real work.
                 </p>
               </div>
             )}
