@@ -46,16 +46,17 @@ export default function Home() {
 
   // In Tauri, the landing page (download CTAs, marketing copy) should never
   // show — the user is already running the desktop app. Default to hidden
-  // and only render after we confirm we're in a web browser. This also keeps
-  // index.html present in the export so Tauri's prod asset resolver loads.
+  // and only render after we confirm we're in a web browser. When connected,
+  // `/` is the workspace (Dashboard renders below), so skip the redirect.
   const [showLanding, setShowLanding] = useState(false);
   useEffect(() => {
+    if (isConnected) return;
     if ("__TAURI_INTERNALS__" in window) {
       router.replace("/connections");
     } else {
       setShowLanding(true);
     }
-  }, [router]);
+  }, [isConnected, router]);
 
   if (isConnected) {
     return <Dashboard />;
