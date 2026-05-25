@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "tauri": "tauri",
-    "tauri:dev": "WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_FORCE_SANDBOX=0 LIBGL_ALWAYS_SOFTWARE=1 tauri dev",
+    "tauri:dev": "cross-env WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_FORCE_SANDBOX=0 LIBGL_ALWAYS_SOFTWARE=1 tauri dev",
     "tauri:build": "tauri build",
     "build:tauri": "node scripts/prepare-tauri-build.mjs"
   },
@@ -48,6 +48,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "autoprefixer": "^10.4.0",
+    "cross-env": "^10.1.0",
     "eslint": "^8",
     "eslint-config-next": "16.2.4",
     "postcss": "^8.4.0",
