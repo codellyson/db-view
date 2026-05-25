@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useConnection } from "./contexts/connection-context";
 import { Dashboard } from "./components/dashboard";
 import { Button } from "./components/ui";
@@ -43,8 +44,25 @@ export default function Home() {
   const { isConnected } = useConnection();
   const router = useRouter();
 
+  // In Tauri, the landing page (download CTAs, marketing copy) should never
+  // show — the user is already running the desktop app. Default to hidden
+  // and only render after we confirm we're in a web browser. This also keeps
+  // index.html present in the export so Tauri's prod asset resolver loads.
+  const [showLanding, setShowLanding] = useState(false);
+  useEffect(() => {
+    if ("__TAURI_INTERNALS__" in window) {
+      router.replace("/connections");
+    } else {
+      setShowLanding(true);
+    }
+  }, [router]);
+
   if (isConnected) {
     return <Dashboard />;
+  }
+
+  if (!showLanding) {
+    return null;
   }
 
   return (
