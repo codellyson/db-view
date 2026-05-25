@@ -19,8 +19,6 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// --- Auto-reconnect machinery ---
-
 let isReconnecting = false;
 let reconnectPromise: Promise<boolean> | null = null;
 
@@ -67,8 +65,6 @@ async function attemptReconnect(): Promise<boolean> {
   return reconnectPromise;
 }
 
-// --- Response interceptor ---
-
 client.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ error?: string; message?: string }>) => {
@@ -106,8 +102,6 @@ client.interceptors.response.use(
   }
 );
 
-// --- Request helpers ---
-
 interface ApiOptions extends Omit<AxiosRequestConfig, 'url' | 'method' | 'data'> {
   /** Skip retry logic (default for mutations) */
   noRetry?: boolean;
@@ -133,6 +127,14 @@ async function request<T>(
   data?: any,
   options: ApiOptions = {}
 ): Promise<T> {
+  // In a Tauri webview there is no /api/* server. Route through invoke().
+  // The dispatcher lives in its own module so @tauri-apps/api/core stays out
+  // of the SaaS bundle.
+  if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+    const { dispatch } = await import('./api-tauri');
+    return dispatch<T>(method, url, data);
+  }
+
   const { noRetry, retries = 2, ...axiosConfig } = options;
   const shouldRetry = noRetry !== undefined ? !noRetry : method === 'GET';
   const maxAttempts = shouldRetry ? retries + 1 : 1;

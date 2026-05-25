@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useConnection } from "../contexts/connection-context";
 import { ConnectionForm } from "../components/connection-form";
 import { SavedConnections } from "../components/saved-connections";
@@ -10,6 +12,15 @@ import { useRouter } from "next/navigation";
 export default function ConnectionsPage() {
   const { isConnected, isConnecting, databaseName, connect, error } = useConnection();
   const router = useRouter();
+
+  // Web-only notice: the SaaS round-trips credentials through a shared server,
+  // so it's only suitable for evaluation. The desktop build keeps credentials
+  // local (OS keychain) and bypasses the server entirely. Initial state is
+  // `false` so the Tauri webview never flashes the warning on hydration.
+  const [showWebNotice, setShowWebNotice] = useState(false);
+  useEffect(() => {
+    setShowWebNotice(!("__TAURI_INTERNALS__" in window));
+  }, []);
 
   const handleConnect = async (config: any, name?: string) => {
     try {
@@ -45,8 +56,28 @@ export default function ConnectionsPage() {
                 <p className="text-sm text-accent font-medium mb-1">
                   Just your data, no bullshit.
                 </p>
-                <p className="text-xs text-muted max-w-sm mx-auto">
-                  Connect directly — your credentials never leave this device.
+                {!showWebNotice && (
+                  <p className="text-xs text-muted max-w-sm mx-auto">
+                    Connect directly — your credentials never leave this device.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {!isConnected && showWebNotice && (
+              <div className="mb-6 p-4 bg-warning/10 border border-warning/30 rounded-md">
+                <p className="text-sm font-semibold text-warning mb-1">
+                  This web version is for evaluation only
+                </p>
+                <p className="text-xs text-muted leading-relaxed">
+                  Don&apos;t use production credentials.{" "}
+                  <Link
+                    href="/"
+                    className="text-warning underline underline-offset-2 hover:no-underline"
+                  >
+                    Install the desktop app
+                  </Link>{" "}
+                  for real work.
                 </p>
               </div>
             )}

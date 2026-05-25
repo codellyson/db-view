@@ -41,8 +41,6 @@ export interface ThemePlugin {
   dark: ThemeVariant;
 }
 
-// ─── Built-in themes ───────────────────────────────────────────────
-
 const ESPRESSO: ThemePlugin = {
   id: 'espresso',
   label: 'Espresso',
@@ -260,8 +258,6 @@ const SOLARIZED: ThemePlugin = {
 export const BUILT_IN_THEMES: ThemePlugin[] = [GITHUB, ESPRESSO, MOCHA, GRUVBOX, NORD, SOLARIZED];
 
 export const DEFAULT_THEME_ID = 'github';
-
-// ─── Apply ─────────────────────────────────────────────────────────
 
 const VAR_MAP: Record<keyof ThemeVariant, string> = {
   bg: '--bg',

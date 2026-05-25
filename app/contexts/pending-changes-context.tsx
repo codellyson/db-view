@@ -12,8 +12,6 @@ import React, {
 import { useConnection } from './connection-context';
 import type { MutationRequest } from '@/lib/mutation';
 
-// ─── Types ───────────────────────────────────────────────────────
-
 export interface PendingEdit {
   rowKey: string;
   pks: Record<string, any>;
@@ -46,8 +44,6 @@ interface State {
 
 const EMPTY_TABLE: TablePending = { edits: {}, inserts: [], deletes: {} };
 
-// ─── Identity helpers ────────────────────────────────────────────
-
 function tableKey(schema: string, table: string): string {
   return `${schema}.${table}`;
 }
@@ -63,8 +59,6 @@ function nextTempId(): string {
   tempIdCounter += 1;
   return `new-${Date.now()}-${tempIdCounter}`;
 }
-
-// ─── Reducer ─────────────────────────────────────────────────────
 
 type Action =
   | {
@@ -258,16 +252,12 @@ function valuesEqual(a: any, b: any): boolean {
   return String(a) === String(b);
 }
 
-// ─── Undo / redo (snapshot-based) ────────────────────────────────
-
 const HISTORY_LIMIT = 50;
 
 interface HistoryStacks {
   past: State[];
   future: State[];
 }
-
-// ─── Context ─────────────────────────────────────────────────────
 
 interface PendingChangesContextValue {
   getPending(schema: string, table: string): TablePending;
@@ -334,8 +324,6 @@ export function PendingChangesProvider({ children }: { children: React.ReactNode
     dispatch(action);
   }, [state]);
 
-  // ─── Persistence ─────────────────────────────────────────────
-
   // Hydrate once per database connection.
   useEffect(() => {
     if (!isConnected || !databaseName) return;
@@ -377,8 +365,6 @@ export function PendingChangesProvider({ children }: { children: React.ReactNode
     }
   }, [state, isConnected, databaseName]);
 
-  // ─── Read helpers ────────────────────────────────────────────
-
   const getPending = useCallback(
     (schema: string, table: string): TablePending => {
       return state.byTable[tableKey(schema, table)] ?? EMPTY_TABLE;
@@ -411,8 +397,6 @@ export function PendingChangesProvider({ children }: { children: React.ReactNode
     }
     return total;
   }, [state]);
-
-  // ─── Action wrappers ─────────────────────────────────────────
 
   const stageEdit: PendingChangesContextValue['stageEdit'] = useCallback(
     ({ schema, table, pks, column, original, next }) => {
@@ -496,8 +480,6 @@ export function PendingChangesProvider({ children }: { children: React.ReactNode
   // changes (which is always coincident with a history mutation).
   const canUndo = historyRef.current.past.length > 0;
   const canRedo = historyRef.current.future.length > 0;
-
-  // ─── Save helpers ────────────────────────────────────────────
 
   const buildMutationRequests = useCallback(
     ({ schema, table }: { schema: string; table: string }): MutationRequest[] => {

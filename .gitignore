@@ -39,3 +39,7 @@ public/sw.js.map
 public/swe-worker-*.js
 public/workbox-*.js
 public/workbox-*.js.map
+
+# Tauri / Rust build artifacts
+src-tauri/target/
+src-tauri/gen/

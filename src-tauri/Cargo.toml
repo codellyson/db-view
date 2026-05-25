@@ -1,0 +1,46 @@
+[package]
+name = "justdb"
+version = "0.1.1"
+description = "JustDB desktop"
+authors = ["KreativeKorna"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "justdb_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.2", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.11.2", features = [] }
+tauri-plugin-log = "2"
+
+tokio = { version = "1", features = ["full"] }
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-uuid-1", "with-serde_json-1"] }
+postgres-native-tls = "0.5"
+native-tls = "0.2"
+dashmap = "6"
+uuid = { version = "1", features = ["v4"] }
+thiserror = "2"
+chrono = { version = "0.4", features = ["serde"] }
+rust_decimal = { version = "1", features = ["serde-float", "db-postgres"] }
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
+
+# Phase 6 release-build tuning. `panic="abort"` shrinks the binary (no unwind
+# tables) and matches Tauri's recommended profile; `lto=true` + single
+# codegen unit let the linker do whole-program optimization at the cost of
+# slower release builds (~1-2 min on this codebase); `strip = true` drops
+# debug symbols from the shipped binary. Dev builds (the only thing
+# `tauri:dev` touches) are unaffected.
+[profile.release]
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true

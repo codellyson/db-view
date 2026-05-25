@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useConnection } from "./contexts/connection-context";
 import { Dashboard } from "./components/dashboard";
 import { Button } from "./components/ui";
-import { InstallAppButton } from "./components/install-app-button";
 import { useRouter } from "next/navigation";
 
 // Promoted to constants so they render in the SSR'd HTML *and* so the FAQ
@@ -13,24 +13,20 @@ import { useRouter } from "next/navigation";
 // question or answer, edit it here once.
 const FAQ = [
   {
-    q: "What is JustDB?",
-    a: "JustDB is a browser-based database explorer for PostgreSQL, MySQL, and SQLite. You connect once, then browse tables, run SQL, and edit rows from any device — desktop, tablet, or phone.",
+    q: "Which databases work?",
+    a: "PostgreSQL, MySQL/MariaDB, and SQLite (including libsql/Turso).",
   },
   {
-    q: "Where do my database credentials go?",
-    a: "Nowhere. Credentials are stored locally in your browser. Queries run from your browser straight to your database. No middleman, no cloud relay, no data lake.",
+    q: "Does it work on mobile?",
+    a: "Yes. Tables become scannable cards, the SQL editor adapts, and it installs as a PWA.",
   },
   {
-    q: "Which databases are supported?",
-    a: "PostgreSQL, MySQL/MariaDB, and SQLite (including libsql/Turso). Pick a driver on the connections page, paste your connection details, and you're in.",
+    q: "Can I use production credentials on the web version?",
+    a: "Not recommended. Use staging or dev credentials on the web. For production, install the desktop app so the connection stays on your machine.",
   },
   {
-    q: "Can I use JustDB on a phone?",
-    a: "Yes. That's the whole point. Tables render as scannable cards on small screens, the SQL editor adapts, and JustDB installs as a PWA so it sits next to your other apps.",
-  },
-  {
-    q: "Is JustDB free?",
-    a: "Yes. JustDB is free to use, with no signup. It's built and maintained by KreativeKorna Concepts.",
+    q: "Is it really free?",
+    a: "Yes. No signup, no trial, no paywall. Built by KreativeKorna Concepts.",
   },
 ];
 
@@ -48,8 +44,25 @@ export default function Home() {
   const { isConnected } = useConnection();
   const router = useRouter();
 
+  // In Tauri, the landing page (download CTAs, marketing copy) should never
+  // show — the user is already running the desktop app. Default to hidden
+  // and only render after we confirm we're in a web browser. This also keeps
+  // index.html present in the export so Tauri's prod asset resolver loads.
+  const [showLanding, setShowLanding] = useState(false);
+  useEffect(() => {
+    if ("__TAURI_INTERNALS__" in window) {
+      router.replace("/connections");
+    } else {
+      setShowLanding(true);
+    }
+  }, [router]);
+
   if (isConnected) {
     return <Dashboard />;
+  }
+
+  if (!showLanding) {
+    return null;
   }
 
   return (
@@ -71,28 +84,29 @@ export default function Home() {
               priority
               className="mx-auto mb-6"
             />
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary mb-3">
-              Database Explorer for PostgreSQL, MySQL &amp; SQLite
+            <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-primary mb-4">
+              JustDB
             </h1>
-            <p className="text-lg text-accent font-medium mb-4">
-              Just your data, no bullshit.
+            <p className="text-xl sm:text-2xl text-primary font-medium mb-6">
+              See your database. Edit it. Query it.
             </p>
             <p className="text-base text-secondary leading-relaxed max-w-xl mx-auto">
-              Browse tables, run SQL, and edit rows from any device. JustDB connects
-              straight from your browser to your database — your credentials never
-              leave the page.
+              A clean database explorer for PostgreSQL, MySQL, and SQLite. Free,
+              no signup.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
               <Button variant="primary" onClick={() => router.push("/connections")}>
-                Connect a database
+                Open JustDB
               </Button>
-              <InstallAppButton />
+              <a
+                href="https://github.com/codellyson/justdb/releases"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="secondary">Download desktop app</Button>
+              </a>
             </div>
-
-            <p className="text-xs text-muted/70 mt-4">
-              Free · No signup · PostgreSQL · MySQL · SQLite
-            </p>
           </header>
 
           {/* How it works */}
@@ -106,9 +120,8 @@ export default function Home() {
                   1
                 </span>
                 <p>
-                  <strong className="text-primary">Add a connection.</strong>{" "}
-                  Paste your PostgreSQL, MySQL, or SQLite connection string. Saved
-                  in your browser, not on a server.
+                  <strong className="text-primary">Connect.</strong>{" "}
+                  Paste your connection string and pick a driver.
                 </p>
               </li>
               <li className="flex gap-4">
@@ -116,9 +129,9 @@ export default function Home() {
                   2
                 </span>
                 <p>
-                  <strong className="text-primary">Browse and search.</strong>{" "}
-                  Tables, columns, foreign keys, and row counts surface instantly.
-                  Pin the ones you use, fuzzy-search the rest.
+                  <strong className="text-primary">Browse.</strong>{" "}
+                  Tables, columns, foreign keys, row counts. Pin what you use,
+                  search the rest.
                 </p>
               </li>
               <li className="flex gap-4">
@@ -127,23 +140,25 @@ export default function Home() {
                 </span>
                 <p>
                   <strong className="text-primary">Edit or query.</strong>{" "}
-                  Inline-edit cells with staged changes you can review before
-                  commit, or run SQL in a full editor with syntax highlighting.
+                  Inline edits with staged changes, or write SQL in a full editor.
                 </p>
               </li>
             </ol>
           </section>
 
-          {/* Privacy */}
-          <section aria-labelledby="privacy" className="mb-16">
-            <h2 id="privacy" className="text-xl font-semibold text-primary mb-3">
-              Privacy by default
+          {/* Desktop or web */}
+          <section aria-labelledby="desktop-or-web" className="mb-16">
+            <h2 id="desktop-or-web" className="text-xl font-semibold text-primary mb-3">
+              Desktop or web?
             </h2>
+            <p className="text-secondary leading-relaxed mb-3">
+              The web version runs in your browser. Good for a quick look from
+              a phone or borrowed laptop. Stick to staging or development
+              credentials here.
+            </p>
             <p className="text-secondary leading-relaxed">
-              JustDB is not a managed service. Your connection details, queries,
-              and results stay between your browser and your database. There is
-              no telemetry, no analytics on your data, and no third-party relay
-              in the request path.
+              The desktop app runs locally on Mac, Windows, and Linux. Use it
+              for daily work and production databases.
             </p>
           </section>
 

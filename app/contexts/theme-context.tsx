@@ -9,6 +9,7 @@ import {
   rgbTripletToHex,
   type ThemePlugin,
 } from "@/lib/theme-plugins";
+import { isTauriRuntime } from "@/lib/api-tauri";
 
 type Mode = "light" | "dark";
 
@@ -82,6 +83,33 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.dataset.theme = t.id;
     localStorage.setItem(THEME_KEY, t.id);
   }, [themeId, mode, mounted]);
+
+  // Sync native window chrome with the active theme when running in Tauri:
+  //   - setTheme keeps scrollbars / context menus in the right palette
+  //   - setBackgroundColor matches the OS window bg to the theme's page bg,
+  //     which prevents the white flash that would otherwise show during
+  //     resize before the webview repaints (decorations are off)
+  useEffect(() => {
+    if (!mounted || !isTauriRuntime()) return;
+    const t = findTheme(themeId);
+    const variant = mode === "dark" ? t.dark : t.light;
+    const [r, g, b] = variant.bg.split(" ").map(Number) as [number, number, number];
+    let cancelled = false;
+    (async () => {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      if (cancelled) return;
+      const win = getCurrentWindow();
+      await Promise.all([
+        win.setTheme(mode),
+        win.setBackgroundColor([r, g, b]),
+      ]);
+    })().catch((err) => {
+      console.error("[theme] tauri sync failed:", err);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, themeId, mounted]);
 
   const theme = useMemo(() => findTheme(themeId), [themeId]);
   const variant = mode === "dark" ? theme.dark : theme.light;

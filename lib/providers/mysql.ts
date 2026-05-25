@@ -68,8 +68,6 @@ export class MySQLProvider implements DatabaseProvider {
     }
   }
 
-  // --- Schema introspection ---
-
   async getSchemas(): Promise<string[]> {
     const [rows] = await this.pool!.query("SHOW DATABASES");
     const systemDbs = [
@@ -338,8 +336,6 @@ export class MySQLProvider implements DatabaseProvider {
     return (rows as any[])[0] || null;
   }
 
-  // --- Query execution ---
-
   async executeQuery(
     query: string,
     timeout: number = 30000
@@ -482,8 +478,6 @@ export class MySQLProvider implements DatabaseProvider {
       conn.release();
     }
   }
-
-  // --- Health check ---
 
   getHealthInfo(): { totalCount: number; idleCount: number } {
     if (!this.pool) return { totalCount: 0, idleCount: 0 };
