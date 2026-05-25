@@ -31,6 +31,11 @@ const MOVES = [
   ["app/robots.ts", "app/__tauri_parked_robots__.ts"],
   ["app/sitemap.ts", "app/__tauri_parked_sitemap__.ts"],
   ["app/opengraph-image.tsx", "app/__tauri_parked_opengraph-image__.tsx"],
+  // The web landing page (marketing copy, download CTAs, FAQ). Tauri opens
+  // directly at /connections, so `/` is unused inside the desktop app —
+  // shipping it would just bundle download buttons that point at the very
+  // app the user is already running.
+  ["app/page.tsx", "app/__tauri_parked_page__.tsx"],
 ];
 
 const TAURI_NEXT_CONFIG = `/** @type {import('next').NextConfig} */
