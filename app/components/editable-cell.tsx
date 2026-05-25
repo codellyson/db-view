@@ -236,7 +236,6 @@ export const EditableCell: React.FC<EditableCellProps> = ({
     }
   };
 
-  // ─── Display (non-editing) ────────────────────────────────────
   return (
     <>
       <div

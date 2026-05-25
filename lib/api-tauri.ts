@@ -545,8 +545,6 @@ async function handleLookupRow({ invoke, body }: HandlerCtx): Promise<unknown> {
   });
 }
 
-// --- helpers ---
-
 function requireSession(): string {
   if (!sessionId) {
     throw new Error("Not connected. Connect to a database first.");

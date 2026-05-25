@@ -6,7 +6,6 @@ import { getConnection, storeConnection } from "./connection-store";
 import { decrypt } from "./security";
 import { cookies } from "next/headers";
 
-// ─── Session-scoped pool registry ────────────────────────────────
 // Each session gets its own DatabaseProvider so concurrent users
 // never share a pool or leak data across connections.
 
@@ -47,8 +46,6 @@ if (!globalForDb.__dbCleanupTimer) {
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────
-
 function createProvider(type: DatabaseType): DatabaseProvider {
   if (type === "mysql") {
     const { MySQLProvider } = require("./providers/mysql");
@@ -77,8 +74,6 @@ function evictIfNeeded() {
     sessions.delete(oldest);
   }
 }
-
-// ─── Public API ──────────────────────────────────────────────────
 
 /**
  * Create a pool for a specific session. Cleans up any previous pool
@@ -239,8 +234,7 @@ export async function getSessionProvider(): Promise<{ provider: DatabaseProvider
   return { provider, sessionId };
 }
 
-// ─── Legacy shims ────────────────────────────────────────────────
-// These are used by routes that haven't been migrated yet.
+// Legacy shims used by routes that haven't been migrated yet.
 // They read session from cookies internally.
 
 export function getPool(): any | null {
@@ -268,8 +262,7 @@ export function getDatabaseType(): DatabaseType {
   return "postgresql";
 }
 
-// ─── Delegate functions ──────────────────────────────────────────
-// These read the session from cookies automatically.
+// Delegate functions that read the session from cookies automatically.
 
 export async function getSchemas(): Promise<string[]> {
   const { provider } = await getSessionProvider();

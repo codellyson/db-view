@@ -55,8 +55,6 @@ export class SQLiteProvider implements DatabaseProvider {
     }
   }
 
-  // --- Schema introspection ---
-
   async getSchemas(): Promise<string[]> {
     return ["main"];
   }
@@ -211,8 +209,6 @@ export class SQLiteProvider implements DatabaseProvider {
     };
   }
 
-  // --- Query execution ---
-
   async executeQuery(
     query: string,
     _timeout?: number
@@ -329,8 +325,6 @@ export class SQLiteProvider implements DatabaseProvider {
     }
   }
 
-  // --- Health check ---
-
   getHealthInfo(): { totalCount: number; idleCount: number } {
     return { totalCount: this.client ? 1 : 0, idleCount: this.client ? 1 : 0 };
   }
@@ -338,8 +332,6 @@ export class SQLiteProvider implements DatabaseProvider {
   async healthPing(): Promise<void> {
     await this.client!.execute("SELECT 1");
   }
-
-  // --- Private helpers ---
 
   private resolveUrl(config: DBConfig): string {
     const filepath = config.filepath || "";

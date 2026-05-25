@@ -140,8 +140,6 @@ export class PostgreSQLProvider implements DatabaseProvider {
     });
   }
 
-  // --- Schema introspection ---
-
   async getSchemas(): Promise<string[]> {
     const client = await this.connect();
     try {
@@ -507,8 +505,6 @@ export class PostgreSQLProvider implements DatabaseProvider {
     }
   }
 
-  // --- Query execution ---
-
   async executeQuery(
     query: string,
     timeout: number = 30000
@@ -617,8 +613,6 @@ export class PostgreSQLProvider implements DatabaseProvider {
     }
   }
 
-  // --- Health check ---
-
   getHealthInfo(): { totalCount: number; idleCount: number } {
     if (!this.pool) return { totalCount: 0, idleCount: 0 };
     return {
@@ -635,8 +629,6 @@ export class PostgreSQLProvider implements DatabaseProvider {
       client.release();
     }
   }
-
-  // --- Private helpers ---
 
   private async connect(): Promise<PoolClient> {
     if (!this.pool) throw new Error("Pool not initialized");

@@ -151,8 +151,6 @@ fn build_delete(
     ))
 }
 
-// ─── JsonValue → SQL literal ─────────────────────────────────────
-
 fn is_empty_or_skip(val: &JsonValue) -> bool {
     matches!(val, JsonValue::String(s) if s.is_empty())
 }

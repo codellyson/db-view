@@ -213,8 +213,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
   }, [openTabs, activeTabId, isConnected, databaseName]);
 
-  // ─── TanStack Queries ───────────────────────────────────────
-
   const schemasQuery = useQuery({
     queryKey: ['schemas'],
     queryFn: async () => {
@@ -342,8 +340,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     enabled: isConnected && !!selectedTable,
   });
 
-  // ─── Derived values from queries ────────────────────────────
-
   const tables = tablesQuery.data ?? [];
   const schemas = schemasQuery.data ?? [];
   const tableData = tableDataQuery.data?.rows ?? [];
@@ -398,8 +394,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setCurrentPage(1);
   }, []);
 
-  // ─── Imperative helpers (for backward compat) ───────────────
-
   const loadTables = useCallback(async (schemaName?: string) => {
     if (schemaName && schemaName !== selectedSchema) {
       // Will be handled by query key change after setSelectedSchema
@@ -438,8 +432,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
   }, [addToast, refreshTableData]);
-
-  // ─── Tab management ─────────────────────────────────────────
 
   const openTab = useCallback((name: string, type: Tab['type'] = 'table') => {
     const tabId = `${type}:${name}`;

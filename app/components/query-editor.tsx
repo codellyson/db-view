@@ -265,7 +265,6 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     }
   );
 
-  // ─── Result editability (per active tab) ──────────────────────
   // Look up here so the rest of the component can read derived state from
   // the active tab without scattered `find` calls.
   const activeTab = resultTabs.find((t) => t.id === activeResultTabId);

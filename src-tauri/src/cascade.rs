@@ -503,8 +503,6 @@ fn cell_str(row: &[JsonValue], idx: usize) -> String {
         .to_string()
 }
 
-// ─── SQL building ────────────────────────────────────────────────
-
 fn build_count_sql(
     schema: &str,
     table: &str,

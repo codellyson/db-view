@@ -19,8 +19,6 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// --- Auto-reconnect machinery ---
-
 let isReconnecting = false;
 let reconnectPromise: Promise<boolean> | null = null;
 
@@ -67,8 +65,6 @@ async function attemptReconnect(): Promise<boolean> {
   return reconnectPromise;
 }
 
-// --- Response interceptor ---
-
 client.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ error?: string; message?: string }>) => {
@@ -105,8 +101,6 @@ client.interceptors.response.use(
     return Promise.reject(enriched);
   }
 );
-
-// --- Request helpers ---
 
 interface ApiOptions extends Omit<AxiosRequestConfig, 'url' | 'method' | 'data'> {
   /** Skip retry logic (default for mutations) */
