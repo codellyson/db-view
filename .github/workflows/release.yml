@@ -1,28 +1,4 @@
 # Cross-platform Tauri release matrix.
-#
-# Triggers:
-#   - Pushing a tag matching `v*` (e.g. v0.1.0)        → builds + publishes
-#     a draft GitHub Release with each platform's bundles attached.
-#   - "Run workflow" button in the Actions tab         → builds bundles and
-#     attaches them as workflow artifacts; no release is created.
-#
-# Outputs per platform:
-#   - macOS (universal):  .dmg + .app   (in dmg/, macos/)
-#   - Windows:            .exe (NSIS) + .msi (WiX)
-#   - Linux:              .deb + .rpm + .AppImage
-#
-# Caveats:
-#   - First build per platform is slow (5–15 min) because the release Cargo
-#     profile turns on LTO and single-codegen-unit. Subsequent runs reuse
-#     the rust-cache.
-#   - Bundles are *unsigned*. macOS users will see Gatekeeper; Windows
-#     users will see SmartScreen "unknown publisher". Signing requires
-#     paid certs + secrets:
-#       APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / APPLE_SIGNING_IDENTITY
-#       APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID  (for notarization)
-#       WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_PASSWORD
-#     Wire these as repo secrets and pass them through under `env:` once
-#     you've got the certs.
 
 name: Release
 
