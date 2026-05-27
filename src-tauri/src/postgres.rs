@@ -388,13 +388,40 @@ fn postgres_value_to_json(row: &Row, idx: usize) -> JsonValue {
             .map(|v| JsonValue::String(v.to_string()))
             .unwrap_or(JsonValue::Null),
         _ => {
-            // Fallback: try as String, then as bytes-debug, then null.
-            row.try_get::<_, Option<String>>(idx)
-                .ok()
-                .flatten()
-                .map(JsonValue::String)
-                .unwrap_or(JsonValue::Null)
+            // Permissive fallback for types we don't decode explicitly
+            // (custom enums, geometric types, intervals, ranges, arrays …).
+            // tokio-postgres's String::accepts() only allows TEXT/VARCHAR/
+            // BPCHAR/NAME, so the previous Option<String> branch silently
+            // failed for everything else and rendered NULL. AnyAsString
+            // accepts any type and reads the raw bytes as UTF-8 — correct
+            // for enum labels, "good enough" for other types (the user sees
+            // the text representation instead of a misleading NULL).
+            match row.try_get::<_, Option<AnyAsString>>(idx) {
+                Ok(Some(AnyAsString(Some(s)))) => JsonValue::String(s),
+                _ => JsonValue::Null,
+            }
         }
+    }
+}
+
+// Permissive FromSql wrapper. accepts(_) returns true so tokio-postgres lets
+// the caller bind to any type; the bytes are decoded as lossy UTF-8.
+struct AnyAsString(Option<String>);
+
+impl<'a> FromSql<'a> for AnyAsString {
+    fn from_sql(
+        _ty: &Type,
+        raw: &'a [u8],
+    ) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+        Ok(AnyAsString(Some(String::from_utf8_lossy(raw).into_owned())))
+    }
+
+    fn accepts(_ty: &Type) -> bool {
+        true
+    }
+
+    fn from_sql_null(_ty: &Type) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+        Ok(AnyAsString(None))
     }
 }
 
