@@ -1140,6 +1140,8 @@ async fn db_table_schema(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             app.manage(AppState::default());
             if cfg!(debug_assertions) {

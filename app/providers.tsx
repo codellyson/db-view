@@ -11,6 +11,7 @@ import { PendingChangesProvider } from "./contexts/pending-changes-context";
 import { ToastContainer } from "./components/ui/toast";
 import { ThemeToggle } from "./components/theme-toggle";
 import { TauriTitleBar } from "./components/tauri-title-bar";
+import { UpdatePrompt } from "./components/update-prompt";
 import { PostHogProvider } from "./posthog-provider";
 
 const queryClient = new QueryClient({
@@ -39,6 +40,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             </ConnectionProvider>
             <ToastContainer />
             <ThemeToggle />
+            <UpdatePrompt />
             <Analytics />
           </ToastProvider>
         </ThemeProvider>
