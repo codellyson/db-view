@@ -413,6 +413,10 @@ struct FieldSource {
 #[serde(rename_all = "camelCase")]
 struct QueryField {
     name: String,
+    // node-postgres exposes this as `dataTypeID` (uppercase ID) and the SaaS
+    // SQL editor reads `field.dataTypeID` to map OIDs to type names. Override
+    // the camelCase auto-rename so we ship the same key.
+    #[serde(rename = "dataTypeID")]
     data_type_id: Option<u32>,
     // FK source: which base-table column produced this output column.
     // Resolved from the prepared statement's tableOid + columnId via two
@@ -1136,6 +1140,8 @@ async fn db_table_schema(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             app.manage(AppState::default());
             if cfg!(debug_assertions) {
