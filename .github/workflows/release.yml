@@ -70,6 +70,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater artifacts (.tar.gz + .sig + latest.json) are only produced
+          # when both signing secrets are set on the repo. Without them the
+          # build still succeeds but skips the updater files — useful for
+          # initial CI runs before you've generated the keypair.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           # On tag pushes, tauri-action creates a draft release and uploads
           # the bundles. On workflow_dispatch (no tag), tagName resolves to
