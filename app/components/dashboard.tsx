@@ -792,15 +792,18 @@ export function Dashboard() {
           setIsExportOpen(false);
           setBulkExportRows(null);
         }}
-        schema={selectedSchema}
-        table={selectedTable}
-        databaseType={databaseType}
+        source={{
+          kind: 'table',
+          schema: selectedSchema,
+          table: selectedTable,
+          databaseType,
+          filters: tableFilters,
+          sortColumn,
+          sortDirection,
+          currentTotal: bulkExportRows ? bulkExportRows.length : totalItems,
+        }}
         currentColumns={columns}
         currentRows={bulkExportRows ?? tableData}
-        currentTotal={bulkExportRows ? bulkExportRows.length : totalItems}
-        filters={tableFilters}
-        sortColumn={sortColumn}
-        sortDirection={sortDirection}
       />
     )}
     <FKSidePanel

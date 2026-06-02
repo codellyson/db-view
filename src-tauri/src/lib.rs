@@ -1137,11 +1137,24 @@ async fn db_table_schema(
     .map_err(|e| CommandError::Query(e.to_string()))
 }
 
+// Writes raw bytes to an absolute path the user already picked via the dialog
+// plugin's save() prompt. The frontend hands us the resolved path — there's no
+// scope check here because the user just confirmed it in the OS save sheet.
+// Used by the Export feature to land CSV/JSON/XLSX where the user wants them
+// instead of always dumping to ~/Downloads.
+#[tauri::command]
+async fn save_export_file(path: String, bytes: Vec<u8>) -> CommandResult<()> {
+    tokio::fs::write(&path, &bytes)
+        .await
+        .map_err(|e| CommandError::Query(format!("Failed to write {path}: {e}")))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             app.manage(AppState::default());
             if cfg!(debug_assertions) {
@@ -1180,6 +1193,7 @@ pub fn run() {
             db_cascade_preview,
             db_explain,
             db_import,
+            save_export_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

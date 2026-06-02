@@ -24,6 +24,7 @@ import type { ColumnInfo } from '@/types';
 import { QueryExecutionConfirmation } from './query-execution-confirmation';
 import { TabBar, type Tab } from './tab-bar';
 import { SaveQueryDialog } from './save-query-dialog';
+import { ExportModal } from './export-modal';
 
 interface PendingQueryConfirmation {
   sql: string;
@@ -96,6 +97,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   const editorViewRef = useRef<EditorView | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
   const [pendingQueryConfirm, setPendingQueryConfirm] = useState<PendingQueryConfirmation | null>(null);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Result tabs
   const [resultTabs, setResultTabs] = useState<ResultTab[]>([]);
@@ -652,6 +654,17 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               />
               <span className="text-sm text-muted font-mono">{activeTab.executionTime}ms</span>
               <button
+                onClick={() => setIsExportOpen(true)}
+                disabled={activeTab.rows.length === 0}
+                className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Export result"
+                aria-label="Export result"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3" />
+                </svg>
+              </button>
+              <button
                 onClick={refreshResults}
                 disabled={isExecuting}
                 className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -729,6 +742,16 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
         }}
         query={pendingSaveQuery}
       />
+
+      {activeTab && (
+        <ExportModal
+          isOpen={isExportOpen}
+          onClose={() => setIsExportOpen(false)}
+          source={{ kind: 'query', databaseType }}
+          currentColumns={activeTab.columns}
+          currentRows={activeTab.rows}
+        />
+      )}
     </div>
   );
 };

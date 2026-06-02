@@ -9,7 +9,7 @@ import {
   generateNDJSONContent,
   generateSQLContent,
   generateXLSXBlob,
-  downloadBlob,
+  saveBlob,
 } from '@/lib/export-utils';
 import type { Filter } from '@/lib/filters';
 import { api } from '@/lib/api';
@@ -18,22 +18,39 @@ import { useToast } from '../contexts/toast-context';
 export type ExportFormat = 'csv' | 'tsv' | 'json' | 'ndjson' | 'sql' | 'xlsx';
 type Scope = 'current' | 'all';
 
+type DatabaseType = 'postgresql' | 'mysql' | 'sqlite';
+
+/**
+ * Where the exported rows came from. `table` mode supports both "current view"
+ * and "all rows" (re-fetched paginated, honoring filters/sort). `query` mode is
+ * a one-shot export of whatever rows are currently in memory from a SQL editor
+ * result — there's nothing to paginate against, so the scope picker is hidden
+ * and SQL INSERT format is suppressed (no canonical target table to insert into).
+ */
+export type ExportSource =
+  | {
+      kind: 'table';
+      schema: string;
+      table: string;
+      databaseType: DatabaseType;
+      filters: Filter[];
+      sortColumn?: string | null;
+      sortDirection?: 'asc' | 'desc' | null;
+      /** Total row count for the underlying table view; used to label "All rows". */
+      currentTotal: number;
+    }
+  | {
+      kind: 'query';
+      databaseType: DatabaseType;
+    };
+
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Active table info — drives label, fetch URL, and SQL export naming. */
-  schema: string;
-  table: string;
-  databaseType: 'postgresql' | 'mysql' | 'sqlite';
-  /** Current view (filtered + sorted as the user is looking at it). */
+  source: ExportSource;
+  /** Current rows the user is looking at (filtered/sorted view, or query result). */
   currentColumns: string[];
   currentRows: any[];
-  /** Total row count for the current view; used to label the radio option. */
-  currentTotal: number;
-  /** Filters in effect for the current view; sent when re-fetching All rows. */
-  filters: Filter[];
-  sortColumn?: string | null;
-  sortDirection?: 'asc' | 'desc' | null;
 }
 
 const FORMAT_OPTIONS: { value: ExportFormat; label: string; ext: string; mime: string }[] = [
@@ -82,20 +99,20 @@ function saveDefaults(d: SavedDefaults) {
 export const ExportModal: React.FC<ExportModalProps> = ({
   isOpen,
   onClose,
-  schema,
-  table,
-  databaseType,
+  source,
   currentColumns,
   currentRows,
-  currentTotal,
-  filters,
-  sortColumn,
-  sortDirection,
 }) => {
   const { addToast } = useToast();
   const defaults = useMemo(() => loadDefaults(), []);
-  const [scope, setScope] = useState<Scope>(defaults.scope ?? 'current');
-  const [format, setFormat] = useState<ExportFormat>(defaults.format ?? 'csv');
+  // Query mode never has a paginated "all rows" path — pin the scope to current.
+  const [scope, setScope] = useState<Scope>(
+    source.kind === 'query' ? 'current' : defaults.scope ?? 'current',
+  );
+  const [format, setFormat] = useState<ExportFormat>(() => {
+    const saved = defaults.format ?? 'csv';
+    return source.kind === 'query' && saved === 'sql' ? 'csv' : saved;
+  });
   const [csvHeaders, setCsvHeaders] = useState(defaults.csvHeaders ?? true);
   const [jsonPretty, setJsonPretty] = useState(defaults.jsonPretty ?? true);
   const [sqlQualified, setSqlQualified] = useState(defaults.sqlQualified ?? false);
@@ -111,12 +128,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   }, [isOpen]);
 
-  const fmtMeta = FORMAT_OPTIONS.find((f) => f.value === format)!;
+  const formatOptions = useMemo(
+    () =>
+      source.kind === 'query'
+        ? FORMAT_OPTIONS.filter((f) => f.value !== 'sql')
+        : FORMAT_OPTIONS,
+    [source.kind],
+  );
+  const fmtMeta = formatOptions.find((f) => f.value === format) ?? formatOptions[0];
   const showCsvOpts = format === 'csv' || format === 'tsv';
   const showJsonOpts = format === 'json';
-  const showSqlOpts = format === 'sql';
+  const showSqlOpts = format === 'sql' && source.kind === 'table';
 
   const fetchAllRows = async (): Promise<{ columns: string[]; rows: any[] }> => {
+    if (source.kind !== 'table') return { columns: currentColumns, rows: currentRows };
+    const { schema, table, filters, sortColumn, sortDirection, currentTotal } = source;
     const PAGE = 1000;
     let offset = 0;
     const accum: any[] = [];
@@ -147,29 +173,30 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     try {
       const { columns, rows } = scope === 'all' ? await fetchAllRows() : { columns: currentColumns, rows: currentRows };
       const stamp = new Date().toISOString().split('T')[0];
-      const filename = `${table}_${stamp}.${fmtMeta.ext}`;
+      const baseName = source.kind === 'table' ? source.table : 'query_result';
+      const filename = `${baseName}_${stamp}.${fmtMeta.ext}`;
 
       if (format === 'xlsx') {
         const blob = await generateXLSXBlob(columns, rows);
-        downloadBlob(blob, filename, fmtMeta.mime);
+        await saveBlob(blob, filename, fmtMeta.mime);
       } else if (format === 'csv' || format === 'tsv') {
         const content = generateCSVContent(columns, rows, {
           separator: format === 'csv' ? ',' : '\t',
           includeHeaders: csvHeaders,
         });
-        downloadBlob(content, filename, fmtMeta.mime);
+        await saveBlob(content, filename, fmtMeta.mime);
       } else if (format === 'json') {
         const content = generateJSONContent(rows, jsonPretty);
-        downloadBlob(content, filename, fmtMeta.mime);
+        await saveBlob(content, filename, fmtMeta.mime);
       } else if (format === 'ndjson') {
         const content = generateNDJSONContent(rows);
-        downloadBlob(content, filename, fmtMeta.mime);
-      } else if (format === 'sql') {
-        const content = generateSQLContent(columns, rows, table, {
-          dialect: databaseType,
-          schema: sqlQualified ? schema : undefined,
+        await saveBlob(content, filename, fmtMeta.mime);
+      } else if (format === 'sql' && source.kind === 'table') {
+        const content = generateSQLContent(columns, rows, source.table, {
+          dialect: source.databaseType,
+          schema: sqlQualified ? source.schema : undefined,
         });
-        downloadBlob(content, filename, fmtMeta.mime);
+        await saveBlob(content, filename, fmtMeta.mime);
       }
 
       if (rememberDefaults) {
@@ -188,37 +215,43 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Export" preventClose={busy}>
       <div className="space-y-4">
-        <fieldset className="space-y-1.5">
-          <legend className="text-xs font-medium text-secondary mb-1.5">Scope</legend>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input
-              type="radio"
-              name="scope"
-              value="current"
-              checked={scope === 'current'}
-              onChange={() => setScope('current')}
-            />
-            <span>
-              Current view{filters.length > 0 ? ' (filtered + sorted)' : sortColumn ? ' (sorted)' : ''}
-              <span className="text-muted ml-2">{currentRows.length} rows</span>
-            </span>
-          </label>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input
-              type="radio"
-              name="scope"
-              value="all"
-              checked={scope === 'all'}
-              onChange={() => setScope('all')}
-            />
-            <span>
-              All rows in this table
-              <span className="text-muted ml-2">
-                {filters.length > 0 ? `${currentTotal} matching` : `${currentTotal} rows`}
+        {source.kind === 'table' ? (
+          <fieldset className="space-y-1.5">
+            <legend className="text-xs font-medium text-secondary mb-1.5">Scope</legend>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="scope"
+                value="current"
+                checked={scope === 'current'}
+                onChange={() => setScope('current')}
+              />
+              <span>
+                Current view{source.filters.length > 0 ? ' (filtered + sorted)' : source.sortColumn ? ' (sorted)' : ''}
+                <span className="text-muted ml-2">{currentRows.length} rows</span>
               </span>
-            </span>
-          </label>
-        </fieldset>
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="scope"
+                value="all"
+                checked={scope === 'all'}
+                onChange={() => setScope('all')}
+              />
+              <span>
+                All rows in this table
+                <span className="text-muted ml-2">
+                  {source.filters.length > 0 ? `${source.currentTotal} matching` : `${source.currentTotal} rows`}
+                </span>
+              </span>
+            </label>
+          </fieldset>
+        ) : (
+          <div className="text-sm text-secondary">
+            Exporting <span className="text-primary font-medium">{currentRows.length}</span> rows from the current query result.
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-medium text-secondary mb-1.5">Format</label>
@@ -227,7 +260,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             onChange={(e) => setFormat(e.target.value as ExportFormat)}
             className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
           >
-            {FORMAT_OPTIONS.map((o) => (
+            {formatOptions.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -257,14 +290,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 Pretty-print
               </label>
             )}
-            {showSqlOpts && (
+            {showSqlOpts && source.kind === 'table' && (
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
                   type="checkbox"
                   checked={sqlQualified}
                   onChange={(e) => setSqlQualified(e.target.checked)}
                 />
-                Use schema-qualified table name (<span className="font-mono text-xs">{schema}.{table}</span>)
+                Use schema-qualified table name (<span className="font-mono text-xs">{source.schema}.{source.table}</span>)
               </label>
             )}
           </div>
