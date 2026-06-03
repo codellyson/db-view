@@ -1,0 +1,177 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Button from '../components/Button.astro';
+
+// Where the "Open JustDB" CTA points. Set PUBLIC_APP_URL at build time to the
+// app's deployed URL (e.g. https://app.justdb.app or https://justdb.app/app).
+// Defaults to a relative /connections, which works when the marketing site
+// and the app are served from the same origin.
+const appUrl = import.meta.env.PUBLIC_APP_URL || '/connections';
+
+const FAQ = [
+  {
+    q: 'Which databases work?',
+    a: 'PostgreSQL, MySQL/MariaDB, and SQLite (including libsql/Turso).',
+  },
+  {
+    q: 'Does it work on mobile?',
+    a: 'Yes. Tables become scannable cards, the SQL editor adapts, and it installs as a PWA.',
+  },
+  {
+    q: 'Can I use production credentials on the web version?',
+    a: 'Not recommended. Use staging or dev credentials on the web. For production, install the desktop app so the connection stays on your machine.',
+  },
+  {
+    q: 'Is it really free?',
+    a: 'Yes. No signup, no trial, no paywall. Built by KreativeKorna Concepts.',
+  },
+];
+
+const softwareJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'JustDB',
+  description:
+    'Just your data, no bullshit. Browse tables, run queries, and inspect schemas on any device. Connects directly; nothing leaves your browser.',
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'Web Browser, macOS, Windows, Linux',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  url: Astro.site?.toString() ?? 'https://justdb.app',
+  publisher: {
+    '@type': 'Organization',
+    name: 'KreativeKorna Concepts',
+    url: 'https://kreativekorna.com',
+  },
+};
+
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQ.map(({ q, a }) => ({
+    '@type': 'Question',
+    name: q,
+    acceptedAnswer: { '@type': 'Answer', text: a },
+  })),
+};
+---
+
+<Layout jsonLd={[softwareJsonLd, faqJsonLd]}>
+  <div class="min-h-screen bg-bg">
+    <main class="container mx-auto px-6 sm:px-8 py-16 sm:py-24">
+      <div class="max-w-2xl mx-auto">
+        <header class="text-center mb-16">
+          <img
+            src="/logo.svg"
+            alt="JustDB"
+            width="64"
+            height="64"
+            class="mx-auto mb-6"
+          />
+          <h1 class="text-5xl sm:text-6xl font-bold tracking-tight text-primary mb-4">
+            JustDB
+          </h1>
+          <p class="text-xl sm:text-2xl text-primary font-medium mb-6">
+            See your database. Edit it. Query it.
+          </p>
+          <p class="text-base text-secondary leading-relaxed max-w-xl mx-auto">
+            A clean database explorer for PostgreSQL, MySQL, and SQLite. Free,
+            no signup.
+          </p>
+
+          <div class="flex flex-wrap items-center justify-center gap-3 mt-8">
+            <Button variant="primary" href={appUrl}>Open JustDB</Button>
+            <Button
+              variant="secondary"
+              href="https://github.com/codellyson/justdb/releases"
+              external
+            >
+              Download desktop app
+            </Button>
+          </div>
+        </header>
+
+        <section aria-labelledby="how-it-works" class="mb-16">
+          <h2 id="how-it-works" class="text-xl font-semibold text-primary mb-6">
+            How it works
+          </h2>
+          <ol class="space-y-4 text-secondary">
+            <li class="flex gap-4">
+              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">
+                1
+              </span>
+              <p>
+                <strong class="text-primary">Connect.</strong>
+                Paste your connection string and pick a driver.
+              </p>
+            </li>
+            <li class="flex gap-4">
+              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">
+                2
+              </span>
+              <p>
+                <strong class="text-primary">Browse.</strong>
+                Tables, columns, foreign keys, row counts. Pin what you use,
+                search the rest.
+              </p>
+            </li>
+            <li class="flex gap-4">
+              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">
+                3
+              </span>
+              <p>
+                <strong class="text-primary">Edit or query.</strong>
+                Inline edits with staged changes, or write SQL in a full editor.
+              </p>
+            </li>
+          </ol>
+        </section>
+
+        <section aria-labelledby="desktop-or-web" class="mb-16">
+          <h2 id="desktop-or-web" class="text-xl font-semibold text-primary mb-3">
+            Desktop or web?
+          </h2>
+          <p class="text-secondary leading-relaxed mb-3">
+            The web version runs in your browser. Good for a quick look from
+            a phone or borrowed laptop. Stick to staging or development
+            credentials here.
+          </p>
+          <p class="text-secondary leading-relaxed">
+            The desktop app runs locally on Mac, Windows, and Linux. Use it
+            for daily work and production databases.
+          </p>
+        </section>
+
+        <section aria-labelledby="faq" class="mb-16">
+          <h2 id="faq" class="text-xl font-semibold text-primary mb-6">
+            Frequently asked questions
+          </h2>
+          <dl class="space-y-6">
+            {FAQ.map(({ q, a }) => (
+              <div>
+                <dt class="text-base font-medium text-primary mb-1.5">{q}</dt>
+                <dd class="text-sm text-secondary leading-relaxed">{a}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <footer class="pt-8 border-t border-border text-center">
+          <p class="text-xs text-muted mb-1">Built by</p>
+          <a
+            href="https://kreativekorna.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm font-medium text-primary hover:text-accent transition-colors"
+          >
+            KreativeKorna Concepts
+          </a>
+          <p class="text-xs text-muted/70 mt-3">
+            <a href={appUrl} class="hover:text-primary transition-colors">
+              Connect a database
+            </a>
+          </p>
+        </footer>
+      </div>
+    </main>
+  </div>
+</Layout>

@@ -1,0 +1,36 @@
+---
+// Mirrors the variant API of app/components/ui/Button used on the Next.js
+// landing. Renders as <a> when `href` is provided, otherwise <button>.
+type Variant = 'primary' | 'secondary';
+
+interface Props {
+  variant?: Variant;
+  href?: string;
+  external?: boolean;
+  class?: string;
+}
+
+const { variant = 'primary', href, external = false, class: className = '' } = Astro.props;
+
+const base = 'inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg';
+const variants: Record<Variant, string> = {
+  primary: 'bg-accent hover:bg-accent-hover text-white',
+  secondary: 'border border-border text-primary hover:bg-bg-secondary',
+};
+
+const classes = `${base} ${variants[variant]} ${className}`.trim();
+---
+
+{href ? (
+  <a
+    href={href}
+    class={classes}
+    {...external ? { target: '_blank', rel: 'noopener noreferrer' } : {}}
+  >
+    <slot />
+  </a>
+) : (
+  <button type="button" class={classes}>
+    <slot />
+  </button>
+)}

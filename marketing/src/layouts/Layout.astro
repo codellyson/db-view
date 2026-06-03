@@ -1,0 +1,64 @@
+---
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Inline JSON-LD object — stringified into a <script type="application/ld+json"> tag. */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+}
+
+const {
+  title = 'JustDB — Just your data, no bullshit.',
+  description = 'Just your data, no bullshit. Browse tables, run queries, and inspect schemas on any device. Connects directly — nothing leaves your browser.',
+  jsonLd,
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="canonical" href={canonical} />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <meta name="keywords" content="PostgreSQL, MySQL, database explorer, mobile database client, SQL query tool, database browser, mobile-first database, local database viewer" />
+    <meta name="author" content="KreativeKorna Concepts" />
+    <meta name="category" content="database" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="JustDB" />
+
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117" />
+
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content="JustDB" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+
+    {jsonLd && (
+      <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline />
+    )}
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
