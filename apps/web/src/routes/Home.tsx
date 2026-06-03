@@ -1,13 +1,19 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useConnection } from '../contexts/connection-context';
+import { Dashboard } from '../components/dashboard';
 
-// Mirrors apps/next/app/page.tsx — `/` is just an entry into /connections
-// when not connected. The actual workspace (Dashboard) will mount here once
-// we port it from apps/next; for now it's a thin redirect.
+// `/` is the workspace entry. Connected → render Dashboard. Disconnected →
+// redirect to /connections. Mirrors apps/next/app/page.tsx, with useRouter
+// swapped for useNavigate.
 export function Home() {
+  const { isConnected } = useConnection();
   const navigate = useNavigate();
+
   useEffect(() => {
-    navigate('/connections', { replace: true });
-  }, [navigate]);
+    if (!isConnected) navigate('/connections', { replace: true });
+  }, [isConnected, navigate]);
+
+  if (isConnected) return <Dashboard />;
   return null;
 }
