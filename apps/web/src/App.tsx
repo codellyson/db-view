@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from './contexts/toast-context';
 import { ConnectionProvider } from './contexts/connection-context';
 import { ThemeProvider } from './contexts/theme-context';
@@ -8,6 +9,22 @@ import { ToastContainer } from './components/ui/toast';
 import { Home } from './routes/Home';
 import { Connections } from './routes/Connections';
 import { Query } from './routes/Query';
+
+// Defaults match apps/next/app/providers.tsx — DashboardProvider's queries
+// are user-driven (table data, schema), so we don't want focus/mount
+// refetches stealing CPU mid-edit; staleTime keeps cached metadata around
+// for the typical "tab away, come back" flow.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 10,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      retry: 1,
+    },
+  },
+});
 
 // Provider stack ordering:
 //   ToastProvider          — sits outermost: ConnectionProvider dispatches
@@ -24,22 +41,24 @@ import { Query } from './routes/Query';
 //                            inside ConnectionProvider.
 export function App() {
   return (
-    <ToastProvider>
-      <ThemeProvider>
-        <ConnectionProvider>
-          <PendingChangesProvider>
-            <DashboardProvider>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/connections" element={<Connections />} />
-                <Route path="/query" element={<Query />} />
-                <Route path="*" element={<Navigate to="/connections" replace />} />
-              </Routes>
-              <ToastContainer />
-            </DashboardProvider>
-          </PendingChangesProvider>
-        </ConnectionProvider>
-      </ThemeProvider>
-    </ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <ThemeProvider>
+          <ConnectionProvider>
+            <PendingChangesProvider>
+              <DashboardProvider>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/connections" element={<Connections />} />
+                  <Route path="/query" element={<Query />} />
+                  <Route path="*" element={<Navigate to="/connections" replace />} />
+                </Routes>
+                <ToastContainer />
+              </DashboardProvider>
+            </PendingChangesProvider>
+          </ConnectionProvider>
+        </ThemeProvider>
+      </ToastProvider>
+    </QueryClientProvider>
   );
 }

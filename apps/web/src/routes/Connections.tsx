@@ -3,15 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useConnection } from '../contexts/connection-context';
 import { ConnectionForm } from '../components/connection-form';
 import { SavedConnections } from '../components/saved-connections';
+import { Header } from '../components/header';
 import type { DBConfig } from '../types';
 
-// Ported from apps/next/app/connections/page.tsx. The post-connect Header is
-// omitted for now since the Dashboard hasn't been ported yet — the page just
-// redirects to / when isConnected flips true (eventually / will render the
-// workspace shell, but right now it's a thin redirect to /connections so the
-// user just sees the "Connections" heading post-connect).
 export function Connections() {
-  const { isConnected, isConnecting, connect, error } = useConnection();
+  const { isConnected, isConnecting, databaseName, connect, error } = useConnection();
   const navigate = useNavigate();
 
   // Web-only notice: the SaaS round-trips credentials through a shared server,
@@ -33,6 +29,9 @@ export function Connections() {
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
+      {isConnected && (
+        <Header isConnected={isConnected} databaseName={databaseName} />
+      )}
       <div className="flex-1">
         <div className="container mx-auto px-6 py-8">
           <div className="max-w-xl mx-auto">

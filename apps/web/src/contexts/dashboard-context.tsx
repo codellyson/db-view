@@ -342,7 +342,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const tables = tablesQuery.data ?? [];
   const schemas = schemasQuery.data ?? [];
   const tableData = tableDataQuery.data?.rows ?? [];
-  const columns = useMemo(() => tableDataQuery.data?.columns ?? [], [tableDataQuery.data?.columns]);
+  // Prefer columns inferred from the first row (preserves the actual return
+  // order from the DB). For empty tables there are no rows to infer from, so
+  // fall back to the schema metadata — without this DataTable receives an
+  // empty columns array and renders neither headers nor the empty-row
+  // affordance, leaving a blank panel.
+  const columns = useMemo(() => {
+    const fromRows = tableDataQuery.data?.columns ?? [];
+    if (fromRows.length > 0) return fromRows;
+    return (tableSchemaQuery.data ?? []).map((c) => c.name);
+  }, [tableDataQuery.data?.columns, tableSchemaQuery.data]);
   const totalItems = tableDataQuery.data?.total ?? 0;
   const countIsEstimate = tableDataQuery.data?.countIsEstimate ?? false;
   const schema = useMemo(() => tableSchemaQuery.data ?? [], [tableSchemaQuery.data]);
