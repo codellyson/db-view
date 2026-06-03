@@ -6,12 +6,12 @@
 #   - workflow_dispatch                           -> manual production deploy
 #
 # Required repo secrets:
-#   CLOUDFLARE_API_TOKEN  - token with "Cloudflare Pages — Edit" permission
-#                           (a single-account-scoped token lets wrangler-action
-#                           infer the account ID; for multi-account tokens
-#                           also set CLOUDFLARE_ACCOUNT_ID and add the line
-#                           `accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}`
-#                           to the deploy step below)
+#   CLOUDFLARE_API_TOKEN  - token with "Cloudflare Pages — Edit" permission.
+#                           Tokens scoped only to Pages don't have access to
+#                           the /memberships endpoint that wrangler hits when
+#                           no accountId is passed, so we pass the account ID
+#                           explicitly below. (Account IDs aren't secret —
+#                           they're visible in dashboard URLs.)
 #
 # One-time setup (run once, then never again):
 #   wrangler pages project create justdb-marketing --production-branch main
@@ -71,6 +71,7 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: a492d60371140dc0c1860389e31387d1
           workingDirectory: marketing
           # Branch defaults to the git branch; explicit for clarity. Pushes
           # to main land on production; PR commits get a preview URL.
