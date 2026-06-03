@@ -1,9 +1,9 @@
-# Build and deploy the Astro marketing site (marketing/) to Cloudflare Pages.
+# Build and deploy the Astro marketing site (apps/marketing/) to Cloudflare Pages.
 #
 # Triggers:
-#   - push to main with changes under marketing/  -> production deploy
-#   - pull_request touching marketing/            -> preview deploy
-#   - workflow_dispatch                           -> manual production deploy
+#   - push to main with changes under apps/marketing/  -> production deploy
+#   - pull_request touching apps/marketing/            -> preview deploy
+#   - workflow_dispatch                                -> manual production deploy
 #
 # Required repo secrets:
 #   CLOUDFLARE_API_TOKEN  - token with "Cloudflare Pages — Edit" permission.
@@ -22,11 +22,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'marketing/**'
+      - 'apps/marketing/**'
       - '.github/workflows/marketing-deploy.yml'
   pull_request:
     paths:
-      - 'marketing/**'
+      - 'apps/marketing/**'
       - '.github/workflows/marketing-deploy.yml'
   workflow_dispatch:
 
@@ -38,9 +38,6 @@ jobs:
       deployments: write
       # Lets wrangler-action post a comment with the preview URL on PRs.
       pull-requests: write
-    defaults:
-      run:
-        working-directory: marketing
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,26 +52,23 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-          cache-dependency-path: marketing/pnpm-lock.yaml
 
+      # Workspace install: pnpm reads pnpm-workspace.yaml and installs every
+      # member into a single root node_modules. Cheaper than per-app installs.
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Build
+      - name: Build marketing
         env:
-          # Where the "Open JustDB" CTA points. Override via repo variable if
-          # the app is deployed at a different origin (e.g. app.justdb.app).
           PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL || '/connections' }}
-        run: pnpm build
+        run: pnpm --filter justdb-marketing build
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: a492d60371140dc0c1860389e31387d1
-          workingDirectory: marketing
-          # Branch defaults to the git branch; explicit for clarity. Pushes
-          # to main land on production; PR commits get a preview URL.
+          workingDirectory: apps/marketing
           command: >-
             pages deploy dist
             --project-name=justdb-marketing

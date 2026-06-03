@@ -4,10 +4,10 @@
   "version": "0.1.4",
   "identifier": "com.kreativekorna.justdb",
   "build": {
-    "frontendDist": "../out",
+    "frontendDist": "../apps/next/out",
     "devUrl": "http://localhost:3030",
-    "beforeDevCommand": "pnpm dev:tauri",
-    "beforeBuildCommand": "pnpm build:tauri"
+    "beforeDevCommand": "pnpm --filter @justdb/next dev:tauri",
+    "beforeBuildCommand": "pnpm --filter @justdb/next build:tauri"
   },
   "app": {
     "windows": [
