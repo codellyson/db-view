@@ -95,22 +95,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "JustDB",
-  description:
-    "Just your data, no bullshit. Browse tables, run queries, and inspect schemas on any device. Connects directly; nothing leaves your browser.",
-  applicationCategory: "DeveloperApplication",
-  operatingSystem: "Web Browser",
-  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-  url: appUrl,
-  publisher: {
-    "@type": "Organization",
-    name: "KreativeKorna Concepts",
-    url: "https://kreativekorna.com",
-  },
-};
+// SoftwareApplication JSON-LD lives in the Astro marketing site only —
+// that's the canonical SEO surface (justdb.kreativekorna.com). Keeping it
+// here too would tell crawlers the same thing twice from different URLs.
 
 export default function RootLayout({
   children,
@@ -119,12 +106,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      </head>
       <body className="antialiased">
         <Providers>{children}</Providers>
       </body>
