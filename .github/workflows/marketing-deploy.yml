@@ -22,12 +22,12 @@ on:
   push:
     branches: [main]
     paths:
-      - 'apps/marketing/**'
-      - '.github/workflows/marketing-deploy.yml'
+      - "apps/marketing/**"
+      - ".github/workflows/marketing-deploy.yml"
   pull_request:
     paths:
-      - 'apps/marketing/**'
-      - '.github/workflows/marketing-deploy.yml'
+      - "apps/marketing/**"
+      - ".github/workflows/marketing-deploy.yml"
   workflow_dispatch:
 
 jobs:
@@ -51,7 +51,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: "pnpm"
 
       # Workspace install: pnpm reads pnpm-workspace.yaml and installs every
       # member into a single root node_modules. Cheaper than per-app installs.
@@ -67,7 +67,7 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: a492d60371140dc0c1860389e31387d1
+          accountId: ${{secrets.CLOUDFLARE_ACCOUNT_ID}}
           workingDirectory: apps/marketing
           command: >-
             pages deploy dist
