@@ -1,8 +1,16 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // Match the `@/*` path mapping in tsconfig.app.json so TS and Vite agree
+    // on what `@/lib/api` etc. resolve to.
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   server: {
     // 3030 was the Tauri-specific Next dev port too — keeping the convention
     // so muscle memory still works. strictPort makes Vite refuse to silently
