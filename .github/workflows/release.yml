@@ -16,9 +16,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS universal binary → .dmg only (skip the loose .app).
+          # macOS universal binary. We build both `app` and `dmg`:
+          #   - `dmg` is what users download for fresh installs.
+          #   - `app` is the loose .app bundle; Tauri tars + signs it to
+          #     produce the .app.tar.gz the in-app updater consumes. Without
+          #     `app` in the list, macOS users on a prior version can never
+          #     auto-update — they have to revisit the releases page.
           - platform: macos-latest
-            args: '--target universal-apple-darwin --bundles dmg'
+            args: '--target universal-apple-darwin --bundles app,dmg'
           # Windows → both NSIS (.exe) and WiX (.msi). Tauri produces both
           # from the same build; --bundles just filters what gets emitted.
           - platform: windows-latest
