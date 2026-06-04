@@ -12,7 +12,7 @@ interface Props {
 
 const {
   title = 'JustDB — Just your data, no bullshit.',
-  description = 'Just your data, no bullshit. Browse tables, run queries, and inspect schemas on any device. Connects directly — nothing leaves your browser.',
+  description = 'Just your data, no bullshit. A local desktop app for PostgreSQL, MySQL, and SQLite. Browse tables, run queries, inspect schemas. Credentials stay on your machine.',
   jsonLd,
 } = Astro.props;
 
@@ -30,7 +30,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).toString();
     <title>{title}</title>
     <meta name="description" content={description} />
 
-    <meta name="keywords" content="PostgreSQL, MySQL, database explorer, mobile database client, SQL query tool, database browser, mobile-first database, local database viewer" />
+    <meta name="keywords" content="PostgreSQL, MySQL, SQLite, database explorer, SQL query tool, database browser, desktop database client, local database viewer" />
     <meta name="author" content="KreativeKorna Concepts" />
     <meta name="category" content="database" />
     <meta name="mobile-web-app-capable" content="yes" />

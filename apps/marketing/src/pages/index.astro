@@ -2,11 +2,13 @@
 import Layout from '../layouts/Layout.astro';
 import Button from '../components/Button.astro';
 
-// Where the "Open JustDB" CTA points. Set PUBLIC_APP_URL at build time to the
-// app's deployed URL (e.g. https://app.justdb.app or https://justdb.app/app).
-// Defaults to a relative /connections, which works when the marketing site
-// and the app are served from the same origin.
-const appUrl = import.meta.env.PUBLIC_APP_URL || '/connections';
+// The "Open JustDB" CTA tries to launch the installed desktop app via the
+// `justdb://` URL scheme (registered by the Tauri build). A small client
+// script intercepts the click; if no handler responds within ~1.5s we fall
+// through to `downloadUrl` (the desktop release page). The href on the
+// element itself IS the fallback — that way JS-disabled visitors land on
+// the download page directly, which is the next-best option.
+const downloadUrl = 'https://github.com/codellyson/justdb/releases';
 
 const FAQ = [
   {
@@ -14,12 +16,12 @@ const FAQ = [
     a: 'PostgreSQL, MySQL/MariaDB, and SQLite (including libsql/Turso).',
   },
   {
-    q: 'Does it work on mobile?',
-    a: 'Yes. Tables become scannable cards, the SQL editor adapts, and it installs as a PWA.',
+    q: 'Which platforms are supported?',
+    a: 'Mac, Windows, and Linux. The desktop app runs natively on all three.',
   },
   {
-    q: 'Can I use production credentials on the web version?',
-    a: 'Not recommended. Use staging or dev credentials on the web. For production, install the desktop app so the connection stays on your machine.',
+    q: 'Where are my credentials stored?',
+    a: 'In your operating system keychain (Keychain on macOS, Credential Manager on Windows, libsecret on Linux). Nothing is sent to us.',
   },
   {
     q: 'Is it really free?',
@@ -32,11 +34,12 @@ const softwareJsonLd = {
   '@type': 'SoftwareApplication',
   name: 'JustDB',
   description:
-    'Just your data, no bullshit. Browse tables, run queries, and inspect schemas on any device. Connects directly; nothing leaves your browser.',
+    'Just your data, no bullshit. A local desktop app for PostgreSQL, MySQL, and SQLite. Browse tables, run queries, inspect schemas. Credentials stay on your machine.',
   applicationCategory: 'DeveloperApplication',
-  operatingSystem: 'Web Browser, macOS, Windows, Linux',
+  operatingSystem: 'macOS, Windows, Linux',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  url: Astro.site?.toString() ?? 'https://justdb.app',
+  url: Astro.site?.toString() ?? 'https://justdb.kreativekorna.com',
+  downloadUrl,
   publisher: {
     '@type': 'Organization',
     name: 'KreativeKorna Concepts',
@@ -79,10 +82,12 @@ const faqJsonLd = {
           </p>
 
           <div class="flex flex-wrap items-center justify-center gap-3 mt-8">
-            <Button variant="primary" href={appUrl}>Open JustDB</Button>
+            <Button variant="primary" href={downloadUrl} id="cta-open-app">
+              Open JustDB
+            </Button>
             <Button
               variant="secondary"
-              href="https://github.com/codellyson/justdb/releases"
+              href={downloadUrl}
               external
             >
               Download desktop app
@@ -126,21 +131,6 @@ const faqJsonLd = {
           </ol>
         </section>
 
-        <section aria-labelledby="desktop-or-web" class="mb-16">
-          <h2 id="desktop-or-web" class="text-xl font-semibold text-primary mb-3">
-            Desktop or web?
-          </h2>
-          <p class="text-secondary leading-relaxed mb-3">
-            The web version runs in your browser. Good for a quick look from
-            a phone or borrowed laptop. Stick to staging or development
-            credentials here.
-          </p>
-          <p class="text-secondary leading-relaxed">
-            The desktop app runs locally on Mac, Windows, and Linux. Use it
-            for daily work and production databases.
-          </p>
-        </section>
-
         <section aria-labelledby="faq" class="mb-16">
           <h2 id="faq" class="text-xl font-semibold text-primary mb-6">
             Frequently asked questions
@@ -166,12 +156,41 @@ const faqJsonLd = {
             KreativeKorna Concepts
           </a>
           <p class="text-xs text-muted/70 mt-3">
-            <a href={appUrl} class="hover:text-primary transition-colors">
-              Connect a database
+            <a href={downloadUrl} class="hover:text-primary transition-colors">
+              Get the desktop app
             </a>
           </p>
         </footer>
       </div>
     </main>
   </div>
+
+  <script>
+    // "Open JustDB" CTA: try to launch the installed desktop app via the
+    // `justdb://` protocol (registered by the Tauri bundle). If no handler
+    // responds, visibility stays on this page and we navigate to the
+    // download URL the anchor already points at — so we never leave the
+    // visitor stranded.
+    //
+    // The classic protocol-handler-detection pattern: trigger the scheme,
+    // then check `document.hidden` after a short delay. If the OS launched
+    // the app, focus left the tab and `hidden` is true → skip the fallback.
+    // If nothing handled the scheme, we're still visible → go to download.
+    const cta = document.getElementById('cta-open-app');
+    if (cta instanceof HTMLAnchorElement) {
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (!isMobile) {
+        cta.addEventListener('click', (event) => {
+          event.preventDefault();
+          const fallback = cta.href;
+          window.location.href = 'justdb://open';
+          window.setTimeout(() => {
+            if (!document.hidden) window.location.href = fallback;
+          }, 1500);
+        });
+      }
+      // On mobile, leave the anchor alone — the href already points at the
+      // releases page, which is the only sensible destination there.
+    }
+  </script>
 </Layout>
