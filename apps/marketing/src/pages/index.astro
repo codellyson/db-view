@@ -2,12 +2,13 @@
 import Layout from '../layouts/Layout.astro';
 import Button from '../components/Button.astro';
 
-// The "Open JustDB" CTA tries to launch the installed desktop app via the
-// `justdb://` URL scheme (registered by the Tauri build). A small client
-// script intercepts the click; if no handler responds within ~1.5s we fall
-// through to `downloadUrl` (the desktop release page). The href on the
-// element itself IS the fallback — that way JS-disabled visitors land on
-// the download page directly, which is the next-best option.
+// The "Open JustDB" CTA's href is the `justdb://` URL scheme registered by
+// the Tauri build, so the visible action matches the intent. A small client
+// script kicks in alongside the native click: if no handler responds within
+// ~1.5s (i.e. the app isn't installed and the page stayed visible), we
+// redirect to `downloadUrl`. Mobile UAs have no desktop install path, so
+// the script swaps the href to `downloadUrl` up-front.
+const launchUrl = 'justdb://open';
 const downloadUrl = 'https://github.com/codellyson/justdb/releases';
 
 const FAQ = [
@@ -82,7 +83,12 @@ const faqJsonLd = {
           </p>
 
           <div class="flex flex-wrap items-center justify-center gap-3 mt-8">
-            <Button variant="primary" href={downloadUrl} id="cta-open-app">
+            <Button
+              variant="primary"
+              href={launchUrl}
+              id="cta-open-app"
+              data-fallback={downloadUrl}
+            >
               Open JustDB
             </Button>
             <Button
@@ -166,31 +172,28 @@ const faqJsonLd = {
   </div>
 
   <script>
-    // "Open JustDB" CTA: try to launch the installed desktop app via the
-    // `justdb://` protocol (registered by the Tauri bundle). If no handler
-    // responds, visibility stays on this page and we navigate to the
-    // download URL the anchor already points at — so we never leave the
-    // visitor stranded.
+    // "Open JustDB" CTA: href is `justdb://open`, so a native click hands
+    // the URL to the OS — installed app launches, no JS required.
     //
-    // The classic protocol-handler-detection pattern: trigger the scheme,
-    // then check `document.hidden` after a short delay. If the OS launched
-    // the app, focus left the tab and `hidden` is true → skip the fallback.
-    // If nothing handled the scheme, we're still visible → go to download.
+    // Fallback when nothing's installed: after the click, wait ~1.5s. If
+    // the tab is still visible (i.e. the OS didn't hijack focus to launch
+    // an app), redirect to the download URL stored in `data-fallback`.
+    //
+    // On mobile, no desktop app can exist — swap the href to the download
+    // URL up-front so the click goes straight there with no protocol noise.
     const cta = document.getElementById('cta-open-app');
     if (cta instanceof HTMLAnchorElement) {
+      const fallback = cta.dataset.fallback;
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (!isMobile) {
-        cta.addEventListener('click', (event) => {
-          event.preventDefault();
-          const fallback = cta.href;
-          window.location.href = 'justdb://open';
+      if (isMobile) {
+        if (fallback) cta.href = fallback;
+      } else if (fallback) {
+        cta.addEventListener('click', () => {
           window.setTimeout(() => {
             if (!document.hidden) window.location.href = fallback;
           }, 1500);
         });
       }
-      // On mobile, leave the anchor alone — the href already points at the
-      // releases page, which is the only sensible destination there.
     }
   </script>
 </Layout>
