@@ -3,7 +3,7 @@
   "version": "0.1.4",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter @justdb/next dev",
+    "dev": "pnpm --filter @justdb/web dev",
     "build": "pnpm -r --parallel build",
     "lint": "pnpm -r --parallel lint",
     "tauri": "tauri",
