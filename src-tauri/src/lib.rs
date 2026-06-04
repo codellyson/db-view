@@ -1151,10 +1151,34 @@ async fn save_export_file(path: String, bytes: Vec<u8>) -> CommandResult<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default();
+
+    // Windows + Linux only. Must be registered first per the plugin's
+    // contract — it intercepts second-instance launches before any other
+    // plugin runs and forwards the deep-link argv (justdb://...) into the
+    // existing process, which raises the main window instead of spawning
+    // a duplicate. macOS skips this because LaunchServices already
+    // enforces single-instance for bundled apps.
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }));
+    }
+
+    builder
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
+        // Registers the `justdb://` URL scheme at install time so the
+        // marketing site's "Open JustDB" CTA can launch the desktop app.
+        // We don't consume the URL payload yet — the OS just brings the
+        // window forward when justdb://<anything> is invoked.
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             app.manage(AppState::default());
             if cfg!(debug_assertions) {

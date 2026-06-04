@@ -24,6 +24,7 @@ tauri-plugin-log = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-deep-link = "2"
 
 tokio = { version = "1", features = ["full"] }
 tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-uuid-1", "with-serde_json-1"] }
@@ -35,6 +36,14 @@ thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
 rust_decimal = { version = "1", features = ["serde-float", "db-postgres"] }
 keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
+
+# Single-instance is only needed on Windows + Linux. macOS's LaunchServices
+# already enforces single-instance for bundled apps, so we target-gate to
+# avoid pulling the crate (and its dbus dep) into the macOS build.
+# The `deep-link` feature forwards the justdb:// URL from a would-be second
+# instance into the already-running first instance.
+[target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 # Phase 6 release-build tuning. `panic="abort"` shrinks the binary (no unwind
 # tables) and matches Tauri's recommended profile; `lto=true` + single
