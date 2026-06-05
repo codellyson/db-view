@@ -1,0 +1,110 @@
+---
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+import { marked } from 'marked';
+
+import Layout from '../layouts/Layout.astro';
+
+// Read CHANGELOG.md from the repo root at build time. Resolved relative to
+// this file (not CWD) so it works equally well under `astro dev` and CI
+// builds.
+const here = dirname(fileURLToPath(import.meta.url));
+const changelogPath = resolve(here, '../../../../CHANGELOG.md');
+const raw = readFileSync(changelogPath, 'utf8');
+
+// Drop the top-level `# Changelog` heading + intro paragraph; we render our
+// own page header below.
+const trimmed = raw.replace(/^# Changelog[\s\S]*?(?=^## )/m, '');
+
+const html = marked.parse(trimmed, { gfm: true, breaks: false });
+
+const description =
+  'Release notes for JustDB — what shipped in each version of the desktop app.';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'JustDB — Changelog',
+  description,
+  url: new URL('/changelog', Astro.site).toString(),
+};
+---
+
+<Layout title="Changelog — JustDB" description={description} jsonLd={jsonLd}>
+  <div class="min-h-screen bg-bg">
+    <main class="container mx-auto px-6 sm:px-8 py-16 sm:py-24">
+      <div class="max-w-2xl mx-auto">
+        <header class="mb-12">
+          <p class="text-xs font-mono uppercase tracking-wider text-muted mb-2">
+            <a href="/" class="hover:text-primary transition-colors">JustDB</a>
+            <span class="opacity-50 mx-1">/</span>
+            <span>changelog</span>
+          </p>
+          <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-primary mb-4">
+            Changelog
+          </h1>
+          <p class="text-base text-secondary leading-relaxed">
+            Every release of the JustDB desktop app, generated from
+            <a
+              href="https://github.com/codellyson/justdb/commits/main"
+              class="text-primary hover:text-accent transition-colors underline-offset-2 hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >git history</a>.
+          </p>
+        </header>
+
+        <article class="changelog-body" set:html={html} />
+
+        <footer class="mt-16 pt-6 border-t border-border text-sm text-muted">
+          <p>
+            Want to track upcoming work?
+            <a
+              href="https://github.com/codellyson/justdb"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-primary hover:text-accent transition-colors"
+            >Watch the repo on GitHub</a>.
+          </p>
+        </footer>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<style is:global>
+  /* Markdown rendered into .changelog-body — minimal typographic shell so
+     the file reads cleanly without pulling in a full prose plugin. */
+  .changelog-body h2 {
+    @apply text-2xl font-semibold text-primary mt-12 mb-4 pb-2 border-b border-border;
+  }
+  .changelog-body h2:first-child {
+    @apply mt-0;
+  }
+  .changelog-body h3 {
+    @apply text-sm font-mono uppercase tracking-wider text-muted mt-6 mb-3;
+  }
+  .changelog-body ul {
+    @apply space-y-1.5 mb-4;
+  }
+  .changelog-body li {
+    @apply text-sm text-secondary leading-relaxed list-none pl-4 relative;
+  }
+  .changelog-body li::before {
+    content: '—';
+    @apply absolute left-0 text-muted;
+  }
+  .changelog-body strong {
+    @apply text-primary font-semibold;
+  }
+  .changelog-body a {
+    @apply text-primary hover:text-accent transition-colors underline-offset-2 hover:underline;
+  }
+  .changelog-body code {
+    @apply font-mono text-xs px-1.5 py-0.5 bg-bg-secondary rounded text-primary;
+  }
+  .changelog-body p {
+    @apply text-sm text-secondary mb-3;
+  }
+</style>
