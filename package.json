@@ -8,11 +8,14 @@
     "lint": "pnpm -r --parallel lint",
     "tauri": "tauri",
     "tauri:dev": "cross-env WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_FORCE_SANDBOX=0 LIBGL_ALWAYS_SOFTWARE=1 tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "changelog": "git-cliff -o CHANGELOG.md",
+    "changelog:unreleased": "git-cliff --unreleased --tag $(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0) --strip header"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
-    "cross-env": "^10.1.0"
+    "cross-env": "^10.1.0",
+    "git-cliff": "^2.13.1"
   },
   "pnpm": {
     "overrides": {

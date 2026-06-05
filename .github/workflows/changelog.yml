@@ -1,0 +1,60 @@
+# On every release tag, regenerate CHANGELOG.md, commit it back to main,
+# and attach the unreleased delta to the GitHub Release body so users see
+# the right notes without us having to hand-curate the release.
+
+name: Changelog
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use a PAT or the default token; we push back to main below.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Generates only the section for THIS tag — used as Release body.
+      - name: Generate release notes for this tag
+        uses: orhun/git-cliff-action@v4
+        id: release-notes
+        with:
+          config: cliff.toml
+          args: --current --strip header
+        env:
+          OUTPUT: CHANGES.md
+
+      # Regenerates the full CHANGELOG.md — committed back to main.
+      - name: Regenerate full CHANGELOG.md
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --output CHANGELOG.md
+
+      - name: Attach notes to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: CHANGES.md
+          append_body: true
+
+      - name: Commit CHANGELOG.md back to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet CHANGELOG.md; then
+            echo "CHANGELOG.md unchanged, skipping commit."
+            exit 0
+          fi
+          git checkout main
+          git add CHANGELOG.md
+          git commit -m "chore(changelog): update for ${GITHUB_REF_NAME}"
+          git push origin main
