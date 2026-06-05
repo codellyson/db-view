@@ -3,7 +3,7 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [Unreleased]
+## [0.1.7] - 2026-06-05
 
 ### Changed
 - **web:** Drop HTTP shim for typed Tauri client + UI polish ([797e117](https://github.com/codellyson/justdb/commit/797e117b3c7adedd3cdc4bc92cd3d10b5b31e528))
@@ -15,6 +15,7 @@ All notable changes to JustDB are documented here. Format follows
 
 ### Maintenance
 - Drop apps/next, the migration is complete ([7417e82](https://github.com/codellyson/justdb/commit/7417e823f3586e2956e06041fa184ac0a97adb84))
+- **changelog:** Wire up git-cliff for auto-generated release notes ([2b83fd9](https://github.com/codellyson/justdb/commit/2b83fd967d667e6c2deb6b28c7ce7eb5b707cd33))
 
 ## [0.1.6] - 2026-06-04
 
