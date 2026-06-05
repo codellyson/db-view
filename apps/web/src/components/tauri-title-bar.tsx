@@ -1,12 +1,8 @@
 
 import { useEffect, useState } from "react";
-import { isTauriRuntime } from "@/lib/api-tauri";
+import { isTauriRuntime } from "@/lib/runtime";
 
 const BAR_HEIGHT = 32;
-// Reserve room for macOS traffic lights. Apple's stock title bar height,
-// matches what VSCode/Linear reserve. tauri.macos.conf.json sets
-// titleBarStyle:"Overlay" so the webview draws under the lights.
-const MAC_TRAFFIC_LIGHTS_HEIGHT = 28;
 
 const isMacOS = () =>
   typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
@@ -20,19 +16,15 @@ export function TauriTitleBar() {
   const [show, setShow] = useState(false);
   const [maximized, setMaximized] = useState(false);
 
-  // On macOS we rely on the native overlay title bar — the OS draws the
-  // traffic lights, so we only need to reserve top padding so content
-  // doesn't slide under them. Skip the custom bar entirely in that case.
+  // On macOS the native overlay title bar already reserves room for traffic
+  // lights and the app's Header component lifts itself into that band
+  // (see header.tsx). Nothing to render here. Windows/Linux still get the
+  // custom bar below.
   const onMac = isMacOS();
 
   useEffect(() => {
     if (!isTauriRuntime()) return;
-    if (onMac) {
-      document.body.style.paddingTop = `${MAC_TRAFFIC_LIGHTS_HEIGHT}px`;
-      return () => {
-        document.body.style.paddingTop = "";
-      };
-    }
+    if (onMac) return;
     setShow(true);
     let unlisten: (() => void) | undefined;
     let cancelled = false;

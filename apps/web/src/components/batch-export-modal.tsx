@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { api } from "@/lib/api";
+import { db } from "@/lib/db";
 import {
   generateCSVContent,
   generateJSONContent,
@@ -78,9 +78,12 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
         let hasMore = true;
 
         while (hasMore) {
-          const data = await api.get(
-            `/api/table/${encodeURIComponent(tableName)}?schema=${encodeURIComponent(schema)}&limit=${batchSize}&offset=${offset}`
-          );
+          const data = await db.tableRows({
+            table: tableName,
+            schema,
+            limit: batchSize,
+            offset,
+          });
           const rows = data.rows || [];
           allRows = allRows.concat(rows);
           offset += batchSize;

@@ -4,7 +4,7 @@ import Papa from "papaparse";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
 import { ColumnInfo } from "@/types";
-import { api } from "@/lib/api";
+import { db } from "@/lib/db";
 
 interface CSVImportDialogProps {
   isOpen: boolean;
@@ -117,12 +117,12 @@ export const CSVImportDialog: React.FC<CSVImportDialogProps> = ({
     );
 
     try {
-      const data = await api.post("/api/import", {
+      const data = await db.importRows({
         schema,
         table: tableName,
         columns: targetColumns,
         rows,
-      }, { noRetry: true });
+      });
 
       setImportResult(data.insertedRows);
       onComplete();

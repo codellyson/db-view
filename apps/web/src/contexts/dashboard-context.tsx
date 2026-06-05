@@ -8,7 +8,7 @@ import { type MutationRequest } from '@/lib/mutation';
 import { type Filter } from '@/lib/filters';
 import type { SavedQuery } from '@/types';
 import { useSavedQueries } from '../hooks/use-saved-queries';
-import { api } from '@/lib/api';
+import { db } from '@/lib/db';
 import { type TableStatsData } from '../components/table-stats';
 import { type Tab } from '../components/tab-bar';
 
@@ -118,7 +118,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [tableSearch, setTableSearch] = useState('');
   const [tableFilters, setTableFilters] = useState<Filter[]>([]);
-  const [readOnlyMode, setReadOnlyMode] = useState(false);
+  const [readOnlyMode] = useState(false);
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | undefined>();
   const [queryTabResults, setQueryTabResults] = useState<Record<string, { rows: any[]; columns: string[]; executionTime: number }>>({});
@@ -214,58 +214,37 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const schemasQuery = useQuery({
     queryKey: ['schemas'],
-    queryFn: async () => {
-      const data = await api.get('/api/schemas');
-      return (data.schemas || []) as string[];
-    },
+    queryFn: () => db.listSchemas(),
     enabled: isConnected,
   });
 
   const tablesQuery = useQuery({
     queryKey: ['tables', selectedSchema],
-    queryFn: async () => {
-      const data = await api.get(`/api/tables?schema=${encodeURIComponent(selectedSchema)}`);
-      return (data.tables || []) as string[];
-    },
+    queryFn: () => db.listTables(selectedSchema),
     enabled: isConnected,
   });
 
   const viewsQuery = useQuery({
     queryKey: ['views', selectedSchema],
-    queryFn: async () => {
-      const data = await api.get(`/api/views?schema=${encodeURIComponent(selectedSchema)}`);
-      return {
-        views: (data.views || []) as string[],
-        materializedViews: (data.materializedViews || []) as string[],
-      };
-    },
+    queryFn: () => db.listViews(selectedSchema),
     enabled: isConnected,
   });
 
   const functionsQuery = useQuery({
     queryKey: ['functions', selectedSchema],
-    queryFn: async () => {
-      const data = await api.get(`/api/functions?schema=${encodeURIComponent(selectedSchema)}`);
-      return (data.functions || []) as any[];
-    },
+    queryFn: () => db.listFunctions(selectedSchema),
     enabled: isConnected,
   });
 
   const schemaMapQuery = useQuery({
     queryKey: ['schemaMap', selectedSchema],
-    queryFn: async () => {
-      const data = await api.get(`/api/schema-map?schema=${encodeURIComponent(selectedSchema)}`);
-      return (data.schemaMap || {}) as Record<string, string[]>;
-    },
+    queryFn: () => db.schemaMap(selectedSchema),
     enabled: isConnected,
   });
 
   const tableCountsQuery = useQuery({
     queryKey: ['tableCounts', selectedSchema],
-    queryFn: async () => {
-      const data = await api.get(`/api/table-counts?schema=${encodeURIComponent(selectedSchema)}`);
-      return (data.counts || {}) as Record<string, number>;
-    },
+    queryFn: () => db.tableCounts(selectedSchema),
     enabled: isConnected,
     // Counts are estimates (Postgres reltuples / MySQL TABLE_ROWS) — keep
     // them cached aggressively to avoid hammering the catalog on every
@@ -277,14 +256,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     queryKey: ['tableData', selectedTable, selectedSchema, currentPage, sortColumn, sortDirection, itemsPerPage, tableFilters],
     queryFn: async () => {
       const offset = (currentPage - 1) * itemsPerPage;
-      let url = `/api/table/${encodeURIComponent(selectedTable!)}?limit=${itemsPerPage}&offset=${offset}&schema=${encodeURIComponent(selectedSchema)}`;
-      if (sortColumn && sortDirection) {
-        url += `&sortColumn=${encodeURIComponent(sortColumn)}&sortDirection=${sortDirection}`;
-      }
-      if (tableFilters.length > 0) {
-        url += `&filters=${encodeURIComponent(JSON.stringify(tableFilters))}`;
-      }
-      const data = await api.get(url);
+      const data = await db.tableRows({
+        table: selectedTable!,
+        schema: selectedSchema,
+        limit: itemsPerPage,
+        offset,
+        sortColumn: sortColumn ?? undefined,
+        sortDirection: sortDirection ?? undefined,
+        filters: tableFilters,
+      });
       const rows = data.rows || [];
       const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
       return {
@@ -300,10 +280,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const tableSchemaQuery = useQuery({
     queryKey: ['tableSchema', selectedTable, selectedSchema],
     queryFn: async () => {
-      const data = await api.get(
-        `/api/schema/${encodeURIComponent(selectedTable!)}?schema=${encodeURIComponent(selectedSchema)}`
-      );
-      return ((data.schema || []) as any[]).map((row: any) => ({
+      const cols = await db.tableSchema(selectedTable!, selectedSchema);
+      return (cols as any[]).map((row: any) => ({
         name: row.column_name ?? row.name,
         type: row.data_type ?? row.type,
         nullable: row.is_nullable === 'YES' || row.nullable === true,
@@ -316,26 +294,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const relationshipsQuery = useQuery({
     queryKey: ['relationships', selectedTable, selectedSchema],
-    queryFn: async () => {
-      const data = await api.get(
-        `/api/relationships/${encodeURIComponent(selectedTable!)}?schema=${encodeURIComponent(selectedSchema)}`
-      );
-      return {
-        relationships: data.relationships || [],
-        indexes: data.indexes || [],
-      };
-    },
+    queryFn: () => db.relationships(selectedTable!, selectedSchema),
     enabled: isConnected && !!selectedTable,
   });
 
   const tableStatsQuery = useQuery({
     queryKey: ['tableStats', selectedTable, selectedSchema],
-    queryFn: async () => {
-      const data = await api.get(
-        `/api/table-stats/${encodeURIComponent(selectedTable!)}?schema=${encodeURIComponent(selectedSchema)}`
-      );
-      return (data.stats || null) as TableStatsData | null;
-    },
+    queryFn: () => db.tableStats(selectedTable!, selectedSchema) as Promise<TableStatsData | null>,
     enabled: isConnected && !!selectedTable,
   });
 
@@ -429,16 +394,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [selectedTable, queryClient]);
 
   const mutateRow = useCallback(async (request: MutationRequest) => {
-    try {
-      await api.post('/api/mutate', request, { noRetry: true });
-      addToast(`${request.type} successful`, 'success');
-      await refreshTableData();
-    } catch (err: any) {
-      if (err.status === 403) {
-        setReadOnlyMode(true);
-      }
-      throw err;
-    }
+    await db.mutate(request);
+    addToast(`${request.type} successful`, 'success');
+    await refreshTableData();
   }, [addToast, refreshTableData]);
 
   const openTab = useCallback((name: string, type: Tab['type'] = 'table') => {

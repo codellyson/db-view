@@ -108,27 +108,30 @@ interface DataTableProps {
 
 const ROW_HEIGHT = 36;
 const HEADER_HEIGHT = 48;
-const MIN_COL_WIDTH = 60;
-const DEFAULT_COL_WIDTH = 140;
+const MIN_COL_WIDTH = 70;
+const DEFAULT_COL_WIDTH = 160;
 const MAX_COL_WIDTH = 600;
 
 /**
  * Type-aware initial column width. Numeric / boolean / short-text columns
  * default to narrow; long-form types (timestamps, json) get more room. The
  * user can still resize and the override persists via layoutKey.
+ *
+ * Widths are calibrated to the 15px html base font (mono cells render at
+ * ~13.1px, ~8px per character). Bump the multiplier if the base font moves.
  */
 function defaultWidthForType(columnType: string | undefined): number {
   if (!columnType) return DEFAULT_COL_WIDTH;
   const t = columnType.toLowerCase();
-  if (t === 'boolean' || t === 'bool') return 70;
-  if (t.includes('serial') || (t.includes('int') && !t.includes('interval'))) return 80;
-  if (t === 'numeric' || t === 'decimal' || t === 'real' || t === 'float' || t.includes('double')) return 100;
-  if (t === 'date') return 110;
-  if (t === 'time' || t === 'time without time zone' || t === 'time with time zone') return 90;
-  if (t === 'timestamp' || t === 'timestamptz' || t === 'timestamp without time zone' || t === 'timestamp with time zone' || t === 'datetime') return 200;
-  if (t === 'uuid') return 110;
-  if (t === 'json' || t === 'jsonb') return 220;
-  if (t === 'text' || t.includes('varchar') || t.includes('char')) return 180;
+  if (t === 'boolean' || t === 'bool') return 80;
+  if (t.includes('serial') || (t.includes('int') && !t.includes('interval'))) return 95;
+  if (t === 'numeric' || t === 'decimal' || t === 'real' || t === 'float' || t.includes('double')) return 115;
+  if (t === 'date') return 130;
+  if (t === 'time' || t === 'time without time zone' || t === 'time with time zone') return 105;
+  if (t === 'timestamp' || t === 'timestamptz' || t === 'timestamp without time zone' || t === 'timestamp with time zone' || t === 'datetime') return 235;
+  if (t === 'uuid') return 130;
+  if (t === 'json' || t === 'jsonb') return 250;
+  if (t === 'text' || t.includes('varchar') || t.includes('char')) return 210;
   return DEFAULT_COL_WIDTH;
 }
 
@@ -723,6 +726,30 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
       { label: 'Copy row as INSERT', onClick: () => copyToClipboard(insertSql) },
     ];
 
+    if (onAddFilter) {
+      const filterCol = baseColumn(column);
+      const isNull = cellValue === null || cellValue === undefined;
+      // Cap the value preview so the menu doesn't grow with long strings/JSON.
+      const preview = (() => {
+        if (isNull) return 'NULL';
+        const s = typeof cellValue === 'string' ? `'${cellValue}'` : String(cellValue);
+        return s.length > 24 ? `${s.slice(0, 24)}…` : s;
+      })();
+      items.push({ type: 'divider' });
+      if (isNull) {
+        items.push(
+          { label: `Filter: ${filterCol} IS NULL`, onClick: () => onAddFilter({ column: filterCol, operator: 'is_null' }) },
+          { label: `Filter: ${filterCol} IS NOT NULL`, onClick: () => onAddFilter({ column: filterCol, operator: 'is_not_null' }) },
+        );
+      } else {
+        items.push(
+          { label: `Filter: ${filterCol} = ${preview}`, onClick: () => onAddFilter({ column: filterCol, operator: 'eq', value: cellValue }) },
+          { label: `Filter: ${filterCol} ≠ ${preview}`, onClick: () => onAddFilter({ column: filterCol, operator: 'neq', value: cellValue }) },
+          { label: `Filter: ${filterCol} IS NULL`, onClick: () => onAddFilter({ column: filterCol, operator: 'is_null' }) },
+        );
+      }
+    }
+
     if (canEdit && !primaryKeys.includes(column) && isColumnEditable(column) && !stagedDelete) {
       items.push(
         { type: 'divider' },
@@ -931,7 +958,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
         ref={setScrollContainer}
         className="flex-1 overflow-auto relative"
       >
-        <div style={{ width: Math.max(totalTableWidth, 0), minWidth: '100%' }}>
+        <div style={{ width: Math.max(totalTableWidth + LEFT_CHROME_WIDTH, 0), minWidth: '100%' }}>
           {/* Sticky header */}
           <div
             className="bg-bg-secondary sticky top-0 z-20 flex border-b border-border"
@@ -1037,6 +1064,10 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                 </div>
               );
             })}
+            {/* Trailing flex spacer — absorbs any slack between sum-of-
+                column-widths and the container, so the header visually
+                extends to the right edge instead of leaving a band. */}
+            <div className="flex-1" />
           </div>
 
           {/* Virtualized rows */}
@@ -1131,6 +1162,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                           </div>
                         );
                       })}
+                      <div className="flex-1" />
                     </div>
                   </div>
                 );
@@ -1206,6 +1238,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                           </div>
                         );
                       })}
+                      <div className="flex-1" />
                     </div>
                   </div>
                 );
@@ -1355,6 +1388,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                         </div>
                       );
                     })}
+                    <div className="flex-1" />
                   </div>
 
                   {/* Expanded row detail */}

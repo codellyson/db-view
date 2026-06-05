@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { db } from '@/lib/db';
 
 interface HealthState {
   latency: number | null;
@@ -24,7 +24,7 @@ export function useConnectionHealth(isConnected: boolean): HealthState {
     let cancelled = false;
     const tick = async () => {
       try {
-        const data = await api.get('/api/health');
+        const data = await db.health();
         if (cancelled) return;
         setState({
           latency: typeof data.latency === 'number' ? data.latency : null,

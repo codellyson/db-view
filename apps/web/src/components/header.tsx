@@ -6,6 +6,7 @@ import { ConnectionSelector } from './connection-selector';
 import { Button } from './ui/button';
 import { useConnection } from '../contexts/connection-context';
 import { useConnectionHealth } from '../hooks/use-connection-health';
+import { isMacOSTauri } from '../lib/runtime';
 
 interface HeaderProps {
   isConnected: boolean;
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
   const { disconnect } = useConnection();
   const { latency, healthy } = useConnectionHealth(isConnected);
+  const onMac = isMacOSTauri();
 
   const handleDisconnect = async () => {
     await disconnect();
@@ -54,8 +56,19 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
     )}
-    <header className="h-14 bg-bg border-b border-border flex items-center justify-between px-4 md:px-6">
-      <div className="flex items-center gap-3 md:gap-6">
+    <header
+      // On macOS the native overlay title bar reserves 28px at top for
+      // traffic lights. We lift the header into that band by giving it
+      // ~80px of left padding (lights end ~60px from the left edge) and
+      // mark the chrome as the window-drag region.
+      data-tauri-drag-region={onMac ? "" : undefined}
+      style={onMac ? { paddingLeft: 80 } : undefined}
+      className="h-14 bg-bg border-b border-border flex items-center justify-between px-4 md:px-6"
+    >
+      <div
+        data-tauri-drag-region={onMac ? "" : undefined}
+        className="flex items-center gap-3 md:gap-6"
+      >
         {isConnected && onMenuToggle && (
           <button
             onClick={onMenuToggle}

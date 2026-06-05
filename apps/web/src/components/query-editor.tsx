@@ -10,7 +10,7 @@ import { useQueryHistory } from '../hooks/use-query-history';
 import { QueryHistory } from './query-history';
 import { formatSQL } from '@/lib/sql-formatter';
 import { getStatementAtCursor } from '@/lib/sql-statements';
-import { api } from '@/lib/api';
+import { db } from '@/lib/db';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
 import { useToast } from '../contexts/toast-context';
@@ -159,11 +159,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
       setError(null);
 
       try {
-        const data = await api.post(
-          '/api/query',
-          { query: execQuery, confirmed },
-          { noRetry: true }
-        );
+        const data = await db.runQuery(execQuery, confirmed);
 
         if (data.needsConfirmation) {
           const c = data.classification;
@@ -294,10 +290,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   const sourceSchemaQuery = useQuery({
     queryKey: ['queryResultSourceSchema', candidateSource?.schema, candidateSource?.table],
     queryFn: async () => {
-      const data = await api.get(
-        `/api/schema/${encodeURIComponent(candidateSource!.table)}?schema=${encodeURIComponent(candidateSource!.schema)}`
-      );
-      return ((data.schema || []) as any[]).map((row: any) => ({
+      const cols = await db.tableSchema(candidateSource!.table, candidateSource!.schema);
+      return (cols as any[]).map((row: any) => ({
         name: row.column_name ?? row.name,
         type: row.data_type ?? row.type,
         nullable: row.is_nullable === 'YES' || row.nullable === true,
@@ -332,9 +326,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     queries: uniqueSourceTables.map((st) => ({
       queryKey: ['queryResultRelationships', st.schema, st.table] as const,
       queryFn: async () => {
-        const data = await api.get(
-          `/api/relationships/${encodeURIComponent(st.table)}?schema=${encodeURIComponent(st.schema)}`
-        );
+        const data = await db.relationships(st.table, st.schema);
         return ((data.relationships ?? []) as Array<{
           source_column: string;
           target_schema: string;

@@ -8,7 +8,7 @@ import {
   rgbTripletToHex,
   type ThemePlugin,
 } from "@/lib/theme-plugins";
-import { isTauriRuntime } from "@/lib/api-tauri";
+import { isTauriRuntime } from "@/lib/runtime";
 
 type Mode = "light" | "dark";
 

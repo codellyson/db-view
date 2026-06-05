@@ -11,7 +11,7 @@ import {
   saveBlob,
 } from '@/lib/export-utils';
 import type { Filter } from '@/lib/filters';
-import { api } from '@/lib/api';
+import { db } from '@/lib/db';
 import { useToast } from '../contexts/toast-context';
 
 export type ExportFormat = 'csv' | 'tsv' | 'json' | 'ndjson' | 'sql' | 'xlsx';
@@ -148,14 +148,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     let columns: string[] = [];
     setProgress({ done: 0, total: currentTotal || 0 });
     for (;;) {
-      let url = `/api/table/${encodeURIComponent(table)}?limit=${PAGE}&offset=${offset}&schema=${encodeURIComponent(schema)}`;
-      if (sortColumn && sortDirection) {
-        url += `&sortColumn=${encodeURIComponent(sortColumn)}&sortDirection=${sortDirection}`;
-      }
-      if (filters.length > 0) {
-        url += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
-      }
-      const data = await api.get(url);
+      const data = await db.tableRows({
+        table,
+        schema,
+        limit: PAGE,
+        offset,
+        sortColumn: sortColumn ?? undefined,
+        sortDirection: sortDirection ?? undefined,
+        filters,
+      });
       const pageRows: any[] = data.rows || [];
       if (columns.length === 0 && pageRows.length > 0) columns = Object.keys(pageRows[0]);
       accum.push(...pageRows);

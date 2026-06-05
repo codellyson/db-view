@@ -7,7 +7,7 @@ use dashmap::DashMap;
 use mutation::MutationRequest;
 use postgres::{DbConfig, PgConnection, QueryResult};
 use saved_connections::{ClientSavedConnection, SavedConnection};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use tauri::{Manager, State};
@@ -182,6 +182,111 @@ struct TableRowsResponse {
     count_is_estimate: bool,
 }
 
+// Mirror of `Filter` in apps/web/src/lib/filters.ts. Untagged so the
+// JSON shape `{column, operator, value?, values?}` deserializes cleanly.
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct FilterSpec {
+    column: String,
+    operator: String,
+    #[serde(default)]
+    value: Option<JsonValue>,
+    #[serde(default)]
+    values: Option<Vec<JsonValue>>,
+}
+
+// Translate a list of filter specs into a parameterized `WHERE …` clause
+// plus a flat params vector (text-typed, matching `query_with_params`).
+// Returns `("", [])` for empty input. Operators match the TS shim in
+// apps/web/src/lib/filters.ts so behaviour stays identical across runtimes.
+fn build_filter_where(
+    filters: &[FilterSpec],
+) -> Result<(String, Vec<Option<String>>), String> {
+    if filters.is_empty() {
+        return Ok((String::new(), Vec::new()));
+    }
+    let mut clauses: Vec<String> = Vec::with_capacity(filters.len());
+    let mut params: Vec<Option<String>> = Vec::new();
+    let mut next_idx = 1usize;
+    let mut next_ph = |params: &mut Vec<Option<String>>, val: Option<String>| -> String {
+        params.push(val);
+        let ph = format!("${next_idx}");
+        next_idx += 1;
+        ph
+    };
+    let to_text = |v: &JsonValue| -> Option<String> {
+        match v {
+            JsonValue::Null => None,
+            JsonValue::String(s) => Some(s.clone()),
+            other => Some(other.to_string()),
+        }
+    };
+    let escape_like = |v: &JsonValue| -> String {
+        let raw = match v {
+            JsonValue::Null => String::new(),
+            JsonValue::String(s) => s.clone(),
+            other => other.to_string(),
+        };
+        let mut out = String::with_capacity(raw.len());
+        for c in raw.chars() {
+            if c == '\\' || c == '%' || c == '_' {
+                out.push('\\');
+            }
+            out.push(c);
+        }
+        out
+    };
+
+    for f in filters {
+        let col = postgres::quote_identifier(&f.column)?;
+        match f.operator.as_str() {
+            "eq" => {
+                let ph = next_ph(&mut params, to_text(f.value.as_ref().unwrap_or(&JsonValue::Null)));
+                clauses.push(format!("{col} = {ph}"));
+            }
+            "neq" => {
+                let ph = next_ph(&mut params, to_text(f.value.as_ref().unwrap_or(&JsonValue::Null)));
+                clauses.push(format!("{col} <> {ph}"));
+            }
+            "contains" => {
+                let pat = format!("%{}%", escape_like(f.value.as_ref().unwrap_or(&JsonValue::Null)));
+                let ph = next_ph(&mut params, Some(pat));
+                clauses.push(format!("{col} ILIKE {ph}"));
+            }
+            "starts_with" => {
+                let pat = format!("{}%", escape_like(f.value.as_ref().unwrap_or(&JsonValue::Null)));
+                let ph = next_ph(&mut params, Some(pat));
+                clauses.push(format!("{col} ILIKE {ph}"));
+            }
+            "is_null" => clauses.push(format!("{col} IS NULL")),
+            "is_not_null" => clauses.push(format!("{col} IS NOT NULL")),
+            "between" => {
+                let vs = f.values.as_ref().ok_or("between requires values")?;
+                if vs.len() != 2 {
+                    return Err("between requires two values".into());
+                }
+                let lo = next_ph(&mut params, to_text(&vs[0]));
+                let hi = next_ph(&mut params, to_text(&vs[1]));
+                clauses.push(format!("{col} BETWEEN {lo} AND {hi}"));
+            }
+            "in" => {
+                let vs = f.values.as_ref().ok_or("in requires values")?;
+                if vs.is_empty() {
+                    return Err("in requires at least one value".into());
+                }
+                let phs: Vec<String> = vs
+                    .iter()
+                    .map(|v| next_ph(&mut params, to_text(v)))
+                    .collect();
+                clauses.push(format!("{col} IN ({})", phs.join(", ")));
+            }
+            other => return Err(format!("Unknown filter operator: {other}")),
+        }
+    }
+
+    Ok((format!("WHERE {}", clauses.join(" AND ")), params))
+}
+
 #[tauri::command]
 async fn db_table_rows(
     session_id: String,
@@ -191,6 +296,7 @@ async fn db_table_rows(
     offset: u32,
     sort_column: Option<String>,
     sort_direction: Option<String>,
+    filters: Option<Vec<FilterSpec>>,
     state: State<'_, AppState>,
 ) -> CommandResult<TableRowsResponse> {
     let conn = state
@@ -203,31 +309,27 @@ async fn db_table_rows(
     let q_table = postgres::quote_identifier(&table).map_err(CommandError::Query)?;
     let qualified = format!("{q_schema}.{q_table}");
 
+    let filters_ref: &[FilterSpec] = filters.as_deref().unwrap_or(&[]);
+    let (where_clause, filter_params) =
+        build_filter_where(filters_ref).map_err(CommandError::Query)?;
+    let has_filters = !where_clause.is_empty();
+    let where_sql = if has_filters {
+        format!(" {where_clause}")
+    } else {
+        String::new()
+    };
+
     // Estimate via pg_class.reltuples; fall back to exact COUNT(*) when small.
     // reltuples returns -1 for never-analyzed tables, which fails the >10k
     // threshold and correctly falls through to the COUNT(*) branch.
-    let est = conn
-        .query_with_params(
-            "SELECT reltuples::bigint AS estimate
-             FROM pg_class c
-             JOIN pg_namespace n ON n.oid = c.relnamespace
-             WHERE c.relname = $1 AND n.nspname = $2",
-            &[Some(table.clone()), Some(schema.clone())],
-        )
-        .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
-    let estimate: i64 = est
-        .rows
-        .first()
-        .and_then(|r| r.first())
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
-
-    let (total, count_is_estimate) = if estimate > 10_000 {
-        (estimate, true)
-    } else {
+    // When filters are present the per-table estimate is meaningless, so
+    // skip straight to a filtered COUNT(*).
+    let (total, count_is_estimate) = if has_filters {
         let c = conn
-            .query(&format!("SELECT COUNT(*) AS count FROM {qualified}"))
+            .query_with_params(
+                &format!("SELECT COUNT(*) AS count FROM {qualified}{where_sql}"),
+                &filter_params,
+            )
             .await
             .map_err(|e| CommandError::Query(e.to_string()))?;
         let n: i64 = c
@@ -237,9 +339,41 @@ async fn db_table_rows(
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
         (n, false)
+    } else {
+        let est = conn
+            .query_with_params(
+                "SELECT reltuples::bigint AS estimate
+                 FROM pg_class c
+                 JOIN pg_namespace n ON n.oid = c.relnamespace
+                 WHERE c.relname = $1 AND n.nspname = $2",
+                &[Some(table.clone()), Some(schema.clone())],
+            )
+            .await
+            .map_err(|e| CommandError::Query(e.to_string()))?;
+        let estimate: i64 = est
+            .rows
+            .first()
+            .and_then(|r| r.first())
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        if estimate > 10_000 {
+            (estimate, true)
+        } else {
+            let c = conn
+                .query(&format!("SELECT COUNT(*) AS count FROM {qualified}"))
+                .await
+                .map_err(|e| CommandError::Query(e.to_string()))?;
+            let n: i64 = c
+                .rows
+                .first()
+                .and_then(|r| r.first())
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            (n, false)
+        }
     };
 
-    let mut data_sql = format!("SELECT * FROM {qualified}");
+    let mut data_sql = format!("SELECT * FROM {qualified}{where_sql}");
     if let (Some(col), Some(dir)) = (sort_column.as_deref(), sort_direction.as_deref()) {
         let q_col = postgres::quote_identifier(col).map_err(CommandError::Query)?;
         let dir_kw = if dir.eq_ignore_ascii_case("desc") { "DESC" } else { "ASC" };
@@ -248,7 +382,7 @@ async fn db_table_rows(
     data_sql.push_str(&format!(" LIMIT {limit} OFFSET {offset}"));
 
     let rows = conn
-        .query_objects(&data_sql, &[])
+        .query_objects(&data_sql, &filter_params)
         .await
         .map_err(|e| CommandError::Query(e.to_string()))?;
 

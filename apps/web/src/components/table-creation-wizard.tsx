@@ -6,7 +6,7 @@ import { SqlEditor } from "./sql-editor";
 import { useConnection } from "../contexts/connection-context";
 import { useDashboard } from "../contexts/dashboard-context";
 import { buildCreateTableSQL, COLUMN_TYPES } from "@/lib/ddl-builder";
-import { api } from "@/lib/api";
+import { db } from "@/lib/db";
 import { ColumnDefinition } from "@/types";
 
 interface TableCreationWizardProps {
@@ -152,7 +152,7 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
     setError(null);
 
     try {
-      await api.post("/api/ddl", { sql: generatedSQL }, { noRetry: true });
+      await db.ddl(generatedSQL);
 
       onComplete();
       handleClose();

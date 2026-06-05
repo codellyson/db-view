@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { api } from '@/lib/api';
+import { db } from '@/lib/db';
 import type { ForeignKeyTarget } from './data-table';
 
 export interface FKQuery {
@@ -53,15 +53,15 @@ export const FKSidePanel: React.FC<FKSidePanelProps> = ({
     setRows([]);
     setTargetFks({});
     Promise.all([
-      api.post('/api/lookup-row', {
+      db.lookupRow({
         schema: query.fk.schema,
         table: query.fk.table,
         column: query.fk.column,
         value: query.value,
-      }, { noRetry: true }),
-      api.get(
-        `/api/relationships/${encodeURIComponent(query.fk.table)}?schema=${encodeURIComponent(query.fk.schema)}`
-      ).catch(() => ({ relationships: [] })),
+      }),
+      db.relationships(query.fk.table, query.fk.schema).catch(
+        () => ({ relationships: [], indexes: [] } as { relationships: any[]; indexes: any[] }),
+      ),
     ])
       .then(([rowData, relData]) => {
         if (cancelled) return;

@@ -7,7 +7,7 @@ import { useToast } from '../contexts/toast-context';
 import { usePendingChanges } from '../contexts/pending-changes-context';
 import { useDashboard } from '../contexts/dashboard-context';
 import { buildDisplaySQL, type MutationRequest } from '@/lib/mutation';
-import { api } from '@/lib/api';
+import { db } from '@/lib/db';
 import { CascadeImpactPanel } from './cascade-impact-panel';
 import type { CascadeNodeRequest, CascadeResult } from '@/lib/cascade';
 
@@ -29,8 +29,6 @@ const EXTENDED_OPTIONS = {
   maxDepth: 12,
   maxPerTable: 100000,
 };
-
-const EXTENDED_HTTP_TIMEOUT_MS = 45000;
 
 export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
   isOpen,
@@ -90,13 +88,7 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
         };
         if (extended) body.options = EXTENDED_OPTIONS;
 
-        const res = await api.post<{ success: boolean } & CascadeResult>(
-          '/api/cascade-preview',
-          body,
-          extended
-            ? { noRetry: true, timeout: EXTENDED_HTTP_TIMEOUT_MS }
-            : { noRetry: true }
-        );
+        const res = await db.cascadePreview(body.deletes, body.options) as CascadeResult;
         setCascadeResult({
           cascade: res.cascade,
           setNull: res.setNull,
@@ -152,7 +144,7 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
 
     setIsSaving(true);
     try {
-      await api.post('/api/mutate-batch', { changes: requests }, { noRetry: true });
+      await db.mutateBatch(requests);
       pending.clearAfterSave({ schema, table });
       await refreshTableData();
       addToast(

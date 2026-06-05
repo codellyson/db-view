@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { DBConfig, SavedConnection } from '@/types';
-import { api } from '@/lib/api';
+import { db } from '@/lib/db';
 import { useToast } from './toast-context';
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
@@ -48,8 +48,8 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
 
   const loadSavedConnections = useCallback(async () => {
     try {
-      const data = await api.get<{ connections: SavedConnection[] }>('/api/saved-connections');
-      setSavedConnections(data.connections);
+      const connections = await db.savedList();
+      setSavedConnections(connections);
     } catch (e) {
       console.error('Failed to load saved connections:', e);
     }
@@ -82,18 +82,18 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         ? `conn_${Date.now()}_${Math.random().toString(36).substring(7)}`
         : undefined;
 
-      // Single request: connects + optionally saves credentials in encrypted HTTP-only cookie
-      const data = await api.post('/api/connect', {
+      // Single call: opens the session + optionally writes to the OS keychain.
+      const data = await db.connect(
         config,
-        ...(name && { saveName: name, saveId: connectionId }),
-      }, { noRetry: true });
+        name && connectionId ? { name, id: connectionId } : undefined,
+      );
 
       setIsConnected(true);
       setDatabaseName(data.database || config.database);
-      setDatabaseType(data.type || config.type || "postgresql");
+      setDatabaseType((data.type || config.type || 'postgresql') as 'postgresql' | 'mysql' | 'sqlite');
 
       if (name && data.savedConnection) {
-        setSavedConnections(prev => [...prev, data.savedConnection]);
+        setSavedConnections(prev => [...prev, data.savedConnection!]);
         setCurrentConnectionId(connectionId);
         localStorage.setItem(CURRENT_CONNECTION_KEY, connectionId!);
       }
@@ -116,11 +116,11 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     setIsConnecting(true);
     setError(null);
     try {
-      // Server reads credentials from encrypted cookie and connects
-      const data = await api.patch('/api/saved-connections', { id: connectionId }, { noRetry: true });
+      // Rust pulls the credentials from the OS keychain and opens a fresh session.
+      const data = await db.connectSaved(connectionId);
       setIsConnected(true);
       setDatabaseName(data.database || connection.config.database);
-      setDatabaseType(data.type || connection.config.type || "postgresql");
+      setDatabaseType((data.type || connection.config.type || 'postgresql') as 'postgresql' | 'mysql' | 'sqlite');
       setCurrentConnectionId(connectionId);
       localStorage.setItem(CURRENT_CONNECTION_KEY, connectionId);
 
@@ -141,7 +141,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
 
   const disconnect = useCallback(async () => {
     try {
-      await api.post('/api/disconnect', undefined, { noRetry: true });
+      await db.disconnect();
       setIsConnected(false);
       setDatabaseName(undefined);
       setDatabaseType("postgresql");
@@ -212,12 +212,8 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   const saveConnection = async (name: string, config: DBConfig) => {
     const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     try {
-      const data = await api.post('/api/saved-connections', {
-        id: connectionId,
-        name,
-        config,
-      }, { noRetry: true });
-      setSavedConnections(prev => [...prev, data.connection]);
+      const connection = await db.savedCreate(connectionId, name, config);
+      setSavedConnections(prev => [...prev, connection]);
     } catch (e) {
       console.error('Failed to save connection:', e);
     }
@@ -225,7 +221,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
 
   const deleteConnection = async (connectionId: string) => {
     try {
-      await api.delete('/api/saved-connections', { id: connectionId });
+      await db.savedDelete(connectionId);
       setSavedConnections(prev => prev.filter(c => c.id !== connectionId));
       if (currentConnectionId === connectionId) {
         disconnect();
