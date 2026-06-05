@@ -177,26 +177,45 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isConnected, databaseType, databaseName, queryClient]);
 
-  // Restore persisted tabs once per database connection.
+  // Restore persisted tabs once per database connection. Tabs are stored
+  // per-database so switching DBs swaps the whole set; if the target DB has
+  // no saved tabs we clear the bar instead of leaking the previous DB's
+  // tabs (which point at tables that may not exist in the new schema).
   useEffect(() => {
     if (!isConnected || !databaseName) return;
     if (tabsRestoredForRef.current === databaseName) return;
+    const isSwitching = tabsRestoredForRef.current !== null;
     tabsRestoredForRef.current = databaseName;
+    // Switching DBs — drop any cached table data from the previous one so
+    // a same-named table in the new DB doesn't render stale rows.
+    if (isSwitching) queryClient.clear();
+    let restored = false;
     try {
       const raw = localStorage.getItem(`dbview-tabs-${databaseName}`);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { openTabs?: Tab[]; activeTabId?: string };
-      if (!Array.isArray(parsed.openTabs)) return;
-      setOpenTabs(parsed.openTabs);
-      setActiveTabId(parsed.activeTabId);
-      const active = parsed.openTabs.find((t) => t.id === parsed.activeTabId);
-      if (active && active.type === 'table') {
-        setSelectedTable(active.label);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { openTabs?: Tab[]; activeTabId?: string };
+        if (Array.isArray(parsed.openTabs)) {
+          setOpenTabs(parsed.openTabs);
+          setActiveTabId(parsed.activeTabId);
+          const active = parsed.openTabs.find((t) => t.id === parsed.activeTabId);
+          if (active && active.type === 'table') {
+            setSelectedTable(active.label);
+          } else {
+            setSelectedTable(undefined);
+          }
+          restored = true;
+        }
       }
     } catch {
-      // corrupt entry — ignore
+      // corrupt entry — fall through to the clean-slate path below
     }
-  }, [isConnected, databaseName]);
+    if (!restored) {
+      setOpenTabs([]);
+      setActiveTabId(undefined);
+      setSelectedTable(undefined);
+      tabUIStateRef.current = {};
+    }
+  }, [isConnected, databaseName, queryClient]);
 
   // Persist tab bar whenever it changes (after restore has completed).
   useEffect(() => {

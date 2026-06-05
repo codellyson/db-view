@@ -876,7 +876,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
   };
 
   return (
-    <div className="flex gap-0" style={{ height: 'calc(100vh - 320px)', minHeight: '250px' }}>
+    <div className="flex gap-0 flex-1 min-h-0">
     <div className="border border-border rounded-lg overflow-hidden flex flex-col w-full">
       {!readOnlyMode && primaryKeys.length === 0 && columnSchema.length > 0 && (
         <div className="px-4 py-2 bg-warning/10 text-xs text-warning border-b border-border flex-shrink-0">

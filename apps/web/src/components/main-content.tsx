@@ -24,7 +24,7 @@ export const MainContent: React.FC<MainContentProps> = ({ children }) => {
 
   return (
     <main
-      className={`flex-1 bg-bg p-3 sm:p-4 md:p-6 overflow-auto transition-opacity duration-150 ease-out ${
+      className={`flex-1 flex flex-col min-h-0 bg-bg p-3 sm:p-4 md:p-6 overflow-hidden transition-opacity duration-150 ease-out ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}
     >

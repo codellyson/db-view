@@ -48,6 +48,9 @@ async function connect(
   config: DBConfig,
   save?: { name: string; id: string },
 ): Promise<ConnectResult> {
+  // Drop any previous session before opening a new one so we don't leak
+  // a Postgres client in the Rust DashMap on every reconnect.
+  await disconnect();
   const res = await invoke<{ session_id: string; database: string }>(
     "db_connect",
     { config },
@@ -79,6 +82,9 @@ async function connect(
 async function connectSaved(
   id: string,
 ): Promise<{ database: string; type: "postgresql" }> {
+  // Drop any previous session before opening a new one so we don't leak
+  // a Postgres client in the Rust DashMap on every reconnect.
+  await disconnect();
   const res = await invoke<{ session_id: string; database: string }>(
     "db_saved_connect",
     { id },
