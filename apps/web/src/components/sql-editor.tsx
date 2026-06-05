@@ -34,7 +34,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   editorRef,
   onSelectionChange,
 }) => {
-  const { mode, colors } = useTheme();
+  const { mode } = useTheme();
   const { databaseType } = useConnection();
   const isDark = mode === 'dark';
 
@@ -57,8 +57,8 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
         defaultSchema,
         upperCaseKeywords: true,
       }),
-      createBrutalistTheme(colors, isDark),
-      createBrutalistHighlight(colors, isDark),
+      createBrutalistTheme(isDark),
+      createBrutalistHighlight(),
       // Accept completion with Tab
       keymap.of([
         { key: 'Tab', run: acceptCompletion },
@@ -75,7 +75,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     );
 
     return exts;
-  }, [isDark, colors, databaseType, schemaSpec, defaultSchema]);
+  }, [isDark, databaseType, schemaSpec, defaultSchema]);
 
   return (
     <div className="overflow-hidden">

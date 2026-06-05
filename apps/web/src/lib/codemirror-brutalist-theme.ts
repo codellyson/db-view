@@ -1,85 +1,83 @@
 import { EditorView } from '@codemirror/view';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
-import type { PaletteColors } from '@/contexts/theme-context';
 
-export function createBrutalistTheme(colors: PaletteColors, isDark: boolean) {
-  const bg = isDark ? '#0f1117' : '#f9fafb';
-  const fg = isDark ? '#f9fafb' : '#111827';
-  const fgMuted = isDark ? '#6b7280' : '#9ca3af';
-  const selectionBg = isDark ? 'rgba(249,250,251,0.08)' : 'rgba(17,24,39,0.08)';
-  const activeLineBg = isDark ? 'rgba(249,250,251,0.04)' : 'rgba(17,24,39,0.04)';
-  const gutterBg = isDark ? '#1f2937' : '#f3f4f6';
-  const gutterFg = isDark ? '#9ca3af' : '#6b7280';
-  const borderColor = isDark ? '#374151' : '#e5e7eb';
+/**
+ * CodeMirror theme + syntax highlight derived from the active theme's CSS
+ * variables (set on :root by applyThemeVariant). Switching themes or modes
+ * updates the editor automatically — no re-mount needed. Pass `isDark` so
+ * CodeMirror's `dark:` flag matches the active mode (drives a few
+ * dark-mode-aware editor behaviors).
+ */
 
+// CSS color helpers. Tokens are stored as `R G B` triplets so they can be
+// composed with alpha via `rgb(R G B / α)`.
+const rgb = (token: string) => `rgb(var(${token}))`;
+const rgba = (token: string, alpha: number) => `rgb(var(${token}) / ${alpha})`;
+
+export function createBrutalistTheme(isDark: boolean) {
   return EditorView.theme(
     {
       '&': {
-        backgroundColor: bg,
-        color: fg,
+        backgroundColor: rgb('--bg'),
+        color: rgb('--text-primary'),
         fontFamily: 'var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
         fontSize: '13px',
       },
       '.cm-content': {
-        caretColor: colors.accent,
-        color: fg,
+        caretColor: rgb('--accent'),
+        color: rgb('--text-primary'),
         padding: '12px 0',
       },
       '.cm-line': {
-        color: fg,
+        color: rgb('--text-primary'),
       },
       '.cm-cursor, .cm-dropCursor': {
-        borderLeftColor: colors.accent,
+        borderLeftColor: rgb('--accent'),
         borderLeftWidth: '2px',
       },
       '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-        backgroundColor: selectionBg,
+        backgroundColor: rgba('--accent', 0.18),
       },
       '.cm-gutters': {
-        backgroundColor: gutterBg,
-        color: gutterFg,
+        backgroundColor: rgb('--bg-secondary'),
+        color: rgb('--text-secondary'),
         border: 'none',
-        borderRight: `1px solid ${borderColor}`,
+        borderRight: `1px solid ${rgb('--border')}`,
       },
       '.cm-activeLineGutter': {
-        backgroundColor: isDark ? '#374151' : '#e5e7eb',
+        backgroundColor: rgba('--accent', 0.12),
+        color: rgb('--text-primary'),
       },
       '.cm-activeLine': {
-        backgroundColor: activeLineBg,
+        backgroundColor: rgba('--accent', 0.06),
       },
       '.cm-matchingBracket': {
-        backgroundColor: selectionBg,
-        outline: `1px solid ${fgMuted}`,
+        backgroundColor: rgba('--accent', 0.18),
+        outline: `1px solid ${rgb('--accent')}`,
         borderRadius: '2px',
       },
       '.cm-placeholder': {
-        color: fgMuted,
+        color: rgb('--text-muted'),
       },
     },
     { dark: isDark }
   );
 }
 
-export function createBrutalistHighlight(colors: PaletteColors, isDark: boolean) {
-  const fg = isDark ? '#f9fafb' : '#111827';
-  const fgMuted = isDark ? '#6b7280' : '#9ca3af';
-  const greenStr = isDark ? '#4ade80' : '#16a34a';
-  const blueNum = isDark ? '#60a5fa' : '#2563eb';
-  const redNull = isDark ? '#f87171' : '#dc2626';
-
+export function createBrutalistHighlight() {
   return syntaxHighlighting(
     HighlightStyle.define([
-      { tag: tags.keyword, color: colors.accent, fontWeight: 'bold' },
-      { tag: tags.string, color: greenStr },
-      { tag: tags.number, color: blueNum },
-      { tag: tags.comment, color: fgMuted, fontStyle: 'italic' },
-      { tag: tags.operator, color: fg, fontWeight: 'bold' },
-      { tag: tags.typeName, color: colors.accent },
-      { tag: tags.propertyName, color: fg },
-      { tag: tags.function(tags.variableName), color: fg, fontWeight: 'bold' },
-      { tag: tags.null, color: redNull, fontWeight: 'bold' },
-      { tag: tags.bool, color: blueNum, fontWeight: 'bold' },
+      { tag: tags.keyword, color: rgb('--accent'), fontWeight: 'bold' },
+      { tag: tags.string, color: rgb('--success') },
+      { tag: tags.number, color: rgb('--warning') },
+      { tag: tags.comment, color: rgb('--text-muted'), fontStyle: 'italic' },
+      { tag: tags.operator, color: rgb('--text-primary'), fontWeight: 'bold' },
+      { tag: tags.typeName, color: rgb('--accent') },
+      { tag: tags.propertyName, color: rgb('--text-primary') },
+      { tag: tags.function(tags.variableName), color: rgb('--text-primary'), fontWeight: 'bold' },
+      { tag: tags.null, color: rgb('--danger'), fontWeight: 'bold' },
+      { tag: tags.bool, color: rgb('--warning'), fontWeight: 'bold' },
     ])
   );
 }

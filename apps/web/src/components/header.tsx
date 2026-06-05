@@ -57,12 +57,14 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
     )}
     <header
-      // On macOS the native overlay title bar reserves 28px at top for
-      // traffic lights. We lift the header into that band by giving it
-      // ~80px of left padding (lights end ~60px from the left edge) and
-      // mark the chrome as the window-drag region.
+      // The macOS overlay title bar reserves the top-left ~60px for traffic
+      // lights. We only need to clear them when the Header is rendered at
+      // the left edge of the window — i.e. on the pre-connection screens
+      // before the sidebar appears. Once connected, the sidebar sits left
+      // of the Header and absorbs the traffic-light zone, so the Header
+      // can align flush with the TabBar below.
       data-tauri-drag-region={onMac ? "" : undefined}
-      style={onMac ? { paddingLeft: 80 } : undefined}
+      style={onMac && !isConnected ? { paddingLeft: 80 } : undefined}
       className="h-14 bg-bg border-b border-border flex items-center justify-between px-4 md:px-6"
     >
       <div
