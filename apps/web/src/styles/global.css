@@ -47,17 +47,33 @@ html {
   font-size: 15px;
 }
 
+/* macOS-style overlay scrollbars: thumb stays transparent until the
+   user hovers the scroll container, then fades in. Eliminates the
+   permanent vertical strip that sat against the data-table's rounded
+   border. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgb(var(--border)) transparent;
+  scrollbar-color: transparent transparent;
 }
-*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 4px;
+  transition: background-color 0.18s ease-out;
+}
+*:hover > *::-webkit-scrollbar-thumb,
+*:hover::-webkit-scrollbar-thumb {
   background-color: rgb(var(--border));
-  border-radius: 3px;
 }
 *::-webkit-scrollbar-thumb:hover { background-color: rgb(var(--text-muted)); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* Used by the tab strip + a couple of overflow lists where the scrollbar
+   adds no useful information. Tailwind doesn't ship this utility, so the
+   class was a no-op until now. */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
 *:focus-visible {
   outline: 2px solid rgb(var(--accent));

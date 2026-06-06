@@ -1,93 +1,70 @@
-# DB Explorer
+# JustDB
 
-A lightweight PostgreSQL database explorer for quick data viewing.
+Local desktop app for PostgreSQL, MySQL, and SQLite. Browse tables, run
+queries, inspect schemas. Credentials stay on your machine.
 
-## Getting Started
+- Website: <https://justdb.kreativekorna.com>
+- Changelog: <https://justdb.kreativekorna.com/changelog>
+- Downloads: <https://github.com/codellyson/justdb/releases>
 
-1. Install dependencies:
-```bash
-npm install
-```
+## Workspaces
 
-2. Run the development server:
-```bash
-npm run dev
-```
+| Path | What it is |
+| --- | --- |
+| [`apps/web`](apps/web) | Vite + React SPA — the desktop app's frontend, mounted inside the Tauri webview. |
+| [`apps/marketing`](apps/marketing) | Astro static site deployed to Cloudflare Pages (<justdb.kreativekorna.com>). |
+| [`src-tauri`](src-tauri) | Rust backend — Tauri commands, `tokio-postgres` client, keychain-backed saved connections. |
 
-3. Open [http://localhost:3000](http://localhost:3000)
+## Develop
 
-## Tech Stack
-
-- Next.js 14 (App Router)
-- TypeScript
-- Tailwind CSS
-- PostgreSQL (pg)
-
-## Project Structure
-
-```
-db-explorer/
-├── app/
-│   ├── api/          # API routes for database operations
-│   ├── components/   # React components
-│   ├── globals.css   # Global styles
-│   ├── layout.tsx    # Root layout
-│   └── page.tsx      # Home page
-├── lib/              # Utility functions and database connections
-└── types/            # TypeScript type definitions
-```
-
-## Features (To Build)
-
-- [ ] Database connection management
-- [ ] Table listing
-- [ ] Browse table data
-- [ ] Simple query executor
-- [ ] Search and filter
-
-## Environment Variables
-
-Create a `.env.local` file:
-
-```
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=your_database
-POSTGRES_USER=your_username
-POSTGRES_PASSWORD=your_password
-```
-
-## Desktop build (Tauri)
-
-The `tauri-spike` branch wraps this app as a native desktop binary so users' DB credentials never leave their machine. The Rust side (in [src-tauri/](src-tauri/)) holds `tokio-postgres` connections; the Next.js UI loads in the Tauri webview and talks to Rust via `invoke()`.
-
-Migration plan from spike → v1: [docs/tauri-migration.md](docs/tauri-migration.md).
-
-### Prerequisites by OS
+Prerequisites by OS:
 
 | OS | Required |
 | --- | --- |
 | macOS | Rust (`brew install rustup-init && rustup-init`), Xcode CLT (`xcode-select --install`) |
 | Windows | Rust ([rustup-init.exe](https://rustup.rs)), [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (Desktop C++ workload), WebView2 (preinstalled on Win10/11) |
-| Linux (incl. WSL2) | Rust (rustup), `libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev` |
-
-### Run the desktop app in dev
+| Linux | Rust (rustup), `libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev` |
 
 ```bash
 pnpm install
-pnpm tauri:dev
+pnpm tauri:dev     # native window over the Vite dev server
+pnpm dev           # apps/web in the browser only (no Rust backend)
+pnpm changelog     # regenerate CHANGELOG.md from git history
 ```
-
-The script starts `next dev -p 3030`, compiles the Rust binary, and opens a native window pointed at [http://localhost:3030/tauri-test](http://localhost:3030/tauri-test) (the spike test page).
 
 ### WSL2 caveat
 
-WebKitGTK + WSLg is fragile: window draws but the WebView surface can render as 1×1 pixels. The `tauri:dev` script already sets the known stabilizers (`WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 LIBGL_ALWAYS_SOFTWARE=1`). If the window still won't render, build/run from the host OS (Mac, Windows PowerShell) instead — same repo, different toolchain.
+WebKitGTK + WSLg is fragile: window draws but the WebView can render as
+1×1 pixels. `pnpm tauri:dev` sets the known stabilizers
+(`WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1
+LIBGL_ALWAYS_SOFTWARE=1`). If it still won't render, build/run from the
+host OS (Mac, Windows PowerShell) instead — same repo, different
+toolchain.
 
-### Architecture
+## Architecture
 
-- [src-tauri/src/lib.rs](src-tauri/src/lib.rs) — Tauri commands: `db_connect`, `db_query`, `db_disconnect`. Session-keyed connection store via `DashMap`.
-- [src-tauri/src/postgres.rs](src-tauri/src/postgres.rs) — `tokio-postgres` client + type-aware row → JSON serialization (bool, int2/4/8, float4/8, text, json/jsonb, uuid, timestamp/tz, date, numeric).
-- [app/tauri-test/page.tsx](app/tauri-test/page.tsx) — spike UI that calls `invoke('db_connect', { config })` and `invoke('db_query', { sessionId, sql })`.
+The frontend talks to Rust over `invoke()`, with no HTTP layer in between
+— see [`apps/web/src/lib/db.ts`](apps/web/src/lib/db.ts) for the typed
+client. Sessions live in a Rust `DashMap` keyed by an opaque session id
+held in browser memory only; webview reload drops the session, matching
+process-memory lifetime.
 
-For the production app, the SaaS at justdb.kreativekorna.com keeps the existing Next.js API routes; the desktop build uses the Rust commands instead.
+- [`src-tauri/src/lib.rs`](src-tauri/src/lib.rs) — Tauri commands
+- [`src-tauri/src/postgres.rs`](src-tauri/src/postgres.rs) — `tokio-postgres` wrapper, auto-reconnect, type-aware row → JSON
+- [`src-tauri/src/saved_connections.rs`](src-tauri/src/saved_connections.rs) — OS-keychain-backed connection store
+- [`apps/web/src/contexts`](apps/web/src/contexts) — connection, dashboard, theme, pending-changes contexts
+
+## Release
+
+```bash
+# bump version in src-tauri/Cargo.toml, src-tauri/tauri.conf.json, package.json
+pnpm exec git-cliff --tag vX.Y.Z -o CHANGELOG.md
+git commit -am "chore(release): vX.Y.Z"
+git tag vX.Y.Z
+git push origin main vX.Y.Z
+```
+
+The tag push fires two workflows: `Release` (tauri-action builds and
+uploads `.dmg`/`.exe`/`.msi` to the GitHub Release) and `Changelog`
+(posts the tag-scoped notes to the release body and commits the
+refreshed `CHANGELOG.md` back to main).
