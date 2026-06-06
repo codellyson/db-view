@@ -3,6 +3,15 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.9] - 2026-06-06
+
+### Added
+- **web:** Row highlight, JSON portal, sensitive masking + small wins ([9307501](https://github.com/codellyson/justdb/commit/93075012c545b5cd1da5dfb4162c806336080e10))
+
+
+### Maintenance
+- Rewrite README, auto-hide scrollbars ([5a9fdb8](https://github.com/codellyson/justdb/commit/5a9fdb889f8c180b7a81b220f1083681c88b9156))
+
 ## [0.1.8] - 2026-06-05
 
 ### Added
@@ -17,10 +26,6 @@ All notable changes to JustDB are documented here. Format follows
 - **marketing:** Drop "Where are my credentials stored?" FAQ entry ([4d544d5](https://github.com/codellyson/justdb/commit/4d544d53d00b275f3b3678cd1ea4bd196dfe28c0))
 - **web:** Single scroll container, leak-proof connection + tab swap ([6029028](https://github.com/codellyson/justdb/commit/6029028fa9b38d5999a998ceff092afe0212f344))
 
-
-### Maintenance
-- **changelog:** Update for v0.1.7 ([02fb7ac](https://github.com/codellyson/justdb/commit/02fb7acc1a9e176254a22a348c15c896fcda470b))
-
 ## [0.1.7] - 2026-06-05
 
 ### Changed
@@ -33,7 +38,6 @@ All notable changes to JustDB are documented here. Format follows
 
 ### Maintenance
 - Drop apps/next, the migration is complete ([7417e82](https://github.com/codellyson/justdb/commit/7417e823f3586e2956e06041fa184ac0a97adb84))
-- **changelog:** Wire up git-cliff for auto-generated release notes ([2b83fd9](https://github.com/codellyson/justdb/commit/2b83fd967d667e6c2deb6b28c7ce7eb5b707cd33))
 
 ## [0.1.6] - 2026-06-04
 
@@ -47,61 +51,6 @@ All notable changes to JustDB are documented here. Format follows
 - **web:** Mount TauriTitleBar, ThemeToggle, UpdatePrompt in App ([c65ca3b](https://github.com/codellyson/justdb/commit/c65ca3b7b9fa9845d7cdad9f364b4e6239890e5e))
 
 ## [0.1.5] - 2026-06-04
-
-### Added
-- **export:** Export query results + native save dialog on desktop ([01044d4](https://github.com/codellyson/justdb/commit/01044d440d743bfbede2c624f321eb194c86c1da))
-- **marketing:** Astro landing site + Cloudflare Pages deploy workflow ([98b3d04](https://github.com/codellyson/justdb/commit/98b3d0437a45dd08833980b1990e5d900990a154))
-- **monorepo:** Convert to pnpm workspace, scaffold apps/web Vite shell ([74bbde1](https://github.com/codellyson/justdb/commit/74bbde15590d8fdfb597c74c6125f91d353d079d))
-- **web:** Port the /connections page from Next.js to Vite ([f03e881](https://github.com/codellyson/justdb/commit/f03e881bf8c2a8db1a4ab80dc585aa431d041499))
-- **tauri:** Switch desktop frontend from apps/next to apps/web ([970cc23](https://github.com/codellyson/justdb/commit/970cc23987ae4814d7fa123c1c2eec8a9908fa7e))
-- **web:** Port Dashboard from apps/next to apps/web ([8dc0ec8](https://github.com/codellyson/justdb/commit/8dc0ec8f58ea304a871a1ec3be321506922c6955))
-- **marketing:** Wire domain + justdb:// launch, drop SaaS messaging ([777bad7](https://github.com/codellyson/justdb/commit/777bad77ada09143e6ac5c87c118531b9ed0b8d5))
-- **tauri:** Register justdb:// scheme + single-instance focus ([34b76f0](https://github.com/codellyson/justdb/commit/34b76f0130ad978af5db659001ce3711cf327365))
-
-
-### CI
-- **marketing:** Pass accountId so Pages-scoped tokens skip /memberships ([874df60](https://github.com/codellyson/justdb/commit/874df60937eb1d7f7b17784429b1ab03561e43e2))
-- **marketing:** Source Cloudflare account ID from secrets ([d5ab68b](https://github.com/codellyson/justdb/commit/d5ab68b1f7f1dd95899faf9094aab544187fd148))
-
-
-### Fixed
-- **web:** Dashboard runtime fixes after first Tauri smoke test ([57740c6](https://github.com/codellyson/justdb/commit/57740c6ae7cbec1e5f7293f1c2d32f5b2af2bcb0))
-
-
-### Maintenance
-- **app:** Strip landing JSX — marketing now lives in Astro ([066dbf3](https://github.com/codellyson/justdb/commit/066dbf3e8cf0013fd410c323076711ca1a043205))
-- **app:** Drop SoftwareApplication JSON-LD from Next root layout ([9b1a0ce](https://github.com/codellyson/justdb/commit/9b1a0ceb2ad01efa15aa462d71b5d9ebca0d6cbb))
-- Fix .gitignore patterns + pin Vite dev port ([4c0cb66](https://github.com/codellyson/justdb/commit/4c0cb66da84adad97497d3dbcf6fe0ecee7960d7))
-
-## [0.1.3] - 2026-06-02
-
-### Added
-- **tauri:** In-app update notifications via tauri-plugin-updater ([ef331d0](https://github.com/codellyson/justdb/commit/ef331d00bbd165f20f4bf90138396e5c37461041))
-
-
-### CI
-- **tauri:** Pass TAURI_SIGNING_PRIVATE_KEY through to tauri-action ([9cb38e1](https://github.com/codellyson/justdb/commit/9cb38e164c99a32db259028fae5e0d2f8ff80492))
-
-
-### Documentation
-- **ci:** Drop verbose header from release workflow ([daf6e5f](https://github.com/codellyson/justdb/commit/daf6e5fc9fbfafe4104c6873ea4a5649fb96693e))
-
-
-### Fixed
-- **tauri:** Use dataTypeID (uppercase ID) on db_run_query fields ([124f9c2](https://github.com/codellyson/justdb/commit/124f9c2d76c38a17c6643efb1010b51f73e73252))
-- **tauri:** Permissive fallback for un-handled column types ([f118faa](https://github.com/codellyson/justdb/commit/f118faa636014f74110d0a9a074079a0fb941457))
-
-## [0.1.2] - 2026-05-25
-
-### Fixed
-- **tauri:** Don't redirect / to /connections when already connected ([b7f5d48](https://github.com/codellyson/justdb/commit/b7f5d485835546f180135167d0e2062a338b2492))
-
-## [0.1.1] - 2026-05-25
-
-### Fixed
-- **tauri:** Keep landing page in desktop bundle, redirect to /connections instead ([1ae2c01](https://github.com/codellyson/justdb/commit/1ae2c01a17c000a4d08a5df967557b4a6e58f6ff))
-
-## [0.1.0] - 2026-05-25
 
 ### Added
 - Add table skeleton component for loading states ([6525f14](https://github.com/codellyson/justdb/commit/6525f14442b31c5d42dce133bb6c55f3ccba8f1d))
@@ -137,10 +86,22 @@ All notable changes to JustDB are documented here. Format follows
 - **tauri:** Wrap-up — CSV import, FK source on results, release profile ([00220cc](https://github.com/codellyson/justdb/commit/00220ccdcd384735dbab3661cdabab88fb181e69))
 - **web:** "evaluation only" notice above the connection form ([ebc3b9b](https://github.com/codellyson/justdb/commit/ebc3b9b0397bb7fa8513bcaafdbb20af1c24f3b8))
 - **tauri:** Custom themed title bar ([91878f1](https://github.com/codellyson/justdb/commit/91878f18d75536fe8f3d844fe597692b4639474b))
+- **tauri:** In-app update notifications via tauri-plugin-updater ([ef331d0](https://github.com/codellyson/justdb/commit/ef331d00bbd165f20f4bf90138396e5c37461041))
+- **export:** Export query results + native save dialog on desktop ([01044d4](https://github.com/codellyson/justdb/commit/01044d440d743bfbede2c624f321eb194c86c1da))
+- **marketing:** Astro landing site + Cloudflare Pages deploy workflow ([98b3d04](https://github.com/codellyson/justdb/commit/98b3d0437a45dd08833980b1990e5d900990a154))
+- **monorepo:** Convert to pnpm workspace, scaffold apps/web Vite shell ([74bbde1](https://github.com/codellyson/justdb/commit/74bbde15590d8fdfb597c74c6125f91d353d079d))
+- **web:** Port the /connections page from Next.js to Vite ([f03e881](https://github.com/codellyson/justdb/commit/f03e881bf8c2a8db1a4ab80dc585aa431d041499))
+- **tauri:** Switch desktop frontend from apps/next to apps/web ([970cc23](https://github.com/codellyson/justdb/commit/970cc23987ae4814d7fa123c1c2eec8a9908fa7e))
+- **web:** Port Dashboard from apps/next to apps/web ([8dc0ec8](https://github.com/codellyson/justdb/commit/8dc0ec8f58ea304a871a1ec3be321506922c6955))
+- **marketing:** Wire domain + justdb:// launch, drop SaaS messaging ([777bad7](https://github.com/codellyson/justdb/commit/777bad77ada09143e6ac5c87c118531b9ed0b8d5))
+- **tauri:** Register justdb:// scheme + single-instance focus ([34b76f0](https://github.com/codellyson/justdb/commit/34b76f0130ad978af5db659001ce3711cf327365))
 
 
 ### CI
 - **tauri:** Cross-platform release matrix workflow ([b72e88d](https://github.com/codellyson/justdb/commit/b72e88d2bd9d0eb2ac01a4b17e58ce213aec953c))
+- **tauri:** Pass TAURI_SIGNING_PRIVATE_KEY through to tauri-action ([9cb38e1](https://github.com/codellyson/justdb/commit/9cb38e164c99a32db259028fae5e0d2f8ff80492))
+- **marketing:** Pass accountId so Pages-scoped tokens skip /memberships ([874df60](https://github.com/codellyson/justdb/commit/874df60937eb1d7f7b17784429b1ab03561e43e2))
+- **marketing:** Source Cloudflare account ID from secrets ([d5ab68b](https://github.com/codellyson/justdb/commit/d5ab68b1f7f1dd95899faf9094aab544187fd148))
 
 
 ### Changed
@@ -150,6 +111,7 @@ All notable changes to JustDB are documented here. Format follows
 
 ### Documentation
 - **tauri:** Phased migration plan from spike to v1 ([825d7f6](https://github.com/codellyson/justdb/commit/825d7f671cebecd614cace8156e35d2e32bd3b22))
+- **ci:** Drop verbose header from release workflow ([daf6e5f](https://github.com/codellyson/justdb/commit/daf6e5fc9fbfafe4104c6873ea4a5649fb96693e))
 
 
 ### Fixed
@@ -163,6 +125,11 @@ All notable changes to JustDB are documented here. Format follows
 - **tauri:** Wrap tauri:dev env vars with cross-env for cross-platform ([9cb39fb](https://github.com/codellyson/justdb/commit/9cb39fbbc0468c8836945ba765afc8db98458ead))
 - **tauri:** Set window background color to prevent white flash on resize ([587c8a7](https://github.com/codellyson/justdb/commit/587c8a7fe7cd7917a41e6e8eef3d450ce2ef42bc))
 - **tauri:** Exclude landing page from desktop bundle ([2d007fd](https://github.com/codellyson/justdb/commit/2d007fdc0cdc5c04fad61f3471fcc54b1ef2c3e6))
+- **tauri:** Keep landing page in desktop bundle, redirect to /connections instead ([1ae2c01](https://github.com/codellyson/justdb/commit/1ae2c01a17c000a4d08a5df967557b4a6e58f6ff))
+- **tauri:** Don't redirect / to /connections when already connected ([b7f5d48](https://github.com/codellyson/justdb/commit/b7f5d485835546f180135167d0e2062a338b2492))
+- **tauri:** Use dataTypeID (uppercase ID) on db_run_query fields ([124f9c2](https://github.com/codellyson/justdb/commit/124f9c2d76c38a17c6643efb1010b51f73e73252))
+- **tauri:** Permissive fallback for un-handled column types ([f118faa](https://github.com/codellyson/justdb/commit/f118faa636014f74110d0a9a074079a0fb941457))
+- **web:** Dashboard runtime fixes after first Tauri smoke test ([57740c6](https://github.com/codellyson/justdb/commit/57740c6ae7cbec1e5f7293f1c2d32f5b2af2bcb0))
 
 
 ### Maintenance
@@ -174,5 +141,8 @@ All notable changes to JustDB are documented here. Format follows
 - **tauri:** Replace scaffold icons with JustDB brand ([9dd4cc8](https://github.com/codellyson/justdb/commit/9dd4cc8f0c6dfc7aa71651c53e05cf9fb6d209d7))
 - **landing:** Rewrite hero, sections, and FAQ for desktop-first positioning ([5f624d8](https://github.com/codellyson/justdb/commit/5f624d8404e8991e86cc2c79ed9163dedb0e2df1))
 - Remove decorative section divider comments ([fa393a8](https://github.com/codellyson/justdb/commit/fa393a8ffdc3d78ed7f1fdc3499cc97628ce9864))
+- **app:** Strip landing JSX — marketing now lives in Astro ([066dbf3](https://github.com/codellyson/justdb/commit/066dbf3e8cf0013fd410c323076711ca1a043205))
+- **app:** Drop SoftwareApplication JSON-LD from Next root layout ([9b1a0ce](https://github.com/codellyson/justdb/commit/9b1a0ceb2ad01efa15aa462d71b5d9ebca0d6cbb))
+- Fix .gitignore patterns + pin Vite dev port ([4c0cb66](https://github.com/codellyson/justdb/commit/4c0cb66da84adad97497d3dbcf6fe0ecee7960d7))
 
 
