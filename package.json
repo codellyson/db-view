@@ -9,8 +9,8 @@
     "tauri": "tauri",
     "tauri:dev": "cross-env WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_FORCE_SANDBOX=0 LIBGL_ALWAYS_SOFTWARE=1 tauri dev",
     "tauri:build": "tauri build",
-    "changelog": "git-cliff -o CHANGELOG.md",
     "changelog:unreleased": "git-cliff --unreleased --tag $(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0) --strip header",
+    "changelog:rebuild": "git-cliff --range '..'$(git describe --tags --abbrev=0) -o CHANGELOG.md",
     "release": "bash scripts/release.sh"
   },
   "devDependencies": {

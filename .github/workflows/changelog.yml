@@ -33,12 +33,15 @@ jobs:
         env:
           OUTPUT: CHANGES.md
 
-      # Regenerates the full CHANGELOG.md — committed back to main.
-      - name: Regenerate full CHANGELOG.md
+      # The release script (scripts/release.sh) already prepends the new
+      # section to CHANGELOG.md before pushing the tag, so this step only
+      # runs as a safety net for tags pushed by hand. --prepend preserves
+      # any manual polish on past release sections.
+      - name: Ensure $TAG section is in CHANGELOG.md
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
-          args: --output CHANGELOG.md
+          args: --tag ${{ github.ref_name }} --unreleased --prepend CHANGELOG.md
 
       - name: Attach notes to the GitHub Release
         uses: softprops/action-gh-release@v2

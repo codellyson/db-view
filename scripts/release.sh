@@ -91,8 +91,12 @@ sed -i.bak "s/\"version\": \"$CURRENT\"/\"version\": \"$NEXT\"/" package.json   
 echo "→ Refreshing Cargo.lock…"
 (cd src-tauri && cargo check --message-format=short 2>&1 | tail -2)
 
-echo "→ Regenerating CHANGELOG.md…"
-pnpm exec git-cliff --tag "$TAG" -o CHANGELOG.md 2>&1 | tail -1
+echo "→ Prepending the $TAG section to CHANGELOG.md…"
+# --prepend keeps everything currently in CHANGELOG.md intact and just
+# adds the new release's section at the top. Manual polish on past
+# sections (better wording, dropped noisy entries, added context) is
+# preserved across releases.
+pnpm exec git-cliff --tag "$TAG" --unreleased --prepend CHANGELOG.md 2>&1 | tail -1
 
 # ─── Commit, tag, push ─────────────────────────────────────────────────
 

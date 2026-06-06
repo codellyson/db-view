@@ -29,7 +29,8 @@ Prerequisites by OS:
 pnpm install
 pnpm tauri:dev     # native window over the Vite dev server
 pnpm dev           # apps/web in the browser only (no Rust backend)
-pnpm changelog     # regenerate CHANGELOG.md from git history
+pnpm changelog:unreleased   # preview the section the next release would add
+pnpm changelog:rebuild      # destructive: regenerate CHANGELOG.md from git, drops manual edits
 ```
 
 ### WSL2 caveat
