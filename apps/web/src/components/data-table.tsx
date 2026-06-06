@@ -90,7 +90,6 @@ interface DataTableProps {
   onRemoveFilter?: (column: string) => void;
   /** When set, bulk Export action is enabled and forwards the selected rows. */
   onBulkExport?: (rows: any[]) => void;
-  readOnlyMode?: boolean;
   // Columns that are part of an otherwise-editable result but cannot be
   // written back (e.g. computed expressions in a query result).
   readOnlyColumns?: string[];
@@ -158,7 +157,6 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
     onAddFilter,
     onRemoveFilter,
     onBulkExport,
-    readOnlyMode = false,
     readOnlyColumns,
     columnTypes = {},
     activeFormatters = [],
@@ -264,8 +262,8 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
     return () => ro.disconnect();
   }, [scrollContainerEl]);
 
-  const canEdit = !readOnlyMode && primaryKeys.length > 0 && !!onCellUpdate;
-  const canDelete = !readOnlyMode && primaryKeys.length > 0 && !!onRowDelete;
+  const canEdit = primaryKeys.length > 0 && !!onCellUpdate;
+  const canDelete = primaryKeys.length > 0 && !!onRowDelete;
   // Inline insert flow runs only when a staging scope is provided. When the
   // grid is rendering query results without a single source table, inserts
   // are disabled.
@@ -878,7 +876,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
   return (
     <div className="flex gap-0 flex-1 min-h-0">
     <div className="border border-border rounded-lg overflow-hidden flex flex-col w-full">
-      {!readOnlyMode && primaryKeys.length === 0 && columnSchema.length > 0 && (
+      {primaryKeys.length === 0 && columnSchema.length > 0 && (
         <div className="px-4 py-2 bg-warning/10 text-xs text-warning border-b border-border flex-shrink-0">
           Editing disabled -- no primary key detected
         </div>
@@ -1270,9 +1268,13 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                     className={`flex border-b border-border cursor-pointer hover:bg-bg-secondary/50 ${
                       isStagedDelete
                         ? 'bg-danger/25 line-through text-secondary border-l-4 border-l-danger'
-                        : rowIndex % 2 === 1
-                          ? 'bg-bg-secondary/30'
-                          : 'bg-bg'
+                        : rowKey && selectedRowKeys.has(rowKey)
+                          ? 'bg-accent/15 hover:bg-accent/20 border-l-2 border-l-accent'
+                          : selectedCell?.row === rowIndex
+                            ? 'bg-accent/5'
+                            : rowIndex % 2 === 1
+                              ? 'bg-bg-secondary/30'
+                              : 'bg-bg'
                     } ${isExpanded ? 'bg-bg-secondary/70' : ''}`}
                     style={{ height: ROW_HEIGHT }}
                     onClick={() => toggleRowExpand(rowIndex)}

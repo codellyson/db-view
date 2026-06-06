@@ -79,7 +79,6 @@ export function Dashboard() {
     handleSchemaChange,
     handleTableSelect,
     handleSort,
-    readOnlyMode,
     primaryKeys,
     refreshTableData,
     tableStats,
@@ -186,7 +185,7 @@ export function Dashboard() {
       key: 'n', alt: true, description: 'Add new row',
       category: 'Editing',
       action: () => {
-        if (!readOnlyMode && primaryKeys.length > 0 && selectedTable) {
+        if (primaryKeys.length > 0 && selectedTable) {
           dataTableRef.current?.scrollToEmptyRow();
         }
       },
@@ -285,7 +284,7 @@ export function Dashboard() {
       category: 'General',
       action: () => setIsShortcutsHelpOpen((prev) => !prev),
     },
-  ], [readOnlyMode, primaryKeys, selectedTable, selectedSchema, isShortcutsHelpOpen, isReviewOpen, openEditorTab, pending, activeTabId, closeTab, isEditorTab, isQueryTab, isTablePickerOpen, isCommandPaletteOpen, fkQuery, refreshTableData]);
+  ], [primaryKeys, selectedTable, selectedSchema, isShortcutsHelpOpen, isReviewOpen, openEditorTab, pending, activeTabId, closeTab, isEditorTab, isQueryTab, isTablePickerOpen, isCommandPaletteOpen, fkQuery, refreshTableData]);
 
   useKeyboardShortcuts(shortcuts);
 
@@ -577,7 +576,7 @@ export function Dashboard() {
                     {selectedTable}
                   </h1>
                   <div className="flex gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap">
-                    {!readOnlyMode && primaryKeys.length > 0 && (
+                    {primaryKeys.length > 0 && (
                       <Button
                         variant="primary"
                         size="sm"
@@ -587,16 +586,14 @@ export function Dashboard() {
                         + Add row
                       </Button>
                     )}
-                    {!readOnlyMode && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setIsCSVImportOpen(true)}
-                        disabled={isLoading || schema.length === 0}
-                      >
-                        Import CSV
-                      </Button>
-                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setIsCSVImportOpen(true)}
+                      disabled={isLoading || schema.length === 0}
+                    >
+                      Import CSV
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -696,7 +693,6 @@ export function Dashboard() {
                     setBulkExportRows(rows);
                     setIsExportOpen(true);
                   }}
-                  readOnlyMode={readOnlyMode}
                   columnTypes={columnTypes}
                   activeFormatters={allFormatters}
                 />

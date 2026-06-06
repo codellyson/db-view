@@ -5,23 +5,11 @@ import {
   DEFAULT_THEME_ID,
   applyThemeVariant,
   findTheme,
-  rgbTripletToHex,
   type ThemePlugin,
 } from "@/lib/theme-plugins";
 import { isTauriRuntime } from "@/lib/runtime";
 
 type Mode = "light" | "dark";
-
-/**
- * Hex view of the active theme's accent — codemirror and other libs that
- * can't read CSS vars consume this instead. Kept minimal (accent only) to
- * preserve the existing useTheme().colors API surface.
- */
-export interface PaletteColors {
-  accent: string;
-  accentHover: string;
-  accentText: string;
-}
 
 interface ThemeContextType {
   mode: Mode;
@@ -33,8 +21,6 @@ interface ThemeContextType {
   themes: ThemePlugin[];
   /** Active theme plugin object — sugar for `findTheme(themeId)`. */
   theme: ThemePlugin;
-  /** Hex accent colors for libs that need them as values, not CSS vars. */
-  colors: PaletteColors;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -111,15 +97,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [mode, themeId, mounted]);
 
   const theme = useMemo(() => findTheme(themeId), [themeId]);
-  const variant = mode === "dark" ? theme.dark : theme.light;
-  const colors: PaletteColors = useMemo(
-    () => ({
-      accent: rgbTripletToHex(variant.accent),
-      accentHover: rgbTripletToHex(variant.accentHover),
-      accentText: rgbTripletToHex(variant.accentText),
-    }),
-    [variant.accent, variant.accentHover, variant.accentText]
-  );
 
   const toggleMode = () => setMode((prev) => (prev === "light" ? "dark" : "light"));
   const setThemeId = (id: string) => setThemeIdState(id);
@@ -133,7 +110,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setThemeId,
         themes: BUILT_IN_THEMES,
         theme,
-        colors,
       }}
     >
       {children}

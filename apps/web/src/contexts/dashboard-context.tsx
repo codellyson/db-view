@@ -52,7 +52,6 @@ interface DashboardContextType {
   error: string | null;
   itemsPerPage: number;
   setItemsPerPage: (size: number) => void;
-  readOnlyMode: boolean;
   primaryKeys: string[];
   tableStats: TableStatsData | null;
   isLoadingStats: boolean;
@@ -118,7 +117,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [tableSearch, setTableSearch] = useState('');
   const [tableFilters, setTableFilters] = useState<Filter[]>([]);
-  const [readOnlyMode] = useState(false);
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | undefined>();
   const [queryTabResults, setQueryTabResults] = useState<Record<string, { rows: any[]; columns: string[]; executionTime: number }>>({});
@@ -634,7 +632,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         error,
         itemsPerPage,
         setItemsPerPage,
-        readOnlyMode,
         primaryKeys,
         tableStats,
         isLoadingStats,

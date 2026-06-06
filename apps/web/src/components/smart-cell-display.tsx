@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface SmartCellDisplayProps {
   value: any;
@@ -40,6 +41,15 @@ function isDateType(columnType?: string): boolean {
 const IMAGE_NAME_RE = /^(image|avatar|photo|picture|thumbnail|cover|logo)(_url|url)?$/i;
 const IMAGE_URL_RE = /^https?:\/\/[^\s]+\.(png|jpe?g|gif|webp|svg|avif)(\?[^\s]*)?$/i;
 
+// Column names that should mask their cell value by default. We don't want
+// bcrypt hashes / API keys / secrets sitting in plaintext in screenshots and
+// support sessions. Click the dot row to reveal the underlying string.
+const SENSITIVE_NAME_RE = /(^|_)(password(_?hash)?|passwd|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|private[_-]?key|auth[_-]?token|session[_-]?token)$/i;
+
+function isSensitiveColumn(column?: string): boolean {
+  return !!column && SENSITIVE_NAME_RE.test(column);
+}
+
 function looksLikeImage(column?: string, value?: any): boolean {
   if (typeof value !== 'string') return false;
   if (column && IMAGE_NAME_RE.test(column)) return true;
@@ -64,6 +74,43 @@ export const SmartCellDisplay: React.FC<SmartCellDisplayProps> = ({
 
   if (value === null || value === undefined) {
     return <span className="text-muted italic">NULL</span>;
+  }
+
+  // Sensitive value (password hash, API key, etc.) — render as a row of
+  // dots; click to reveal in place. Keeps secrets out of screenshots
+  // without blocking debugging.
+  if (isSensitiveColumn(column)) {
+    const stringValue = String(value);
+    if (!expanded) {
+      return (
+        <span
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(true);
+          }}
+          className="inline-flex items-center gap-1.5 cursor-pointer text-muted hover:text-primary transition-colors"
+          title="Click to reveal"
+        >
+          <span className="font-mono tracking-widest select-none">••••••••</span>
+          <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2 8c2-3.5 4.5-5 6-5s4 1.5 6 5c-2 3.5-4.5 5-6 5s-4-1.5-6-5z" />
+            <circle cx="8" cy="8" r="2" />
+          </svg>
+        </span>
+      );
+    }
+    return (
+      <span
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(false);
+        }}
+        className="cursor-pointer hover:text-primary transition-colors"
+        title="Click to hide"
+      >
+        <span className="truncate">{stringValue}</span>
+      </span>
+    );
   }
 
   if (isBoolType(columnType) || typeof value === 'boolean') {
@@ -115,34 +162,15 @@ export const SmartCellDisplay: React.FC<SmartCellDisplayProps> = ({
         return String(value);
       }
     })();
-    if (expanded) {
-      return (
-        <pre
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded(false);
-          }}
-          className="cursor-pointer max-w-md text-[11px] font-mono whitespace-pre-wrap break-all bg-bg-secondary/40 p-2 rounded border border-border"
-          title="Click to collapse"
-        >
-          {pretty}
-        </pre>
-      );
-    }
     const inline =
       typeof value === 'object' ? JSON.stringify(value) : String(value);
     return (
-      <span
-        className="inline-flex items-center gap-1 cursor-pointer hover:text-primary"
-        onClick={(e) => {
-          e.stopPropagation();
-          setExpanded(true);
-        }}
-        title="Click to pretty-print"
-      >
-        <span className="text-[10px] text-accent font-mono">{'{}'}</span>
-        <span className="truncate">{inline}</span>
-      </span>
+      <JsonCell
+        inline={inline}
+        pretty={pretty}
+        expanded={expanded}
+        onToggle={setExpanded}
+      />
     );
   }
 
@@ -204,3 +232,84 @@ export const SmartCellDisplay: React.FC<SmartCellDisplayProps> = ({
 
   return <span title={stringValue}>{stringValue}</span>;
 };
+
+/**
+ * Renders the collapsed `{}` chip in flow and, when expanded, the
+ * pretty-printed JSON in a portal anchored to the chip. The portal hops
+ * over every overflow:hidden/truncate ancestor the table layout puts in
+ * the way and stacks above subsequent virtual rows (z-50). Click the
+ * chip again or anywhere outside the popover to collapse.
+ */
+function JsonCell({
+  inline,
+  pretty,
+  expanded,
+  onToggle,
+}: {
+  inline: string;
+  pretty: string;
+  expanded: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  const anchorRef = useRef<HTMLSpanElement | null>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (!expanded || !anchorRef.current) return;
+    const update = () => {
+      if (anchorRef.current) setRect(anchorRef.current.getBoundingClientRect());
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [expanded]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (anchorRef.current?.contains(t)) return;
+      const pop = document.getElementById('json-popover');
+      if (pop && pop.contains(t)) return;
+      onToggle(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [expanded, onToggle]);
+
+  return (
+    <span
+      ref={anchorRef}
+      className="inline-flex items-center gap-1 cursor-pointer hover:text-primary"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle(!expanded);
+      }}
+      title={expanded ? 'Click to collapse' : 'Click to pretty-print'}
+    >
+      <span className="text-[10px] text-accent font-mono">{'{}'}</span>
+      <span className="truncate">{inline}</span>
+      {expanded && rect && typeof document !== 'undefined' &&
+        createPortal(
+          <pre
+            id="json-popover"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: rect.bottom + 4,
+              left: Math.max(8, Math.min(rect.left, window.innerWidth - 460)),
+              maxHeight: Math.min(384, window.innerHeight - rect.bottom - 16),
+            }}
+            className="z-50 w-[28rem] max-w-[60vw] overflow-auto text-[11px] font-mono whitespace-pre-wrap break-all bg-bg p-2 rounded border border-border shadow-lg"
+          >
+            {pretty}
+          </pre>,
+          document.body,
+        )}
+    </span>
+  );
+}
