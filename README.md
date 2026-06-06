@@ -57,12 +57,15 @@ process-memory lifetime.
 ## Release
 
 ```bash
-# bump version in src-tauri/Cargo.toml, src-tauri/tauri.conf.json, package.json
-pnpm exec git-cliff --tag vX.Y.Z -o CHANGELOG.md
-git commit -am "chore(release): vX.Y.Z"
-git tag vX.Y.Z
-git push origin main vX.Y.Z
+pnpm release            # auto-bump patch (e.g. 0.1.8 → 0.1.9)
+pnpm release 0.2.0      # explicit version
+pnpm release -y         # skip the confirmation prompt
 ```
+
+The script handles the whole choreography: pre-flight checks (clean
+tree, on main, in sync with origin), version bump across the three
+manifests + `Cargo.lock`, `CHANGELOG.md` regeneration with the new tag
+label, then commit / tag / push.
 
 The tag push fires two workflows: `Release` (tauri-action builds and
 uploads `.dmg`/`.exe`/`.msi` to the GitHub Release) and `Changelog`
