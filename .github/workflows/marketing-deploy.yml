@@ -23,10 +23,12 @@ on:
     branches: [main]
     paths:
       - "apps/marketing/**"
+      - "CHANGELOG.md"
       - ".github/workflows/marketing-deploy.yml"
   pull_request:
     paths:
       - "apps/marketing/**"
+      - "CHANGELOG.md"
       - ".github/workflows/marketing-deploy.yml"
   workflow_dispatch:
 
