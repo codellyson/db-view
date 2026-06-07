@@ -37,6 +37,15 @@ chrono = { version = "0.4", features = ["serde"] }
 rust_decimal = { version = "1", features = ["serde-float", "db-postgres"] }
 keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
 
+# libsql speaks both local SQLite files (`Builder::new_local`) and remote
+# Turso/sqld (`Builder::new_remote`) through the same Connection API, so a
+# single dep covers both `sqlite:` and `libsql://` URLs. `default-features
+# = false` drops the encryption + replication features we don't ship; we
+# explicitly enable `core` (the local file backend) and `remote` (the HTTP
+# transport for Turso).
+libsql = { version = "0.6", default-features = false, features = ["core", "remote"] }
+async-trait = "0.1"
+
 # Single-instance is only needed on Windows + Linux. macOS's LaunchServices
 # already enforces single-instance for bundled apps, so we target-gate to
 # avoid pulling the crate (and its dbus dep) into the macOS build.

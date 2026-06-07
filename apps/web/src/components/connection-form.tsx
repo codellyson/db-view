@@ -253,11 +253,20 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         >
           PostgreSQL
         </button>
-        {/* MySQL and SQLite/libsql chips are hidden until the Rust backend
-            grows the corresponding drivers (tracked as v0.2.x). The
-            handleDbTypeChange logic and config builders for both types are
-            still wired below — unhide these two buttons once the dispatch
-            layer in src-tauri ships. */}
+        <button
+          type="button"
+          onClick={() => handleDbTypeChange('sqlite')}
+          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md border transition-colors ${
+            dbType === 'sqlite'
+              ? 'border-accent bg-accent/10 text-accent'
+              : 'border-border text-secondary hover:text-primary hover:bg-bg-secondary'
+          }`}
+        >
+          SQLite
+        </button>
+        {/* MySQL chip stays hidden until the Rust backend grows a MySQL
+            driver. handleDbTypeChange('mysql') and the config builder for
+            it are still wired below — unhide once the dispatch layer ships. */}
       </div>
       <form onSubmit={handleSubmit} className="p-4 space-y-3">
         {mode === 'url' ? (

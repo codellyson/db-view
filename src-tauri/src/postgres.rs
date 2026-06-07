@@ -7,15 +7,43 @@ use tokio_postgres::{
     Client, Row,
 };
 
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum DbType {
+    #[default]
+    Postgresql,
+    Sqlite,
+}
+
+/// Connection config shared by every backend. Only `db_type` and `database`
+/// are required for every type; the rest depend on the discriminator:
+///
+/// - Postgres: `host` / `port` / `username` / `password` / `ssl` are required;
+///   `filepath` and `auth_token` are ignored.
+/// - SQLite/libsql: `filepath` is the local path (`/path/to.db`) or remote
+///   URL (`libsql://host.turso.io`); `auth_token` is the Turso JWT for the
+///   remote case. The Postgres fields are ignored.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DbConfig {
+    #[serde(rename = "type", default)]
+    pub db_type: DbType,
+    #[serde(default)]
     pub host: String,
+    #[serde(default)]
     pub port: u16,
+    #[serde(default)]
     pub database: String,
+    #[serde(default)]
     pub username: String,
+    #[serde(default)]
     pub password: String,
     #[serde(default)]
     pub ssl: bool,
+    #[serde(default)]
+    pub filepath: Option<String>,
+    #[serde(default)]
+    pub auth_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

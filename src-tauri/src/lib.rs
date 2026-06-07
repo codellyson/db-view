@@ -2,20 +2,62 @@ mod cascade;
 mod mutation;
 mod postgres;
 mod saved_connections;
+mod sqlite;
 
 use dashmap::DashMap;
 use mutation::MutationRequest;
-use postgres::{DbConfig, PgConnection, QueryResult};
+use postgres::{DbConfig, DbType, PgConnection, QueryResult};
 use saved_connections::{ClientSavedConnection, SavedConnection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use sqlite::SqliteConnection;
 use std::sync::Arc;
 use tauri::{Manager, State};
 
+/// One sessioned database connection — Postgres or SQLite/libsql. Stored
+/// behind an `Arc` in `AppState.sessions`; commands `match` on the variant
+/// to dispatch to the right backend.
+enum DbConnection {
+    Pg(PgConnection),
+    Sqlite(SqliteConnection),
+}
+
+impl DbConnection {
+    /// Pull the Postgres backend or surface "not yet supported on SQLite"
+    /// for the named command. Used by every command that hasn't grown a
+    /// SQLite arm yet (mutations, DDL, EXPLAIN, cascade preview, etc.).
+    fn require_pg(&self, what: &str) -> CommandResult<&PgConnection> {
+        match self {
+            DbConnection::Pg(pg) => Ok(pg),
+            DbConnection::Sqlite(_) => sqlite_not_supported(what),
+        }
+    }
+}
+
 #[derive(Default)]
 struct AppState {
-    // session_id -> live Postgres connection
-    sessions: DashMap<String, Arc<PgConnection>>,
+    // session_id -> live backend connection
+    sessions: DashMap<String, Arc<DbConnection>>,
+}
+
+/// Uniform "not implemented for SQLite yet" surface so the frontend gets
+/// a readable error instead of an opaque panic. Removed as each command
+/// gains a SQLite arm.
+fn sqlite_not_supported<T>(what: &str) -> CommandResult<T> {
+    Err(CommandError::Query(format!(
+        "{what} isn't supported on SQLite yet — landing in the next release."
+    )))
+}
+
+fn require_session(
+    state: &AppState,
+    session_id: &str,
+) -> Result<Arc<DbConnection>, CommandError> {
+    state
+        .sessions
+        .get(session_id)
+        .map(|entry| entry.clone())
+        .ok_or_else(|| CommandError::NoSession(session_id.to_string()))
 }
 
 #[derive(Debug, Serialize, thiserror::Error)]
@@ -42,10 +84,39 @@ async fn db_connect(
     config: DbConfig,
     state: State<'_, AppState>,
 ) -> CommandResult<ConnectResponse> {
-    let database = config.database.clone();
-    let conn = PgConnection::connect(config)
-        .await
-        .map_err(|e| CommandError::Connection(e.to_string()))?;
+    let database = if config.db_type == DbType::Sqlite {
+        // For SQLite the "database" label shown in the connection-status
+        // pill is the file basename (or libsql hostname). Fall back to the
+        // `database` field if the form sent one (it usually does — it's
+        // derived from the filepath on the JS side).
+        if !config.database.is_empty() {
+            config.database.clone()
+        } else if let Some(p) = config.filepath.as_deref() {
+            p.split('/')
+                .last()
+                .map(|s| s.trim_end_matches(".db").to_string())
+                .unwrap_or_else(|| p.to_string())
+        } else {
+            "sqlite".to_string()
+        }
+    } else {
+        config.database.clone()
+    };
+
+    let conn = match config.db_type {
+        DbType::Postgresql => {
+            let pg = PgConnection::connect(config)
+                .await
+                .map_err(|e| CommandError::Connection(e.to_string()))?;
+            DbConnection::Pg(pg)
+        }
+        DbType::Sqlite => {
+            let sq = SqliteConnection::connect(config)
+                .await
+                .map_err(CommandError::Connection)?;
+            DbConnection::Sqlite(sq)
+        }
+    };
 
     let session_id = uuid::Uuid::new_v4().to_string();
     state.sessions.insert(session_id.clone(), Arc::new(conn));
@@ -62,15 +133,14 @@ async fn db_query(
     sql: String,
     state: State<'_, AppState>,
 ) -> CommandResult<QueryResult> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
-
-    conn.query(&sql)
-        .await
-        .map_err(|e| CommandError::Query(e.to_string()))
+    let conn = require_session(&state, &session_id)?;
+    match conn.as_ref() {
+        DbConnection::Pg(pg) => pg
+            .query(&sql)
+            .await
+            .map_err(|e| CommandError::Query(e.to_string())),
+        DbConnection::Sqlite(sq) => sq.query(&sql).await.map_err(CommandError::Query),
+    }
 }
 
 #[tauri::command]
@@ -106,20 +176,25 @@ async fn db_health(
     };
 
     let start = std::time::Instant::now();
-    match conn.query("SELECT 1").await {
-        Ok(_) => Ok(HealthResponse {
+    let ok = match conn.as_ref() {
+        DbConnection::Pg(pg) => pg.query("SELECT 1").await.is_ok(),
+        DbConnection::Sqlite(sq) => sq.ping().await,
+    };
+    Ok(if ok {
+        HealthResponse {
             healthy: true,
             latency: Some(start.elapsed().as_millis() as u64),
             active_connections: 1,
             idle_connections: 0,
-        }),
-        Err(_) => Ok(HealthResponse {
+        }
+    } else {
+        HealthResponse {
             healthy: false,
             latency: None,
             active_connections: 0,
             idle_connections: 0,
-        }),
-    }
+        }
+    })
 }
 
 #[tauri::command]
@@ -127,23 +202,22 @@ async fn db_list_schemas(
     session_id: String,
     state: State<'_, AppState>,
 ) -> CommandResult<Vec<String>> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
-
-    let res = conn
-        .query(
-            "SELECT schema_name
-             FROM information_schema.schemata
-             WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
-             ORDER BY schema_name",
-        )
-        .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
-
-    Ok(first_column_strings(&res.rows))
+    let conn = require_session(&state, &session_id)?;
+    match conn.as_ref() {
+        DbConnection::Pg(pg) => {
+            let res = pg
+                .query(
+                    "SELECT schema_name
+                     FROM information_schema.schemata
+                     WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+                     ORDER BY schema_name",
+                )
+                .await
+                .map_err(|e| CommandError::Query(e.to_string()))?;
+            Ok(first_column_strings(&res.rows))
+        }
+        DbConnection::Sqlite(sq) => sq.list_schemas().await.map_err(CommandError::Query),
+    }
 }
 
 #[tauri::command]
@@ -152,24 +226,23 @@ async fn db_list_tables(
     schema: String,
     state: State<'_, AppState>,
 ) -> CommandResult<Vec<String>> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
-
-    let res = conn
-        .query_with_params(
-            "SELECT table_name
-             FROM information_schema.tables
-             WHERE table_schema = $1 AND table_type = 'BASE TABLE'
-             ORDER BY table_name",
-            &[Some(schema)],
-        )
-        .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
-
-    Ok(first_column_strings(&res.rows))
+    let conn = require_session(&state, &session_id)?;
+    match conn.as_ref() {
+        DbConnection::Pg(pg) => {
+            let res = pg
+                .query_with_params(
+                    "SELECT table_name
+                     FROM information_schema.tables
+                     WHERE table_schema = $1 AND table_type = 'BASE TABLE'
+                     ORDER BY table_name",
+                    &[Some(schema)],
+                )
+                .await
+                .map_err(|e| CommandError::Query(e.to_string()))?;
+            Ok(first_column_strings(&res.rows))
+        }
+        DbConnection::Sqlite(sq) => sq.list_tables().await.map_err(CommandError::Query),
+    }
 }
 
 #[derive(Serialize)]
@@ -299,11 +372,34 @@ async fn db_table_rows(
     filters: Option<Vec<FilterSpec>>,
     state: State<'_, AppState>,
 ) -> CommandResult<TableRowsResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
+    let pg = match conn.as_ref() {
+        DbConnection::Pg(pg) => pg,
+        DbConnection::Sqlite(sq) => {
+            if filters.as_deref().map_or(false, |f| !f.is_empty()) {
+                return Err(CommandError::Query(
+                    "Column filters on SQLite ship with the next release.".into(),
+                ));
+            }
+            let res = sq
+                .table_rows(
+                    &table,
+                    limit,
+                    offset,
+                    sort_column.as_deref(),
+                    sort_direction.as_deref(),
+                )
+                .await
+                .map_err(CommandError::Query)?;
+            return Ok(TableRowsResponse {
+                rows: res.rows,
+                total: res.total,
+                limit: res.limit,
+                offset: res.offset,
+                count_is_estimate: res.count_is_estimate,
+            });
+        }
+    };
 
     let q_schema = postgres::quote_identifier(&schema).map_err(CommandError::Query)?;
     let q_table = postgres::quote_identifier(&table).map_err(CommandError::Query)?;
@@ -325,7 +421,7 @@ async fn db_table_rows(
     // When filters are present the per-table estimate is meaningless, so
     // skip straight to a filtered COUNT(*).
     let (total, count_is_estimate) = if has_filters {
-        let c = conn
+        let c = pg
             .query_with_params(
                 &format!("SELECT COUNT(*) AS count FROM {qualified}{where_sql}"),
                 &filter_params,
@@ -340,7 +436,7 @@ async fn db_table_rows(
             .unwrap_or(0);
         (n, false)
     } else {
-        let est = conn
+        let est = pg
             .query_with_params(
                 "SELECT reltuples::bigint AS estimate
                  FROM pg_class c
@@ -359,7 +455,7 @@ async fn db_table_rows(
         if estimate > 10_000 {
             (estimate, true)
         } else {
-            let c = conn
+            let c = pg
                 .query(&format!("SELECT COUNT(*) AS count FROM {qualified}"))
                 .await
                 .map_err(|e| CommandError::Query(e.to_string()))?;
@@ -381,7 +477,7 @@ async fn db_table_rows(
     }
     data_sql.push_str(&format!(" LIMIT {limit} OFFSET {offset}"));
 
-    let rows = conn
+    let rows = pg
         .query_objects(&data_sql, &filter_params)
         .await
         .map_err(|e| CommandError::Query(e.to_string()))?;
@@ -427,12 +523,9 @@ async fn db_import(
     }
 
     let batch = batch_size.unwrap_or(DEFAULT_IMPORT_BATCH_SIZE).max(1);
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
 
+    let pg = conn.require_pg("db_import")?;
     let mut statements: Vec<String> = Vec::with_capacity(rows.len().div_ceil(batch));
     for chunk in rows.chunks(batch) {
         let sql = mutation::build_bulk_insert(&schema, &table, &columns, chunk)
@@ -440,7 +533,7 @@ async fn db_import(
         statements.push(sql);
     }
 
-    conn.run_transaction(&statements)
+    pg.run_transaction(&statements)
         .await
         .map_err(|e| CommandError::Query(e.to_string()))?;
 
@@ -463,11 +556,8 @@ async fn db_explain(
     query: String,
     state: State<'_, AppState>,
 ) -> CommandResult<ExplainResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
+    let pg = conn.require_pg("db_explain")?;
 
     // SaaS guard: EXPLAIN is meaningful only on SELECT / WITH queries.
     // Refusing other statements here mirrors app/api/explain/route.ts.
@@ -482,7 +572,7 @@ async fn db_explain(
     let start = std::time::Instant::now();
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        conn.query(&sql),
+        pg.query(&sql),
     )
     .await
     .map_err(|_| CommandError::Query("EXPLAIN timeout exceeded (30s)".into()))?
@@ -526,13 +616,9 @@ async fn db_cascade_preview(
         })?;
     }
 
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
-
-    Ok(cascade::preview(&conn, deletes, options).await)
+    let conn = require_session(&state, &session_id)?;
+    let pg = conn.require_pg("db_cascade_preview")?;
+    Ok(cascade::preview(pg, deletes, options).await)
 }
 
 #[derive(Serialize)]
@@ -574,19 +660,59 @@ async fn db_run_query(
     sql: String,
     state: State<'_, AppState>,
 ) -> CommandResult<RunQueryResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
+    let start = std::time::Instant::now();
+
+    // SQLite path: no pg_catalog → no field-source resolution, no OIDs.
+    // Frontend tolerates `fields[].source = None` already (the SaaS path
+    // could also fail to resolve sources for derived columns).
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            sq.query(&sql),
+        )
+        .await
+        .map_err(|_| CommandError::Query("Query timeout exceeded (30s)".into()))?
+        .map_err(CommandError::Query)?;
+        let execution_time = start.elapsed().as_millis() as u64;
+        let fields: Vec<QueryField> = result
+            .columns
+            .iter()
+            .map(|c| QueryField {
+                name: c.name.clone(),
+                data_type_id: c.data_type_id,
+                source: None,
+            })
+            .collect();
+        let rows = result
+            .rows
+            .iter()
+            .map(|row| {
+                let mut obj = serde_json::Map::new();
+                for (i, col) in result.columns.iter().enumerate() {
+                    obj.insert(
+                        col.name.clone(),
+                        row.get(i).cloned().unwrap_or(JsonValue::Null),
+                    );
+                }
+                JsonValue::Object(obj)
+            })
+            .collect();
+        return Ok(RunQueryResponse {
+            rows,
+            execution_time,
+            fields,
+        });
+    }
+
+    let pg = conn.require_pg("db_run_query")?;
 
     // Match the SaaS executeQuery: 30s budget, return rows as objects keyed by
     // column name, plus per-column type OIDs so the editor can pick the right
     // renderer.
-    let start = std::time::Instant::now();
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        conn.query(&sql),
+        pg.query(&sql),
     )
     .await
     .map_err(|_| CommandError::Query("Query timeout exceeded (30s)".into()))?
@@ -597,7 +723,7 @@ async fn db_run_query(
     // real relation. Mirrors PostgreSQLProvider.resolveFieldSources on the
     // SaaS side. Two best-effort pg_catalog queries; failures just leave
     // source = None for the affected columns.
-    let (oid_map, col_map) = resolve_field_sources(&conn, &result.columns).await;
+    let (oid_map, col_map) = resolve_field_sources(pg, &result.columns).await;
 
     let fields: Vec<QueryField> = result
         .columns
@@ -635,7 +761,7 @@ async fn db_run_query(
 // at. OIDs are integers we control, so inlining them in the IN clause is
 // safe — no injection surface.
 async fn resolve_field_sources(
-    conn: &Arc<PgConnection>,
+    conn: &PgConnection,
     columns: &[postgres::ColumnMeta],
 ) -> (
     std::collections::HashMap<u32, (String, String)>,
@@ -736,9 +862,20 @@ async fn db_saved_connect(
         .ok_or_else(|| CommandError::Query(format!("No saved connection with id {id}")))?;
 
     let database = saved.config.database.clone();
-    let conn = PgConnection::connect(saved.config)
-        .await
-        .map_err(|e| CommandError::Connection(e.to_string()))?;
+    let conn = match saved.config.db_type {
+        DbType::Postgresql => {
+            let pg = PgConnection::connect(saved.config)
+                .await
+                .map_err(|e| CommandError::Connection(e.to_string()))?;
+            DbConnection::Pg(pg)
+        }
+        DbType::Sqlite => {
+            let sq = SqliteConnection::connect(saved.config)
+                .await
+                .map_err(CommandError::Connection)?;
+            DbConnection::Sqlite(sq)
+        }
+    };
 
     let session_id = uuid::Uuid::new_v4().to_string();
     state.sessions.insert(session_id.clone(), Arc::new(conn));
@@ -772,18 +909,15 @@ async fn db_mutate(
     body: MutationRequest,
     state: State<'_, AppState>,
 ) -> CommandResult<MutateResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
+    let pg = conn.require_pg("db_mutate")?;
 
     let sql = mutation::build(&body).map_err(CommandError::Query)?;
 
     match body.kind {
         mutation::MutationKind::INSERT => {
             // INSERT … RETURNING * — use query() so we get the new row back.
-            let result = conn
+            let result = pg
                 .query(&sql)
                 .await
                 .map_err(|e| CommandError::Query(e.to_string()))?;
@@ -795,7 +929,7 @@ async fn db_mutate(
             })
         }
         mutation::MutationKind::UPDATE | mutation::MutationKind::DELETE => {
-            let affected = conn
+            let affected = pg
                 .execute(&sql, &[])
                 .await
                 .map_err(|e| CommandError::Query(e.to_string()))?;
@@ -827,11 +961,8 @@ async fn db_mutate_batch(
         ));
     }
 
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
+    let pg = conn.require_pg("db_mutate_batch")?;
 
     let mut statements: Vec<String> = Vec::with_capacity(changes.len());
     for (i, change) in changes.iter().enumerate() {
@@ -840,7 +971,7 @@ async fn db_mutate_batch(
         statements.push(sql);
     }
 
-    let row_counts = conn
+    let row_counts = pg
         .run_transaction(&statements)
         .await
         .map_err(|e| CommandError::Query(e.to_string()))?;
@@ -867,11 +998,8 @@ async fn db_ddl(
     sql: String,
     state: State<'_, AppState>,
 ) -> CommandResult<DdlResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
+    let pg = conn.require_pg("db_ddl")?;
 
     // Mirror /api/ddl/route.ts: only CREATE TABLE is permitted. Trim + upper
     // for a cheap keyword check; the spike's table-creation-wizard is the
@@ -882,7 +1010,7 @@ async fn db_ddl(
         ));
     }
 
-    conn.execute(&sql, &[])
+    pg.execute(&sql, &[])
         .await
         .map_err(|e| CommandError::Query(e.to_string()))?;
     Ok(DdlResponse { success: true })
@@ -900,15 +1028,34 @@ async fn db_schema_map(
     schema: String,
     state: State<'_, AppState>,
 ) -> CommandResult<SchemaMapResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
 
+    // SQLite path: walk sqlite_master + PRAGMA table_info to build the
+    // same shape Postgres assembles from information_schema. There's only
+    // one effective schema (`main`), so the `schema` arg is ignored.
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        let tables = sq.list_tables().await.map_err(CommandError::Query)?;
+        let mut schema_map: std::collections::BTreeMap<String, Vec<String>> =
+            std::collections::BTreeMap::new();
+        for t in tables {
+            let cols = sq.table_schema(&t).await.map_err(CommandError::Query)?;
+            let col_names: Vec<String> = cols
+                .into_iter()
+                .filter_map(|row| {
+                    row.get("column_name")
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                })
+                .collect();
+            schema_map.insert(t, col_names);
+        }
+        return Ok(SchemaMapResponse { schema_map });
+    }
+
+    let pg = conn.require_pg("db_schema_map")?;
     // One query for all base-table columns in the schema, ordered for
     // deterministic grouping. Avoids the N+1 pattern in schema-map/route.ts.
-    let res = conn
+    let res = pg
         .query_with_params(
             "SELECT c.table_name, c.column_name
              FROM information_schema.columns c
@@ -952,13 +1099,26 @@ async fn db_views(
     schema: String,
     state: State<'_, AppState>,
 ) -> CommandResult<ViewsResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
 
-    let views_res = conn
+    // SQLite has views (sqlite_master.type = 'view'); no materialized views.
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        let res = sq
+            .query(
+                "SELECT name FROM sqlite_master \
+                 WHERE type = 'view' AND name NOT LIKE 'sqlite_%' \
+                 ORDER BY name",
+            )
+            .await
+            .map_err(CommandError::Query)?;
+        return Ok(ViewsResponse {
+            views: first_column_strings(&res.rows),
+            materialized_views: vec![],
+        });
+    }
+
+    let pg = conn.require_pg("db_views")?;
+    let views_res = pg
         .query_with_params(
             "SELECT table_name FROM information_schema.views
              WHERE table_schema = $1
@@ -968,7 +1128,7 @@ async fn db_views(
         .await
         .map_err(|e| CommandError::Query(e.to_string()))?;
 
-    let matviews_res = conn
+    let matviews_res = pg
         .query_with_params(
             "SELECT matviewname AS name FROM pg_matviews
              WHERE schemaname = $1
@@ -995,13 +1155,16 @@ async fn db_functions(
     schema: String,
     state: State<'_, AppState>,
 ) -> CommandResult<FunctionsResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
 
-    let functions = conn
+    // SQLite has no stored functions concept — return empty so the
+    // sidebar's Functions section renders empty instead of erroring.
+    if matches!(conn.as_ref(), DbConnection::Sqlite(_)) {
+        return Ok(FunctionsResponse { functions: vec![] });
+    }
+
+    let pg = conn.require_pg("db_functions")?;
+    let functions = pg
         .query_objects(
             "SELECT
                 p.proname AS name,
@@ -1040,13 +1203,33 @@ async fn db_table_counts(
     schema: String,
     state: State<'_, AppState>,
 ) -> CommandResult<TableCountsResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
 
-    let res = conn
+    // SQLite: no reltuples estimate; do an exact COUNT(*) per table. Acceptable
+    // because SQLite databases are typically small and the sidebar caches the
+    // result for 5 minutes (see dashboard-context's tableCountsQuery staleTime).
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        let tables = sq.list_tables().await.map_err(CommandError::Query)?;
+        let mut counts: std::collections::BTreeMap<String, i64> =
+            std::collections::BTreeMap::new();
+        for t in tables {
+            // Identifier already validated by list_tables → from sqlite_master.
+            let sql = format!("SELECT COUNT(*) FROM \"{t}\"");
+            if let Ok(res) = sq.query(&sql).await {
+                let n = res
+                    .rows
+                    .first()
+                    .and_then(|r| r.first())
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
+                counts.insert(t, n);
+            }
+        }
+        return Ok(TableCountsResponse { counts });
+    }
+
+    let pg = conn.require_pg("db_table_counts")?;
+    let res = pg
         .query_with_params(
             "SELECT c.relname AS table_name, c.reltuples::bigint AS estimate
              FROM pg_class c
@@ -1084,13 +1267,17 @@ async fn db_table_stats(
     schema: String,
     state: State<'_, AppState>,
 ) -> CommandResult<TableStatsResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
 
-    let rows = conn
+    // SQLite has no pg_stat_user_tables analog; we return None and let the
+    // stats panel render the empty state. (Slice 2 can synthesize from
+    // sqlite_stat1 if the user has run ANALYZE.)
+    if matches!(conn.as_ref(), DbConnection::Sqlite(_)) {
+        return Ok(TableStatsResponse { stats: None });
+    }
+
+    let pg = conn.require_pg("db_table_stats")?;
+    let rows = pg
         .query_objects(
             "SELECT
                 pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size,
@@ -1132,15 +1319,22 @@ async fn db_relationships(
     schema: String,
     state: State<'_, AppState>,
 ) -> CommandResult<RelationshipsResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
 
+    // SQLite returns empty relationships + indexes for slice 1; FK
+    // introspection via `PRAGMA foreign_key_list` lands in slice 2.
+    // Returning empty (instead of erroring) keeps the table view usable.
+    if matches!(conn.as_ref(), DbConnection::Sqlite(_)) {
+        return Ok(RelationshipsResponse {
+            relationships: vec![],
+            indexes: vec![],
+        });
+    }
+
+    let pg = conn.require_pg("db_relationships")?;
     // FKs originating from this table — same SQL the SaaS provider's
     // getTableRelationships uses (lib/providers/postgresql.ts).
-    let relationships = conn
+    let relationships = pg
         .query_objects(
             "SELECT
                 tc.constraint_name,
@@ -1167,7 +1361,7 @@ async fn db_relationships(
     // Indexes — SaaS uses array_agg, but our postgres_value_to_json doesn't
     // yet decode pg arrays. jsonb_agg gives us a jsonb that decodes
     // straight through to JsonValue::Array for the `columns` field.
-    let indexes = conn
+    let indexes = pg
         .query_objects(
             "SELECT
                 i.relname AS index_name,
@@ -1204,11 +1398,8 @@ async fn db_lookup_row(
     value: JsonValue,
     state: State<'_, AppState>,
 ) -> CommandResult<LookupResponse> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
+    let pg = conn.require_pg("db_lookup_row")?;
 
     let q_schema = postgres::quote_identifier(&schema).map_err(CommandError::Query)?;
     let q_table = postgres::quote_identifier(&table).map_err(CommandError::Query)?;
@@ -1223,7 +1414,7 @@ async fn db_lookup_row(
         "SELECT * FROM {q_schema}.{q_table} WHERE {q_column} = {literal} LIMIT 2"
     );
 
-    let rows = conn
+    let rows = pg
         .query_objects(&sql, &[])
         .await
         .map_err(|e| CommandError::Query(e.to_string()))?;
@@ -1237,15 +1428,16 @@ async fn db_table_schema(
     schema: String,
     state: State<'_, AppState>,
 ) -> CommandResult<Vec<JsonValue>> {
-    let conn = state
-        .sessions
-        .get(&session_id)
-        .map(|entry| entry.clone())
-        .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+    let conn = require_session(&state, &session_id)?;
 
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        return sq.table_schema(&table).await.map_err(CommandError::Query);
+    }
+
+    let pg = conn.require_pg("db_table_schema")?;
     // Same query the SaaS postgresql provider uses (lib/providers/postgresql.ts
     // getTableSchema). Columns + the PK flag in one round-trip.
-    conn.query_objects(
+    pg.query_objects(
         "SELECT
             c.column_name,
             c.data_type,

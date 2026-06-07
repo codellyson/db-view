@@ -15,7 +15,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
 use std::time::Instant;
 
 use crate::postgres::{
@@ -88,7 +87,7 @@ struct Node {
 }
 
 pub async fn preview(
-    conn: &Arc<PgConnection>,
+    conn: &PgConnection,
     deletes: Vec<CascadeNodeRequest>,
     options: Option<CascadeOptions>,
 ) -> CascadeResult {
@@ -364,7 +363,7 @@ fn row_key(schema: &str, table: &str, pks: &JsonMap<String, JsonValue>) -> Strin
 }
 
 async fn get_cached_fks(
-    conn: &Arc<PgConnection>,
+    conn: &PgConnection,
     cache: &mut HashMap<String, Vec<IncomingForeignKey>>,
     schema: &str,
     table: &str,
@@ -379,7 +378,7 @@ async fn get_cached_fks(
 }
 
 async fn fetch_incoming_fks(
-    conn: &Arc<PgConnection>,
+    conn: &PgConnection,
     schema: &str,
     table: &str,
 ) -> Result<Vec<IncomingForeignKey>, String> {
@@ -427,7 +426,7 @@ async fn fetch_incoming_fks(
 }
 
 async fn get_cached_pks(
-    conn: &Arc<PgConnection>,
+    conn: &PgConnection,
     cache: &mut HashMap<String, Vec<String>>,
     schema: &str,
     table: &str,
@@ -442,7 +441,7 @@ async fn get_cached_pks(
 }
 
 async fn fetch_table_pks(
-    conn: &Arc<PgConnection>,
+    conn: &PgConnection,
     schema: &str,
     table: &str,
 ) -> Result<Vec<String>, String> {
