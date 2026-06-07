@@ -4,7 +4,12 @@ export interface DBConfig {
   database: string;
   username: string;
   password: string;
-  ssl?: boolean | { rejectUnauthorized?: boolean };
+  // Always a plain boolean — the legacy `pg`-driver object shape
+  // (`{ rejectUnauthorized: false }`) silently deserialized as `false`
+  // on the Rust side because DbConfig declares `ssl: bool`, which made
+  // every "require TLS" cloud Postgres look like a server connection
+  // refusal.
+  ssl?: boolean;
   type?: "postgresql" | "mysql" | "sqlite";
   /** File path or libsql:// URL (only used when type is "sqlite") */
   filepath?: string;

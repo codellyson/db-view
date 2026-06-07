@@ -175,13 +175,17 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       };
     } else if (mode === 'url') {
       const parsed = parseConnectionURL(connectionUrl);
+      // Rust's DbConfig declares `ssl: bool`. URL-derived ssl wins when
+      // explicit (sslmode=require|disable); otherwise fall back to the
+      // form's "Use SSL" checkbox.
+      const sslOn = parsed.ssl ?? useSSL;
       config = {
         host: parsed.host,
         port: parsed.port,
         database: parsed.database,
         username: parsed.username,
         password: parsed.password,
-        ssl: parsed.ssl ?? (useSSL ? { rejectUnauthorized: false } : false),
+        ssl: sslOn,
         type: parsed.type,
       };
     } else {
@@ -191,7 +195,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         database: database.trim(),
         username: username.trim(),
         password: password,
-        ssl: useSSL ? { rejectUnauthorized: false } : false,
+        ssl: useSSL,
         type: dbType,
       };
     }
@@ -249,28 +253,11 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         >
           PostgreSQL
         </button>
-        <button
-          type="button"
-          onClick={() => handleDbTypeChange('mysql')}
-          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md border transition-colors ${
-            dbType === 'mysql'
-              ? 'border-accent bg-accent/10 text-accent'
-              : 'border-border text-secondary hover:text-primary hover:bg-bg-secondary'
-          }`}
-        >
-          MySQL
-        </button>
-        <button
-          type="button"
-          onClick={() => handleDbTypeChange('sqlite')}
-          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md border transition-colors ${
-            dbType === 'sqlite'
-              ? 'border-accent bg-accent/10 text-accent'
-              : 'border-border text-secondary hover:text-primary hover:bg-bg-secondary'
-          }`}
-        >
-          SQLite
-        </button>
+        {/* MySQL and SQLite/libsql chips are hidden until the Rust backend
+            grows the corresponding drivers (tracked as v0.2.x). The
+            handleDbTypeChange logic and config builders for both types are
+            still wired below — unhide these two buttons once the dispatch
+            layer in src-tauri ships. */}
       </div>
       <form onSubmit={handleSubmit} className="p-4 space-y-3">
         {mode === 'url' ? (

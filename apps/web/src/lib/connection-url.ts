@@ -4,7 +4,7 @@ export interface ParsedConnectionURL {
   database: string;
   username: string;
   password: string;
-  ssl?: boolean | { rejectUnauthorized?: boolean };
+  ssl?: boolean;
   type: "postgresql" | "mysql" | "sqlite";
   filepath?: string;
   authToken?: string;
@@ -71,14 +71,13 @@ export function parseConnectionURL(url: string): ParsedConnectionURL {
 
   const sslParam =
     parsed.searchParams.get("sslmode") || parsed.searchParams.get("ssl");
-  let ssl: boolean | { rejectUnauthorized?: boolean } | undefined;
+  let ssl: boolean | undefined;
   if (
     sslParam === "require" ||
     sslParam === "true" ||
     sslParam === "verify-full"
   ) {
-    ssl =
-      sslParam === "verify-full" ? true : { rejectUnauthorized: false };
+    ssl = true;
   } else if (sslParam === "disable" || sslParam === "false") {
     ssl = false;
   }

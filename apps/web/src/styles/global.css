@@ -47,24 +47,19 @@ html {
   font-size: 15px;
 }
 
-/* macOS-style overlay scrollbars: thumb stays transparent until the
-   user hovers the scroll container, then fades in. Eliminates the
-   permanent vertical strip that sat against the data-table's rounded
-   border. */
+/* Thin, low-contrast scrollbars. The earlier auto-hide attempt used
+   `*:hover` which cascades up the DOM — every ancestor was always
+   in :hover, so every scrollbar was effectively always visible.
+   Always-on-but-subtle is the predictable answer. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
+  scrollbar-color: rgb(var(--border) / 0.5) transparent;
 }
-*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background-color: transparent;
-  border-radius: 4px;
-  transition: background-color 0.18s ease-out;
-}
-*:hover > *::-webkit-scrollbar-thumb,
-*:hover::-webkit-scrollbar-thumb {
-  background-color: rgb(var(--border));
+  background-color: rgb(var(--border) / 0.5);
+  border-radius: 3px;
 }
 *::-webkit-scrollbar-thumb:hover { background-color: rgb(var(--text-muted)); }
 *::-webkit-scrollbar-corner { background: transparent; }
