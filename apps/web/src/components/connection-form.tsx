@@ -1,5 +1,6 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
+import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { DBConfig } from '@/types';
@@ -32,31 +33,27 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   const [filepath, setFilepath] = useState('');
   const [authToken, setAuthToken] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isPickingFile, setIsPickingFile] = useState(false);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
+  const handlePickFile = async () => {
+    setIsPickingFile(true);
     setErrors((prev) => { const next = { ...prev }; delete next.filepath; return next; });
-
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await fetch('/api/upload-sqlite', { method: 'POST', body: formData });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-
-      setFilepath(data.filepath);
-      setUploadedFileName(data.filename);
+      const selected = await openFileDialog({
+        multiple: false,
+        directory: false,
+        filters: [
+          { name: 'SQLite database', extensions: ['db', 'sqlite', 'sqlite3', 's3db'] },
+        ],
+      });
+      if (typeof selected === 'string' && selected) {
+        setFilepath(selected);
+        setUploadedFileName(selected.split('/').pop() || selected);
+      }
     } catch (err: any) {
-      setErrors((prev) => ({ ...prev, filepath: err.message }));
+      setErrors((prev) => ({ ...prev, filepath: err?.message || 'Could not open file picker' }));
     } finally {
-      setIsUploading(false);
+      setIsPickingFile(false);
     }
   };
 
@@ -318,24 +315,17 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
                   value={uploadedFileName || filepath}
                   onChange={(e) => { setFilepath(e.target.value); setUploadedFileName(''); }}
                   placeholder="libsql://dbname.turso.io  or  /path/to/file.db"
-                  disabled={isConnecting || isUploading}
+                  disabled={isConnecting || isPickingFile}
                   className="flex-1 px-3 py-2 text-sm border border-border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent bg-bg text-primary placeholder:text-muted"
                 />
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isConnecting || isUploading}
+                  onClick={handlePickFile}
+                  disabled={isConnecting || isPickingFile}
                   className="px-3 py-2 text-xs font-medium rounded-md border border-border text-secondary hover:text-primary hover:bg-bg-secondary transition-colors whitespace-nowrap disabled:opacity-50"
                 >
-                  {isUploading ? 'Uploading...' : 'Upload .db'}
+                  {isPickingFile ? 'Choosing...' : 'Choose .db'}
                 </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".db,.sqlite,.sqlite3,.s3db"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
               </div>
               {errors.filepath && (
                 <p className="mt-1 text-xs text-danger">{errors.filepath}</p>
