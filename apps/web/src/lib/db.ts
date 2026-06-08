@@ -25,6 +25,15 @@ export function getSessionId(): string | null {
   return sessionId;
 }
 
+// Dev-only debug hook — surface internal connection state to the devtools
+// console so we can diagnose "Not connected" mysteries without adding
+// throwaway logs. Drop later if/when the debugging stops being useful.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __justdbDebug: unknown }).__justdbDebug = {
+    get sessionId() { return sessionId; },
+  };
+}
+
 function requireSession(): string {
   if (!sessionId) {
     throw new Error("Not connected. Connect to a database first.");
@@ -44,18 +53,33 @@ interface ConnectResult {
   savedConnection?: SavedConnection;
 }
 
+// Rust's ConnectResponse — `db_type` is the authoritative backend kind,
+// echoed back from the persisted config (saved connections don't keep
+// `type` on the JS side, so the form-provided value would be lost otherwise).
+interface ConnectInvokeResponse {
+  sessionId: string;
+  database: string;
+  dbType: "postgresql" | "sqlite";
+}
+
 async function connect(
   config: DBConfig,
   save?: { name: string; id: string },
 ): Promise<ConnectResult> {
-  // Drop any previous session before opening a new one so we don't leak
-  // a Postgres client in the Rust DashMap on every reconnect.
-  await disconnect();
-  const res = await invoke<{ session_id: string; database: string }>(
-    "db_connect",
-    { config },
-  );
-  sessionId = res.session_id;
+  // Keep the prior session valid until the new one is established. We
+  // used to pre-emptively `await disconnect()` here, which left the JS
+  // sessionId = null during the few-hundred-ms while the new connect
+  // resolved. Any health-poll or table-data query that fired in that
+  // window threw "Not connected" → the dashboard rendered Connection
+  // lost / Reconnecting state for a perfectly healthy connection.
+  const oldSessionId = sessionId;
+  const res = await invoke<ConnectInvokeResponse>("db_connect", { config });
+  sessionId = res.sessionId;
+  if (oldSessionId && oldSessionId !== res.sessionId) {
+    // Best-effort cleanup of the prior session — runs in the background
+    // so a slow disconnect doesn't delay the new session being usable.
+    invoke<void>("db_disconnect", { sessionId: oldSessionId }).catch(() => {});
+  }
 
   let savedConnection: SavedConnection | undefined;
   if (save) {
@@ -74,23 +98,23 @@ async function connect(
 
   return {
     database: res.database,
-    type: config.type ?? "postgresql",
+    type: res.dbType,
     savedConnection,
   };
 }
 
 async function connectSaved(
   id: string,
-): Promise<{ database: string; type: "postgresql" }> {
-  // Drop any previous session before opening a new one so we don't leak
-  // a Postgres client in the Rust DashMap on every reconnect.
-  await disconnect();
-  const res = await invoke<{ session_id: string; database: string }>(
-    "db_saved_connect",
-    { id },
-  );
-  sessionId = res.session_id;
-  return { database: res.database, type: "postgresql" };
+): Promise<{ database: string; type: "postgresql" | "sqlite" }> {
+  // See `connect` above for why the prior sessionId stays live until the
+  // new one resolves.
+  const oldSessionId = sessionId;
+  const res = await invoke<ConnectInvokeResponse>("db_saved_connect", { id });
+  sessionId = res.sessionId;
+  if (oldSessionId && oldSessionId !== res.sessionId) {
+    invoke<void>("db_disconnect", { sessionId: oldSessionId }).catch(() => {});
+  }
+  return { database: res.database, type: res.dbType };
 }
 
 async function disconnect(): Promise<void> {

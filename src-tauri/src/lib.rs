@@ -74,9 +74,15 @@ enum CommandError {
 type CommandResult<T> = Result<T, CommandError>;
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ConnectResponse {
     session_id: String,
     database: String,
+    // Echo the backend type back so the frontend can configure schema
+    // selection / SQL dialect without relying on whatever was in the form
+    // — saved connections in particular never round-trip the type field
+    // otherwise.
+    db_type: DbType,
 }
 
 #[tauri::command]
@@ -103,6 +109,7 @@ async fn db_connect(
         config.database.clone()
     };
 
+    let db_type = config.db_type.clone();
     let conn = match config.db_type {
         DbType::Postgresql => {
             let pg = PgConnection::connect(config)
@@ -124,6 +131,7 @@ async fn db_connect(
     Ok(ConnectResponse {
         session_id,
         database,
+        db_type,
     })
 }
 
@@ -259,13 +267,13 @@ struct TableRowsResponse {
 // JSON shape `{column, operator, value?, values?}` deserializes cleanly.
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct FilterSpec {
-    column: String,
-    operator: String,
+pub(crate) struct FilterSpec {
+    pub(crate) column: String,
+    pub(crate) operator: String,
     #[serde(default)]
-    value: Option<JsonValue>,
+    pub(crate) value: Option<JsonValue>,
     #[serde(default)]
-    values: Option<Vec<JsonValue>>,
+    pub(crate) values: Option<Vec<JsonValue>>,
 }
 
 // Translate a list of filter specs into a parameterized `WHERE …` clause
@@ -376,11 +384,7 @@ async fn db_table_rows(
     let pg = match conn.as_ref() {
         DbConnection::Pg(pg) => pg,
         DbConnection::Sqlite(sq) => {
-            if filters.as_deref().map_or(false, |f| !f.is_empty()) {
-                return Err(CommandError::Query(
-                    "Column filters on SQLite ship with the next release.".into(),
-                ));
-            }
+            let filters_ref: &[FilterSpec] = filters.as_deref().unwrap_or(&[]);
             let res = sq
                 .table_rows(
                     &table,
@@ -388,6 +392,7 @@ async fn db_table_rows(
                     offset,
                     sort_column.as_deref(),
                     sort_direction.as_deref(),
+                    filters_ref,
                 )
                 .await
                 .map_err(CommandError::Query)?;
@@ -525,7 +530,6 @@ async fn db_import(
     let batch = batch_size.unwrap_or(DEFAULT_IMPORT_BATCH_SIZE).max(1);
     let conn = require_session(&state, &session_id)?;
 
-    let pg = conn.require_pg("db_import")?;
     let mut statements: Vec<String> = Vec::with_capacity(rows.len().div_ceil(batch));
     for chunk in rows.chunks(batch) {
         let sql = mutation::build_bulk_insert(&schema, &table, &columns, chunk)
@@ -533,9 +537,18 @@ async fn db_import(
         statements.push(sql);
     }
 
-    pg.run_transaction(&statements)
-        .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+    match conn.as_ref() {
+        DbConnection::Pg(pg) => {
+            pg.run_transaction(&statements)
+                .await
+                .map_err(|e| CommandError::Query(e.to_string()))?;
+        }
+        DbConnection::Sqlite(sq) => {
+            sq.run_transaction(&statements)
+                .await
+                .map_err(CommandError::Query)?;
+        }
+    }
 
     Ok(ImportResponse {
         success: true,
@@ -557,7 +570,6 @@ async fn db_explain(
     state: State<'_, AppState>,
 ) -> CommandResult<ExplainResponse> {
     let conn = require_session(&state, &session_id)?;
-    let pg = conn.require_pg("db_explain")?;
 
     // SaaS guard: EXPLAIN is meaningful only on SELECT / WITH queries.
     // Refusing other statements here mirrors app/api/explain/route.ts.
@@ -568,6 +580,43 @@ async fn db_explain(
         ));
     }
 
+    // SQLite path: `EXPLAIN QUERY PLAN` returns a tabular plan, not JSON.
+    // Wrap each row as {id, parent, notused, detail} and hand it back as a
+    // JSON array so the editor's plan tree handles it.
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        let sql = format!("EXPLAIN QUERY PLAN {query}");
+        let start = std::time::Instant::now();
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            sq.query(&sql),
+        )
+        .await
+        .map_err(|_| CommandError::Query("EXPLAIN timeout exceeded (30s)".into()))?
+        .map_err(CommandError::Query)?;
+        let execution_time = start.elapsed().as_millis() as u64;
+        let plan = JsonValue::Array(
+            result
+                .rows
+                .iter()
+                .map(|row| {
+                    let mut obj = serde_json::Map::new();
+                    for (i, col) in result.columns.iter().enumerate() {
+                        obj.insert(
+                            col.name.clone(),
+                            row.get(i).cloned().unwrap_or(JsonValue::Null),
+                        );
+                    }
+                    JsonValue::Object(obj)
+                })
+                .collect(),
+        );
+        return Ok(ExplainResponse {
+            plan,
+            execution_time,
+        });
+    }
+
+    let pg = conn.require_pg("db_explain")?;
     let sql = format!("EXPLAIN (FORMAT JSON) {query}");
     let start = std::time::Instant::now();
     let result = tokio::time::timeout(
@@ -862,6 +911,7 @@ async fn db_saved_connect(
         .ok_or_else(|| CommandError::Query(format!("No saved connection with id {id}")))?;
 
     let database = saved.config.database.clone();
+    let db_type = saved.config.db_type.clone();
     let conn = match saved.config.db_type {
         DbType::Postgresql => {
             let pg = PgConnection::connect(saved.config)
@@ -886,6 +936,7 @@ async fn db_saved_connect(
     Ok(ConnectResponse {
         session_id,
         database,
+        db_type,
     })
 }
 
@@ -910,10 +961,33 @@ async fn db_mutate(
     state: State<'_, AppState>,
 ) -> CommandResult<MutateResponse> {
     let conn = require_session(&state, &session_id)?;
-    let pg = conn.require_pg("db_mutate")?;
-
     let sql = mutation::build(&body).map_err(CommandError::Query)?;
 
+    // SQLite path: same SQL builder works — `"main"."tablename"` is valid
+    // SQLite syntax, and RETURNING * is supported since 3.35 (which both
+    // local sqlite and libsql/Turso satisfy).
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        return match body.kind {
+            mutation::MutationKind::INSERT => {
+                let rows = sq.query_objects(&sql).await.map_err(CommandError::Query)?;
+                Ok(MutateResponse {
+                    success: true,
+                    affected_rows: Some(rows.len() as i64),
+                    rows,
+                })
+            }
+            mutation::MutationKind::UPDATE | mutation::MutationKind::DELETE => {
+                let affected = sq.execute(&sql).await.map_err(CommandError::Query)?;
+                Ok(MutateResponse {
+                    success: true,
+                    affected_rows: Some(affected as i64),
+                    rows: vec![],
+                })
+            }
+        };
+    }
+
+    let pg = conn.require_pg("db_mutate")?;
     match body.kind {
         mutation::MutationKind::INSERT => {
             // INSERT … RETURNING * — use query() so we get the new row back.
@@ -962,7 +1036,6 @@ async fn db_mutate_batch(
     }
 
     let conn = require_session(&state, &session_id)?;
-    let pg = conn.require_pg("db_mutate_batch")?;
 
     let mut statements: Vec<String> = Vec::with_capacity(changes.len());
     for (i, change) in changes.iter().enumerate() {
@@ -971,10 +1044,16 @@ async fn db_mutate_batch(
         statements.push(sql);
     }
 
-    let row_counts = pg
-        .run_transaction(&statements)
-        .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+    let row_counts = match conn.as_ref() {
+        DbConnection::Pg(pg) => pg
+            .run_transaction(&statements)
+            .await
+            .map_err(|e| CommandError::Query(e.to_string()))?,
+        DbConnection::Sqlite(sq) => sq
+            .run_transaction(&statements)
+            .await
+            .map_err(CommandError::Query)?,
+    };
 
     Ok(MutateBatchResponse {
         success: true,
@@ -999,7 +1078,6 @@ async fn db_ddl(
     state: State<'_, AppState>,
 ) -> CommandResult<DdlResponse> {
     let conn = require_session(&state, &session_id)?;
-    let pg = conn.require_pg("db_ddl")?;
 
     // Mirror /api/ddl/route.ts: only CREATE TABLE is permitted. Trim + upper
     // for a cheap keyword check; the spike's table-creation-wizard is the
@@ -1010,9 +1088,16 @@ async fn db_ddl(
         ));
     }
 
-    pg.execute(&sql, &[])
-        .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+    match conn.as_ref() {
+        DbConnection::Pg(pg) => {
+            pg.execute(&sql, &[])
+                .await
+                .map_err(|e| CommandError::Query(e.to_string()))?;
+        }
+        DbConnection::Sqlite(sq) => {
+            sq.execute(&sql).await.map_err(CommandError::Query)?;
+        }
+    }
     Ok(DdlResponse { success: true })
 }
 
@@ -1321,13 +1406,14 @@ async fn db_relationships(
 ) -> CommandResult<RelationshipsResponse> {
     let conn = require_session(&state, &session_id)?;
 
-    // SQLite returns empty relationships + indexes for slice 1; FK
-    // introspection via `PRAGMA foreign_key_list` lands in slice 2.
-    // Returning empty (instead of erroring) keeps the table view usable.
-    if matches!(conn.as_ref(), DbConnection::Sqlite(_)) {
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        // SQLite ignores the schema arg (only `main` exists).
+        let _ = schema;
+        let (relationships, indexes) =
+            sq.relationships(&table).await.map_err(CommandError::Query)?;
         return Ok(RelationshipsResponse {
-            relationships: vec![],
-            indexes: vec![],
+            relationships,
+            indexes,
         });
     }
 
@@ -1399,8 +1485,19 @@ async fn db_lookup_row(
     state: State<'_, AppState>,
 ) -> CommandResult<LookupResponse> {
     let conn = require_session(&state, &session_id)?;
-    let pg = conn.require_pg("db_lookup_row")?;
 
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        // SQLite ignores the `schema` arg (only `main` exists). FK panel
+        // submits the schema for catalog-level routing, harmless here.
+        let _ = schema;
+        let rows = sq
+            .lookup_row(&table, &column, &value)
+            .await
+            .map_err(CommandError::Query)?;
+        return Ok(LookupResponse { rows });
+    }
+
+    let pg = conn.require_pg("db_lookup_row")?;
     let q_schema = postgres::quote_identifier(&schema).map_err(CommandError::Query)?;
     let q_table = postgres::quote_identifier(&table).map_err(CommandError::Query)?;
     let q_column = postgres::quote_identifier(&column).map_err(CommandError::Query)?;

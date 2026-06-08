@@ -152,21 +152,34 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     delete tabUIStateRef.current[tabId];
   }, []);
 
-  // Set default schema on connection
-  const hasLoadedRef = useRef(false);
   // Tracks which database we've already restored tabs for, so we can gate
   // localStorage writes until the one-shot restore has completed.
   const tabsRestoredForRef = useRef<string | null>(null);
+  // Track which database we last set the default schema for. Resetting on
+  // databaseName change (not just on isConnected toggling off) is what
+  // makes Connections→another-DB without an explicit Disconnect work
+  // correctly. Previously `hasLoadedRef` was a once-per-session gate that
+  // never re-fired when the user swapped from a SQLite session to a
+  // Postgres one — `selectedSchema` stayed stuck at `main` against
+  // Postgres and every catalog query came back empty.
+  // Track the (databaseName, databaseType) tuple we last initialized for.
+  // Resetting on either change covers both "switched to a different DB"
+  // and "the backend kind changed underneath us" (e.g. saved connection
+  // round-trip lost the type and is now corrected).
+  const schemaInitializedForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isConnected && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-      const defaultSchema = databaseType === 'sqlite'
-        ? 'main'
-        : databaseType === 'mysql' && databaseName ? databaseName : 'public';
-      setSelectedSchema(defaultSchema);
+    if (isConnected && databaseName) {
+      const key = `${databaseType}::${databaseName}`;
+      if (schemaInitializedForRef.current !== key) {
+        schemaInitializedForRef.current = key;
+        const defaultSchema = databaseType === 'sqlite'
+          ? 'main'
+          : databaseType === 'mysql' && databaseName ? databaseName : 'public';
+        setSelectedSchema(defaultSchema);
+      }
     }
     if (!isConnected) {
-      hasLoadedRef.current = false;
+      schemaInitializedForRef.current = null;
       tabsRestoredForRef.current = null;
       setSelectedTable(undefined);
       setOpenTabs([]);
@@ -347,7 +360,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const tableStats = tableStatsQuery.data ?? null;
 
   const isLoadingTables = tablesQuery.isLoading;
-  const isLoading = tableDataQuery.isLoading;
+  // `isFetching` covers reload-button refetches (when there's already
+  // cached data); `isLoading` alone would only spin on first load.
+  const isLoading = tableDataQuery.isLoading || tableDataQuery.isFetching;
   const isLoadingSchema = tableSchemaQuery.isLoading;
   const isLoadingStats = tableStatsQuery.isLoading;
 
@@ -405,9 +420,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const refreshTableData = useCallback(async () => {
-    if (selectedTable) {
-      await queryClient.invalidateQueries({ queryKey: ['tableData', selectedTable] });
-    }
+    if (!selectedTable) return;
+    // Use refetchQueries (not invalidateQueries) so the network call fires
+    // synchronously. invalidateQueries only marks the cache stale, which
+    // races against component-mount observation — feels broken to users
+    // who click the reload button on a table they're already viewing.
+    await queryClient.refetchQueries({ queryKey: ['tableData', selectedTable] });
   }, [selectedTable, queryClient]);
 
   const mutateRow = useCallback(async (request: MutationRequest) => {

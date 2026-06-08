@@ -290,6 +290,21 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 {host}:{port}/{database} as {username}
               </p>
             )}
+            {dbType === 'sqlite' && /^libsql:\/\//i.test(connectionUrl.trim()) && (
+              <div className="mt-3">
+                <label className="block text-xs font-medium text-secondary mb-1">
+                  Auth token
+                </label>
+                <input
+                  type="password"
+                  value={authToken}
+                  onChange={(e) => setAuthToken(e.target.value)}
+                  placeholder="eyJhbGciOi… (required for Turso unless embedded in the URL via ?authToken=…)"
+                  disabled={isConnecting}
+                  className="w-full px-3 py-2 text-sm border border-border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent bg-bg text-primary placeholder:text-muted"
+                />
+              </div>
+            )}
           </div>
         ) : dbType === 'sqlite' ? (
           <div className="space-y-3">

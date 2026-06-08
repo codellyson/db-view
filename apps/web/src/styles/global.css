@@ -47,22 +47,35 @@ html {
   font-size: 15px;
 }
 
-/* Thin, low-contrast scrollbars. The earlier auto-hide attempt used
-   `*:hover` which cascades up the DOM — every ancestor was always
-   in :hover, so every scrollbar was effectively always visible.
-   Always-on-but-subtle is the predictable answer. */
+/* Thin, theme-aware scrollbars. macOS's WebView paints its own chrome
+   over `::-webkit-scrollbar` unless `-webkit-appearance: none` is set
+   explicitly — that's why the v0.1.10 attempt with alpha-shorthand
+   colors still showed a prominent white track for users with "always
+   show scrollbars" in System Settings. Solid `--border` thumb + reset
+   appearance gives a stable look across all macOS scrollbar prefs. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgb(var(--border) / 0.5) transparent;
+  scrollbar-color: rgb(var(--border)) transparent;
 }
-*::-webkit-scrollbar { width: 6px; height: 6px; }
-*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  -webkit-appearance: none;
+  background-color: transparent;
+}
+*::-webkit-scrollbar-track { background-color: transparent; }
 *::-webkit-scrollbar-thumb {
-  background-color: rgb(var(--border) / 0.5);
-  border-radius: 3px;
+  background-color: rgb(var(--border));
+  border-radius: 4px;
+  /* Inset border so the visible thumb is a few px narrower than the 8px
+     track — feels lighter without going invisible. */
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
-*::-webkit-scrollbar-thumb:hover { background-color: rgb(var(--text-muted)); }
-*::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--text-muted));
+}
+*::-webkit-scrollbar-corner { background-color: transparent; }
 
 /* Used by the tab strip + a couple of overflow lists where the scrollbar
    adds no useful information. Tailwind doesn't ship this utility, so the

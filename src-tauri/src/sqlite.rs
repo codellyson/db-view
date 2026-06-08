@@ -13,7 +13,7 @@ use serde_json::{Map as JsonMap, Number as JsonNumber, Value as JsonValue};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::postgres::{ColumnMeta, DbConfig, QueryResult};
+use crate::postgres::{json_to_text, pg_quote_literal, ColumnMeta, DbConfig, QueryResult};
 
 /// Catalog answer for SQLite's single-schema model. We expose `main` (and
 /// `temp` when present) the same way Postgres exposes `public` so the
@@ -43,26 +43,69 @@ impl SqliteConnection {
             || filepath.starts_with("https://")
             || filepath.starts_with("http://");
 
+        let token_len = config.auth_token.as_ref().map_or(0, |t| t.len());
+        log::info!(
+            "[sqlite::connect] start filepath={} remote={} token_len={}",
+            filepath,
+            is_remote,
+            token_len,
+        );
+
         let db = if is_remote {
-            let token = config.auth_token.unwrap_or_default();
-            Builder::new_remote(filepath.to_string(), token)
-                .build()
-                .await
-                .map_err(|e| format!("libsql remote build: {e}"))?
+            let token = config.auth_token.clone().unwrap_or_default();
+            if token.is_empty() {
+                return Err(
+                    "Turso/libsql URLs need an auth token. Append ?authToken=… \
+                     to the URL, or paste the token into the Auth token field."
+                        .into(),
+                );
+            }
+            log::info!("[sqlite::connect] Builder::new_remote.build() starting…");
+            // libsql 0.6's remote builder does an HTTPS health-check during
+            // build(), which can wedge on TLS/DNS issues. Wrap in a tokio
+            // timeout so the connect call surfaces a clean error to the
+            // frontend instead of hanging forever.
+            let built = tokio::time::timeout(
+                std::time::Duration::from_secs(10),
+                Builder::new_remote(filepath.to_string(), token).build(),
+            )
+            .await
+            .map_err(|_| "libsql remote build timed out after 10s".to_string())?
+            .map_err(|e| format!("libsql remote build: {e}"))?;
+            log::info!("[sqlite::connect] Builder::new_remote.build() done");
+            built
         } else {
             Builder::new_local(filepath)
                 .build()
                 .await
                 .map_err(|e| format!("libsql local build: {e}"))?
         };
+
+        log::info!("[sqlite::connect] db.connect() starting…");
         let conn = db
             .connect()
             .map_err(|e| format!("libsql connect: {e}"))?;
+        log::info!("[sqlite::connect] db.connect() done — pinging…");
+
         // Round-trip ping so connection errors surface here instead of on
-        // the first query.
-        conn.query("SELECT 1", ())
-            .await
-            .map_err(|e| format!("libsql ping: {e}"))?;
+        // the first query. Same 20s ceiling — covers Turso auth + first
+        // network roundtrip without blocking the user indefinitely on a
+        // wrong token / wrong region.
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            conn.query("SELECT 1", ()),
+        )
+        .await
+        .map_err(|_| {
+            "libsql ping timed out after 10s — the URL resolved and TLS \
+             completed but SELECT 1 never came back. Most likely cause: \
+             auth token is wrong, expired, or missing on a saved \
+             connection. Delete + re-add with a fresh token from \
+             `turso db tokens create <db>`.".to_string()
+        })?
+        .map_err(|e| format!("libsql ping: {e}"))?;
+
+        log::info!("[sqlite::connect] ping ok — session ready");
 
         Ok(Self {
             conn: Mutex::new(conn),
@@ -126,10 +169,19 @@ impl SqliteConnection {
         })
     }
 
-    /// Cheap liveness probe used by `db_health`.
+    /// Cheap liveness probe used by `db_health`. Bounded so a wedged
+    /// remote libsql connection doesn't hang the entire 30s health-poll
+    /// interval — the health hook would never see a fresh tick.
     pub async fn ping(&self) -> bool {
         let conn = self.conn.lock().await;
-        conn.query("SELECT 1", ()).await.is_ok()
+        matches!(
+            tokio::time::timeout(
+                std::time::Duration::from_secs(5),
+                conn.query("SELECT 1", ()),
+            )
+            .await,
+            Ok(Ok(_))
+        )
     }
 
     /// `db_list_schemas` for SQLite — always exactly the schemas SQLite
@@ -189,10 +241,10 @@ impl SqliteConnection {
         Ok(out)
     }
 
-    /// `db_table_rows` with sort + pagination. Filter wiring lands with
-    /// slice 2 when the mutation paths come online; for now the request
-    /// shape matches and a stray `filters` list short-circuits to an empty
-    /// page with a clear error so the UI can degrade rather than crash.
+    /// `db_table_rows` with sort, pagination, and filters. Filters are
+    /// inlined as escaped SQL literals (mirroring `mutation.rs`'s INSERT
+    /// approach) rather than bound parameters — libsql's parameter binding
+    /// has stricter type rules than tokio-postgres's text mode.
     pub async fn table_rows(
         &self,
         table: &str,
@@ -200,11 +252,13 @@ impl SqliteConnection {
         offset: u32,
         sort_column: Option<&str>,
         sort_direction: Option<&str>,
+        filters: &[crate::FilterSpec],
     ) -> Result<TableRowsResponse, String> {
         validate_identifier(table)?;
         let q_table = format!("\"{table}\"");
+        let where_sql = build_filter_where_inline(filters)?;
 
-        let total_sql = format!("SELECT COUNT(*) FROM {q_table}");
+        let total_sql = format!("SELECT COUNT(*) FROM {q_table}{where_sql}");
         let total_res = self.query(&total_sql).await?;
         let total: i64 = total_res
             .rows
@@ -213,7 +267,7 @@ impl SqliteConnection {
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
 
-        let mut data_sql = format!("SELECT * FROM {q_table}");
+        let mut data_sql = format!("SELECT * FROM {q_table}{where_sql}");
         if let (Some(col), Some(dir)) = (sort_column, sort_direction) {
             validate_identifier(col)?;
             let dir_kw = if dir.eq_ignore_ascii_case("desc") {
@@ -234,6 +288,229 @@ impl SqliteConnection {
             count_is_estimate: false,
         })
     }
+
+    /// Run UPDATE/DELETE and return affected-row count. Used by
+    /// `db_mutate` (UPDATE/DELETE branch) and `db_ddl`.
+    pub async fn execute(&self, sql: &str) -> Result<u64, String> {
+        let conn = self.conn.lock().await;
+        conn.execute(sql, ())
+            .await
+            .map_err(|e| format!("libsql execute: {e}"))
+    }
+
+    /// Atomic batch — opens a transaction, runs each statement in order,
+    /// commits, or rolls back on any error. Used by `db_mutate_batch` and
+    /// `db_import`.
+    pub async fn run_transaction(&self, statements: &[String]) -> Result<Vec<u64>, String> {
+        let conn = self.conn.lock().await;
+        let tx = conn
+            .transaction()
+            .await
+            .map_err(|e| format!("libsql begin: {e}"))?;
+        let mut row_counts = Vec::with_capacity(statements.len());
+        for sql in statements {
+            match tx.execute(sql, ()).await {
+                Ok(n) => row_counts.push(n),
+                Err(e) => {
+                    // libsql's Transaction::rollback consumes self, so we
+                    // can't keep using `tx` after this branch.
+                    let _ = tx.rollback().await;
+                    return Err(format!("libsql batch step: {e}"));
+                }
+            }
+        }
+        tx.commit()
+            .await
+            .map_err(|e| format!("libsql commit: {e}"))?;
+        Ok(row_counts)
+    }
+
+    /// `db_relationships` — walk PRAGMA foreign_key_list + PRAGMA
+    /// index_list and synthesize the same shape the Postgres path emits
+    /// (`{source_column, target_schema, target_table, target_column,
+    /// constraint_name}` rows + `{index_name, index_type, is_unique,
+    /// is_primary, columns}` rows). Lets the FK navigator arrows in the
+    /// data grid + the indexes panel light up for SQLite.
+    pub async fn relationships(
+        &self,
+        table: &str,
+    ) -> Result<(Vec<JsonValue>, Vec<JsonValue>), String> {
+        validate_identifier(table)?;
+
+        // PRAGMA columns: id, seq, table, from, to, on_update, on_delete, match
+        let fk_sql = format!("PRAGMA foreign_key_list(\"{table}\")");
+        let fk_res = self.query(&fk_sql).await?;
+        let relationships: Vec<JsonValue> = fk_res
+            .rows
+            .iter()
+            .map(|row| {
+                let id = row.first().and_then(|v| v.as_i64()).unwrap_or(0);
+                let mut obj = JsonMap::new();
+                obj.insert(
+                    "constraint_name".into(),
+                    JsonValue::String(format!("fk_{table}_{id}")),
+                );
+                obj.insert(
+                    "source_column".into(),
+                    row.get(3).cloned().unwrap_or(JsonValue::Null),
+                );
+                obj.insert(
+                    "target_schema".into(),
+                    JsonValue::String(DEFAULT_SCHEMA.to_string()),
+                );
+                obj.insert(
+                    "target_table".into(),
+                    row.get(2).cloned().unwrap_or(JsonValue::Null),
+                );
+                obj.insert(
+                    "target_column".into(),
+                    row.get(4).cloned().unwrap_or(JsonValue::Null),
+                );
+                JsonValue::Object(obj)
+            })
+            .collect();
+
+        // PRAGMA index_list: seq, name, unique, origin, partial. We then
+        // PRAGMA index_info on each to gather columns.
+        let idx_sql = format!("PRAGMA index_list(\"{table}\")");
+        let idx_res = self.query(&idx_sql).await?;
+        let mut indexes: Vec<JsonValue> = Vec::with_capacity(idx_res.rows.len());
+        for row in &idx_res.rows {
+            let name = row.get(1).and_then(|v| v.as_str()).unwrap_or("");
+            let unique = row.get(2).and_then(|v| v.as_i64()).unwrap_or(0) > 0;
+            // origin is "pk" for the implicit primary-key index, "u" for
+            // a unique constraint, "c" for CREATE INDEX. We expose the
+            // pk flag the Postgres path computes from ix.indisprimary.
+            let origin = row.get(3).and_then(|v| v.as_str()).unwrap_or("");
+            let is_primary = origin == "pk";
+            if name.is_empty() {
+                continue;
+            }
+            let info_sql = format!("PRAGMA index_info(\"{name}\")");
+            let info_res = self.query(&info_sql).await?;
+            let columns: Vec<JsonValue> = info_res
+                .rows
+                .iter()
+                .filter_map(|r| r.get(2).cloned())
+                .collect();
+            let mut obj = JsonMap::new();
+            obj.insert("index_name".into(), JsonValue::String(name.to_string()));
+            obj.insert("index_type".into(), JsonValue::String("btree".to_string()));
+            obj.insert("is_unique".into(), JsonValue::Bool(unique));
+            obj.insert("is_primary".into(), JsonValue::Bool(is_primary));
+            obj.insert("columns".into(), JsonValue::Array(columns));
+            indexes.push(JsonValue::Object(obj));
+        }
+
+        Ok((relationships, indexes))
+    }
+
+    /// `db_lookup_row` — exact-match single column lookup for the FK side
+    /// panel. Limited to 2 rows so the UI can flag "more than one match".
+    pub async fn lookup_row(
+        &self,
+        table: &str,
+        column: &str,
+        value: &JsonValue,
+    ) -> Result<Vec<JsonValue>, String> {
+        validate_identifier(table)?;
+        validate_identifier(column)?;
+        let literal = match value {
+            JsonValue::Null => "NULL".to_string(),
+            other => pg_quote_literal(&json_to_text(other)),
+        };
+        let sql = format!(
+            "SELECT * FROM \"{table}\" WHERE \"{column}\" = {literal} LIMIT 2"
+        );
+        self.query_objects(&sql).await
+    }
+}
+
+/// Build a WHERE clause for the SQLite filter path. Mirrors
+/// `crate::build_filter_where` (Postgres) but inlines string literals
+/// rather than emitting `$1`/`$2` placeholders. Returns `""` for an
+/// empty filter list so the caller can append directly.
+fn build_filter_where_inline(filters: &[crate::FilterSpec]) -> Result<String, String> {
+    if filters.is_empty() {
+        return Ok(String::new());
+    }
+    let to_lit = |v: &JsonValue| -> String {
+        match v {
+            JsonValue::Null => "NULL".to_string(),
+            other => pg_quote_literal(&json_to_text(other)),
+        }
+    };
+    let escape_like = |v: &JsonValue| -> String {
+        let raw = match v {
+            JsonValue::Null => String::new(),
+            JsonValue::String(s) => s.clone(),
+            other => other.to_string(),
+        };
+        let mut out = String::with_capacity(raw.len());
+        for c in raw.chars() {
+            if c == '\\' || c == '%' || c == '_' {
+                out.push('\\');
+            }
+            out.push(c);
+        }
+        out
+    };
+    let mut clauses: Vec<String> = Vec::with_capacity(filters.len());
+    for f in filters {
+        validate_identifier(&f.column)?;
+        let col = format!("\"{}\"", f.column);
+        match f.operator.as_str() {
+            "eq" => clauses.push(format!(
+                "{col} = {}",
+                to_lit(f.value.as_ref().unwrap_or(&JsonValue::Null))
+            )),
+            "neq" => clauses.push(format!(
+                "{col} <> {}",
+                to_lit(f.value.as_ref().unwrap_or(&JsonValue::Null))
+            )),
+            "contains" => {
+                let pat = format!(
+                    "%{}%",
+                    escape_like(f.value.as_ref().unwrap_or(&JsonValue::Null))
+                );
+                // SQLite's LIKE is case-insensitive for ASCII by default,
+                // which matches the UX users get from Postgres's ILIKE
+                // for English columns. ESCAPE '\\' so escape_like's
+                // backslash-encoded specials behave.
+                clauses.push(format!("{col} LIKE {} ESCAPE '\\'", pg_quote_literal(&pat)));
+            }
+            "starts_with" => {
+                let pat = format!(
+                    "{}%",
+                    escape_like(f.value.as_ref().unwrap_or(&JsonValue::Null))
+                );
+                clauses.push(format!("{col} LIKE {} ESCAPE '\\'", pg_quote_literal(&pat)));
+            }
+            "is_null" => clauses.push(format!("{col} IS NULL")),
+            "is_not_null" => clauses.push(format!("{col} IS NOT NULL")),
+            "between" => {
+                let vs = f.values.as_ref().ok_or("between requires values")?;
+                if vs.len() != 2 {
+                    return Err("between requires two values".into());
+                }
+                clauses.push(format!(
+                    "{col} BETWEEN {} AND {}",
+                    to_lit(&vs[0]),
+                    to_lit(&vs[1])
+                ));
+            }
+            "in" => {
+                let vs = f.values.as_ref().ok_or("in requires values")?;
+                if vs.is_empty() {
+                    return Err("in requires at least one value".into());
+                }
+                let lits: Vec<String> = vs.iter().map(to_lit).collect();
+                clauses.push(format!("{col} IN ({})", lits.join(", ")));
+            }
+            other => return Err(format!("Unknown filter operator: {other}")),
+        }
+    }
+    Ok(format!(" WHERE {}", clauses.join(" AND ")))
 }
 
 #[derive(Serialize)]

@@ -1,19 +1,13 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useConnection } from '../contexts/connection-context';
 import { Dashboard } from '../components/dashboard';
 
 // `/` is the workspace entry. Connected → render Dashboard. Disconnected →
-// redirect to /connections. Mirrors apps/next/app/page.tsx, with useRouter
-// swapped for useNavigate.
+// redirect to /connections **synchronously** via <Navigate /> so there's
+// no frame where we render `null` (the previous useEffect-based redirect
+// flashed a blank screen during the unmount → effect → navigate roundtrip).
 export function Home() {
   const { isConnected } = useConnection();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isConnected) navigate('/connections', { replace: true });
-  }, [isConnected, navigate]);
-
-  if (isConnected) return <Dashboard />;
-  return null;
+  if (!isConnected) return <Navigate to="/connections" replace />;
+  return <Dashboard />;
 }

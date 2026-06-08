@@ -1,5 +1,6 @@
 
 import { useState, useMemo, useRef } from "react";
+import { Navigate } from "react-router-dom";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 import { MainContent } from "./main-content";
@@ -405,7 +406,9 @@ export function Dashboard() {
   };
 
   if (!isConnected) {
-    return null;
+    // Synchronous redirect so the user never sees a `null` frame while
+    // Home is in the middle of swapping us out for /connections.
+    return <Navigate to="/connections" replace />;
   }
 
   return (
@@ -576,16 +579,10 @@ export function Dashboard() {
                     {selectedTable}
                   </h1>
                   <div className="flex gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap">
-                    {primaryKeys.length > 0 && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => dataTableRef.current?.scrollToEmptyRow()}
-                        disabled={isLoading}
-                      >
-                        + Add row
-                      </Button>
-                    )}
+                    {/* "+ Add row" button was removed — the always-present
+                        empty row at the bottom of the data grid (rendered
+                        by data-table.tsx when canInsert) handles inserts
+                        directly. Kept Alt+N hotkey via dataTableRef. */}
                     <Button
                       variant="secondary"
                       size="sm"
