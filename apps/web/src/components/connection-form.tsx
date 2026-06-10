@@ -12,11 +12,13 @@ type DbType = 'postgresql' | 'mysql' | 'sqlite';
 interface ConnectionFormProps {
   onConnect: (config: DBConfig, name?: string) => void;
   isConnecting: boolean;
+  onCancel?: () => void;
 }
 
 export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   onConnect,
   isConnecting,
+  onCancel,
 }) => {
   const [dbType, setDbType] = useState<DbType>('postgresql');
   const [mode, setMode] = useState<InputMode>('url');
@@ -447,15 +449,26 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
             disabled={isConnecting}
           />
         )}
-        <Button
-          type="submit"
-          variant="primary"
-          className="w-full"
-          isLoading={isConnecting}
-          disabled={isConnecting}
-        >
-          Connect
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="submit"
+            variant="primary"
+            className="flex-1"
+            isLoading={isConnecting}
+            disabled={isConnecting}
+          >
+            Connect
+          </Button>
+          {isConnecting && onCancel && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+          )}
+        </div>
       </form>
     </div>
   );

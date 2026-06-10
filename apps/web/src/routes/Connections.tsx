@@ -7,7 +7,7 @@ import { Header } from '../components/header';
 import type { DBConfig } from '../types';
 
 export function Connections() {
-  const { isConnected, isConnecting, databaseName, connect, error } = useConnection();
+  const { isConnected, isConnecting, databaseName, connect, cancelConnect, error } = useConnection();
   const navigate = useNavigate();
 
   // Web-only notice: the SaaS round-trips credentials through a shared server,
@@ -81,6 +81,7 @@ export function Connections() {
               <ConnectionForm
                 onConnect={handleConnect}
                 isConnecting={isConnecting}
+                onCancel={cancelConnect}
               />
             </div>
 

@@ -48,6 +48,7 @@ function invoke<T>(cmd: string, args?: InvokeArgs): Promise<T> {
 // ─── connection lifecycle ────────────────────────────────────────────────
 
 interface ConnectResult {
+  sessionId: string;
   database: string;
   type: string;
   savedConnection?: SavedConnection;
@@ -97,6 +98,7 @@ async function connect(
   }
 
   return {
+    sessionId: res.sessionId,
     database: res.database,
     type: res.dbType,
     savedConnection,
@@ -105,7 +107,7 @@ async function connect(
 
 async function connectSaved(
   id: string,
-): Promise<{ database: string; type: "postgresql" | "sqlite" }> {
+): Promise<{ sessionId: string; database: string; type: "postgresql" | "sqlite" }> {
   // See `connect` above for why the prior sessionId stays live until the
   // new one resolves.
   const oldSessionId = sessionId;
@@ -114,7 +116,16 @@ async function connectSaved(
   if (oldSessionId && oldSessionId !== res.sessionId) {
     invoke<void>("db_disconnect", { sessionId: oldSessionId }).catch(() => {});
   }
-  return { database: res.database, type: res.dbType };
+  return { sessionId: res.sessionId, database: res.database, type: res.dbType };
+}
+
+// Drop a specific session id without touching the module-level current
+// sessionId — unless that current id is the one we're dropping, in which
+// case clear it too. Used to clean up orphans from cancelled connects
+// without disturbing a fresh attempt that already raced ahead.
+async function disconnectId(id: string): Promise<void> {
+  await invoke<void>("db_disconnect", { sessionId: id }).catch(() => {});
+  if (sessionId === id) sessionId = null;
 }
 
 async function disconnect(): Promise<void> {
@@ -372,6 +383,7 @@ export const db = {
   connect,
   connectSaved,
   disconnect,
+  disconnectId,
   health,
   isConnected: () => sessionId !== null,
 

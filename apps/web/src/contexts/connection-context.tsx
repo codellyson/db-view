@@ -24,6 +24,7 @@ interface ConnectionContextType {
   savedConnections: SavedConnection[];
   connect: (config: DBConfig, name?: string) => Promise<void>;
   connectToSaved: (connectionId: string) => Promise<void>;
+  cancelConnect: () => void;
   disconnect: () => Promise<void>;
   saveConnection: (name: string, config: DBConfig) => void;
   deleteConnection: (connectionId: string) => void;
@@ -45,6 +46,11 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   const { addToast } = useToast();
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastActivityRef = useRef<number>(0);
+  // Token bumped per connect attempt; cancelConnect bumps it too so the
+  // resolving await sees a mismatch and discards its result. Tauri's
+  // invoke() can't actually be aborted — we just make the UI behave as
+  // if it were, and clean up the orphan session that does come back.
+  const connectTokenRef = useRef(0);
 
   const loadSavedConnections = useCallback(async () => {
     try {
@@ -75,6 +81,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
   }, [savedConnections.length]);
 
   const connect = async (config: DBConfig, name?: string) => {
+    const token = ++connectTokenRef.current;
     setIsConnecting(true);
     setError(null);
     try {
@@ -88,6 +95,12 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         name && connectionId ? { name, id: connectionId } : undefined,
       );
 
+      if (connectTokenRef.current !== token) {
+        // Cancelled or superseded. Discard this session in the background.
+        void db.disconnectId(data.sessionId);
+        return;
+      }
+
       setIsConnected(true);
       setDatabaseName(data.database || config.database);
       setDatabaseType((data.type || config.type || 'postgresql') as 'postgresql' | 'mysql' | 'sqlite');
@@ -98,12 +111,13 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         localStorage.setItem(CURRENT_CONNECTION_KEY, connectionId!);
       }
     } catch (err: any) {
+      if (connectTokenRef.current !== token) return;
       setError(err.message || 'Connection failed');
       setIsConnected(false);
       setDatabaseName(undefined);
       throw err;
     } finally {
-      setIsConnecting(false);
+      if (connectTokenRef.current === token) setIsConnecting(false);
     }
   };
 
@@ -113,11 +127,18 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       throw new Error('Connection not found');
     }
 
+    const token = ++connectTokenRef.current;
     setIsConnecting(true);
     setError(null);
     try {
       // Rust pulls the credentials from the OS keychain and opens a fresh session.
       const data = await db.connectSaved(connectionId);
+
+      if (connectTokenRef.current !== token) {
+        void db.disconnectId(data.sessionId);
+        return;
+      }
+
       setIsConnected(true);
       setDatabaseName(data.database || connection.config.database);
       setDatabaseType((data.type || connection.config.type || 'postgresql') as 'postgresql' | 'mysql' | 'sqlite');
@@ -130,14 +151,21 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         )
       );
     } catch (err: any) {
+      if (connectTokenRef.current !== token) return;
       setError(err.message || 'Connection failed');
       setIsConnected(false);
       setDatabaseName(undefined);
       throw err;
     } finally {
-      setIsConnecting(false);
+      if (connectTokenRef.current === token) setIsConnecting(false);
     }
   };
+
+  const cancelConnect = useCallback(() => {
+    connectTokenRef.current += 1;
+    setIsConnecting(false);
+    setError(null);
+  }, []);
 
   const disconnect = useCallback(async () => {
     try {
@@ -242,6 +270,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         savedConnections,
         connect,
         connectToSaved,
+        cancelConnect,
         disconnect,
         saveConnection,
         deleteConnection,
