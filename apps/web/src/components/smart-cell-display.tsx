@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, memo } from 'react';
 import { createPortal } from 'react-dom';
 
 interface SmartCellDisplayProps {
@@ -63,12 +63,12 @@ function formatTimestamp(value: any, raw: boolean): string {
   return d.toLocaleString();
 }
 
-export const SmartCellDisplay: React.FC<SmartCellDisplayProps> = ({
+export const SmartCellDisplay = memo(function SmartCellDisplay({
   value,
   column,
   columnType,
   rawTimestamps,
-}) => {
+}: SmartCellDisplayProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -231,7 +231,7 @@ export const SmartCellDisplay: React.FC<SmartCellDisplayProps> = ({
   }
 
   return <span title={stringValue}>{stringValue}</span>;
-};
+});
 
 /**
  * Renders the collapsed `{}` chip in flow and, when expanded, the

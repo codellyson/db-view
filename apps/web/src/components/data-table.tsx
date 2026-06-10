@@ -7,6 +7,7 @@ import React, {
   useEffect,
   forwardRef,
   useImperativeHandle,
+  memo,
 } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { EmptyState } from './empty-state';
@@ -370,6 +371,26 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
     [columnWidths, naturalWidthForCol, scaleFactor]
   );
 
+  // Pre-compute column left positions to avoid O(n²) recalculation per cell
+  const columnLeftPositions = useMemo(() => {
+    const positions: Record<string, number> = {};
+    let left = 0;
+    for (const col of displayColumns) {
+      positions[col] = left;
+      left += columnWidths[col] || Math.round(naturalWidthForCol(col) * scaleFactor);
+    }
+    return positions;
+  }, [displayColumns, columnWidths, naturalWidthForCol, scaleFactor]);
+
+  // Pre-compute column widths array to avoid per-cell recalculation
+  const computedColumnWidths = useMemo(() => {
+    const widths: Record<string, number> = {};
+    for (const col of displayColumns) {
+      widths[col] = columnWidths[col] || Math.round(naturalWidthForCol(col) * scaleFactor);
+    }
+    return widths;
+  }, [displayColumns, columnWidths, naturalWidthForCol, scaleFactor]);
+
   // Column resize handlers
   const handleResizeStart = useCallback((e: React.MouseEvent, col: string) => {
     e.preventDefault();
@@ -442,14 +463,26 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
     [displayColumns, totalRowCount]
   );
 
-  // Virtual row rendering — use measureElement for dynamic row heights
-  // so expanded row details push subsequent rows down instead of overlapping.
+  // Memoize estimateSize to avoid re-creating on every render
+  const estimateRowSize = useCallback(
+    (index: number) => (expandedRow === index ? ROW_HEIGHT * 6 : ROW_HEIGHT),
+    [expandedRow]
+  );
+
+  // Memoize measureElement to avoid conditional hook issues
+  const measureElement = useMemo(
+    () => (expandedRow !== null ? (el: Element) => el.getBoundingClientRect().height : undefined),
+    [expandedRow]
+  );
+
+  // Virtual row rendering — use measureElement only for expanded rows
+  // to avoid layout thrashing on scroll. Most rows are fixed height.
   const rowVirtualizer = useVirtualizer({
     count: totalRowCount,
     getScrollElement: () => scrollContainerRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 10,
-    measureElement: (el) => el.getBoundingClientRect().height,
+    estimateSize: estimateRowSize,
+    overscan: 5,
+    measureElement,
   });
 
   const mobileVirtualizer = useVirtualizer({
@@ -811,10 +844,12 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
   // Frozen-column offsets — the set of columns at-or-before the current
   // frozen anchor. `getColumnLeft` reads this when computing each frozen
   // cell's `left` style so they stick correctly while horizontally scrolling.
+  // Not a hook to avoid rules-of-hooks issues with early returns above.
   const frozenColIndex = frozenColumn ? displayColumns.indexOf(frozenColumn) : -1;
   const frozenCols = frozenColIndex >= 0 ? displayColumns.slice(0, frozenColIndex + 1) : [];
 
-  const totalTableWidth = displayColumns.reduce((sum, col) => sum + getColumnWidth(col), 0);
+  // Use pre-computed widths for total calculation (not a hook to avoid rules-of-hooks issues)
+  const totalTableWidth = displayColumns.reduce((sum, col) => sum + (computedColumnWidths[col] ?? 0), 0);
 
   const renderCellContent = (row: any, column: string, rowIndex: number) => {
     const rowPks = primaryKeys.length > 0 ? getRowPrimaryKeys(row) : null;
@@ -862,16 +897,12 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
     );
   };
 
-  const isFrozen = (col: string) => frozenCols.includes(col);
+  // Use Set for O(1) frozen column lookup (defined as regular functions, not hooks, to avoid rules-of-hooks issues)
+  const frozenColSet = new Set(frozenCols);
+  const isFrozen = (col: string) => frozenColSet.has(col);
 
-  const getColumnLeft = (col: string) => {
-    let left = 0;
-    for (const c of displayColumns) {
-      if (c === col) break;
-      left += getColumnWidth(c);
-    }
-    return left;
-  };
+  // Use pre-computed positions instead of iterating
+  const getColumnLeft = (col: string) => columnLeftPositions[col] ?? 0;
 
   return (
     <div className="flex gap-0 flex-1 min-h-0">
@@ -1014,7 +1045,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                     frozen ? 'sticky z-30 bg-bg-secondary border-r border-border' : ''
                   } ${dragOverColumn === column ? 'bg-accent/10 border-l-2 border-l-accent' : ''}`}
                   style={{
-                    width: getColumnWidth(column),
+                    width: computedColumnWidths[column],
                     left: colLeft,
                   }}
                   onClick={() => onSort?.(column)}
@@ -1123,7 +1154,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                                 ? 'ring-2 ring-inset ring-accent/60'
                                 : ''
                             }`}
-                            style={{ width: getColumnWidth(column), left: colLeft }}
+                            style={{ width: computedColumnWidths[column], left: colLeft }}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (cellEditing) return;
@@ -1205,7 +1236,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                             className={`flex-shrink-0 px-3 flex items-center text-sm text-muted font-mono ${
                               frozen ? 'sticky z-10 bg-inherit border-r border-border' : ''
                             }`}
-                            style={{ width: getColumnWidth(column), left: colLeft }}
+                            style={{ width: computedColumnWidths[column], left: colLeft }}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (cellEditing) return;
@@ -1352,7 +1383,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                               : isSelected ? 'ring-2 ring-inset ring-accent/60 bg-accent/5' : ''
                           }`}
                           style={{
-                            width: getColumnWidth(column),
+                            width: computedColumnWidths[column],
                             left: colLeft,
                           }}
                           onClick={(e) => {

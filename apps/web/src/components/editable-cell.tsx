@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { SmartCellDisplay } from './smart-cell-display';
 
@@ -91,7 +91,7 @@ function computePosition(anchor: DOMRect, popoverSize: { width: number; height: 
   return { top, left, width: desiredWidth };
 }
 
-export const EditableCell: React.FC<EditableCellProps> = ({
+export const EditableCell = memo(function EditableCell({
   value,
   column,
   columnType,
@@ -100,7 +100,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
   isEditing,
   onStartEdit,
   disabled = false,
-}) => {
+}: EditableCellProps) {
   const editorKind = inferEditor(columnType, value);
   const isLargeEditor = editorKind === 'json' || editorKind === 'textarea';
 
@@ -385,4 +385,4 @@ export const EditableCell: React.FC<EditableCellProps> = ({
         )}
     </>
   );
-};
+});

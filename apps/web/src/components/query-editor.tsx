@@ -33,6 +33,9 @@ interface PendingQueryConfirmation {
   requiresTypedConfirmation: boolean;
 }
 
+/** Maximum rows to display in query results to prevent UI freezing */
+const MAX_RESULT_ROWS = 1000;
+
 interface ResultTab {
   id: string;
   label: string;
@@ -44,6 +47,10 @@ interface ResultTab {
   executionTime: number;
   /** field metadata returned by the driver — drives editability detection */
   fields?: QueryFieldInfo[];
+  /** Total rows returned by query (before truncation) */
+  totalRows?: number;
+  /** Whether results were truncated to MAX_RESULT_ROWS */
+  truncated?: boolean;
 }
 
 interface QueryEditorProps {
@@ -173,12 +180,19 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
           return;
         }
 
-        const rows = data.rows || [];
+        const allRows = data.rows || [];
+        const totalRows = allRows.length;
+        const truncated = totalRows > MAX_RESULT_ROWS;
+        const rows = truncated ? allRows.slice(0, MAX_RESULT_ROWS) : allRows;
         const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
         const columnTypes = parseColumnTypes(data);
         const fields = data.fields as QueryFieldInfo[] | undefined;
         const execTime = data.executionTime || 0;
         const label = execQuery.length > 30 ? execQuery.slice(0, 30) + '...' : execQuery;
+
+        if (truncated) {
+          addToast(`Showing first ${MAX_RESULT_ROWS.toLocaleString()} of ${totalRows.toLocaleString()} rows. Add LIMIT to your query for better performance.`, 'warning');
+        }
 
         const existingId = resultTabs.find((t) => t.sql === execQuery)?.id;
         const tabId =
@@ -194,6 +208,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               columnTypes,
               executionTime: execTime,
               fields,
+              totalRows,
+              truncated,
             };
             return prev.map((t, i) => (i === idx ? updated : t));
           }
@@ -208,11 +224,13 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               columnTypes,
               executionTime: execTime,
               fields,
+              totalRows,
+              truncated,
             },
           ];
         });
         setActiveResultTabId(tabId);
-        addQuery(execQuery, execTime, rows.length);
+        addQuery(execQuery, execTime, totalRows);
       } catch (err: any) {
         setError(err.message || 'Query execution failed');
       } finally {
@@ -610,7 +628,14 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
         <div>
           <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-sm text-muted">
-              {activeTab.rows.length} {activeTab.rows.length === 1 ? 'row' : 'rows'} returned
+              {activeTab.truncated ? (
+                <>
+                  Showing {activeTab.rows.length.toLocaleString()} of {activeTab.totalRows?.toLocaleString()} rows
+                  <span className="ml-1.5 text-warning">(truncated)</span>
+                </>
+              ) : (
+                <>{activeTab.rows.length.toLocaleString()} {activeTab.rows.length === 1 ? 'row' : 'rows'} returned</>
+              )}
             </span>
             <div className="flex items-center gap-2">
               {editableMeta ? (
