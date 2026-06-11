@@ -45,27 +45,27 @@ export const SavedConnections: React.FC = () => {
   };
 
   return (
-    <Card title="Saved connections" className="mb-8">
-      <div className="space-y-2">
+    <Card title="Saved connections">
+      <div className="space-y-1.5">
         {savedConnections.map((connection) => (
           <div
             key={connection.id}
-            className={`p-4 border rounded-md transition-colors ${
+            className={`px-3 py-2 border rounded-md transition-colors ${
               connection.id === currentConnectionId
                 ? 'bg-accent/10 border-accent text-primary'
                 : 'bg-bg border-border text-primary hover:bg-bg-secondary'
             }`}
           >
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate mb-0.5">
+                <p className="text-sm font-medium truncate leading-tight">
                   {connection.name}
                 </p>
-                <p className="text-xs font-mono text-muted truncate">
+                <p className="text-[11px] font-mono text-muted truncate leading-tight">
                   {connection.config.host}:{connection.config.port}/{connection.config.database}
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
                 {connection.id !== currentConnectionId && (
                   <Button
                     variant="secondary"
@@ -78,7 +78,7 @@ export const SavedConnections: React.FC = () => {
                 )}
                 <button
                   onClick={() => handleDelete(connection.id)}
-                  className="px-3 py-1.5 text-xs font-medium rounded-md border border-border text-secondary hover:bg-danger/10 hover:text-danger hover:border-danger transition-colors"
+                  className="px-2.5 py-1 text-xs font-medium rounded-md border border-border text-secondary hover:bg-danger/10 hover:text-danger hover:border-danger transition-colors"
                   disabled={isConnecting}
                 >
                   Delete

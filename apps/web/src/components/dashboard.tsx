@@ -4,7 +4,11 @@ import { Navigate } from "react-router-dom";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 import { MainContent } from "./main-content";
-import { DataTable, type DataTableHandle } from "./data-table";
+import {
+  QueryResultGrid,
+  type QueryResultGridHandle,
+  type ForeignKeyTarget as QrgForeignKeyTarget,
+} from "./query-result-grid";
 import { TableSchema } from "./table-schema";
 import { Pagination } from "./pagination";
 import { EmptyState } from "./empty-state";
@@ -22,7 +26,7 @@ import { TablePicker } from "./table-picker";
 import { CommandPalette, type CommandAction } from "./command-palette";
 import { FKSidePanel, type FKQuery } from "./fk-side-panel";
 import { FilterChips } from "./filter-chips";
-import type { ForeignKeyTarget } from "./data-table";
+type ForeignKeyTarget = QrgForeignKeyTarget;
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { TableStats } from "./table-stats";
 import { CSVImportDialog } from "./csv-import-dialog";
@@ -111,7 +115,7 @@ export function Dashboard() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
-  const dataTableRef = useRef<DataTableHandle>(null);
+  const dataTableRef = useRef<QueryResultGridHandle>(null);
 
   const columnTypes = useMemo(() => {
     const types: Record<string, string> = {};
@@ -557,7 +561,7 @@ export function Dashboard() {
                         {qr.rows.length} {qr.rows.length === 1 ? 'row' : 'rows'} &middot; {qr.executionTime}ms
                       </span>
                     </div>
-                    <DataTable
+                    <QueryResultGrid
                       columns={qr.columns}
                       data={qr.rows}
                       isLoading={false}
@@ -658,14 +662,14 @@ export function Dashboard() {
                     void column;
                   }}
                 />
-                <DataTable
+                <QueryResultGrid
                   ref={dataTableRef}
                   columns={columns}
                   data={tableData}
                   isLoading={isLoading}
                   onSort={handleSort}
                   sortColumn={sortColumn || undefined}
-                  sortDirection={sortDirection}
+                  sortDirection={sortDirection ?? undefined}
                   visibleColumns={visibleColumns.length > 0 ? visibleColumns : undefined}
                   searchQuery={tableSearch}
                   primaryKeys={primaryKeys}

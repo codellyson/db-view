@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '@/lib/db';
-import type { ForeignKeyTarget } from './data-table';
+import type { ForeignKeyTarget } from './query-result-grid';
 
 export interface FKQuery {
   /** column on the source row that initiated the lookup, for breadcrumb display */

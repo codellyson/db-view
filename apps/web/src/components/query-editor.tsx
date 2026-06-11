@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook';
 import { EditorView } from '@codemirror/view';
 import { Card } from './ui/card';
-import { DataTable } from './data-table';
+import { QueryResultGrid } from './query-result-grid';
 import { ErrorState } from './error-state';
 import { SqlEditor } from './sql-editor';
 import { useQueryHistory } from '../hooks/use-query-history';
@@ -700,11 +700,14 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               Query executed successfully. No rows returned.
             </div>
           ) : (
-            <DataTable
+            <QueryResultGrid
               columns={activeTab.columns}
               data={activeTab.rows}
-              isLoading={false}
               columnTypes={activeTab.columnTypes}
+              layoutKey={activeTab.sql}
+              // SQL editor has a tall SQL-query Card above the grid; the
+              // default leaves the grid extending below the viewport.
+              maxHeightCss="calc(100vh - 520px)"
               searchQuery={resultSearchQuery}
               schema={editableMeta?.schema}
               table={editableMeta?.table}
@@ -716,16 +719,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               onRowDelete={editableMeta ? handleQueryRowDelete : undefined}
               readOnlyColumns={editableMeta?.readOnlyResultColumns}
               foreignKeys={resultForeignKeys}
-              onForeignKeyClick={
-                onForeignKeyClick
-                  ? (args) =>
-                      onForeignKeyClick({
-                        sourceColumn: args.sourceColumn,
-                        fk: args.fk,
-                        value: args.value,
-                      })
-                  : undefined
-              }
+              onForeignKeyClick={onForeignKeyClick}
             />
           )}
         </div>
