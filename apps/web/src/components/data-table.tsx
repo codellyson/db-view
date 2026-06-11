@@ -572,6 +572,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                   left: 0,
                   width: '100%',
                   transform: `translateY(${virtualRow.start}px)`,
+                  contain: 'layout paint',
                 }}
                 className="px-1 pb-2"
               >
@@ -986,6 +987,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
       <div
         ref={setScrollContainer}
         className="flex-1 overflow-auto relative"
+        style={{ willChange: 'scroll-position', contain: 'layout paint' }}
       >
         <div style={{ width: Math.max(totalTableWidth + LEFT_CHROME_WIDTH, 0), minWidth: '100%' }}>
           {/* Sticky header */}
@@ -1123,6 +1125,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                       left: 0,
                       width: '100%',
                       transform: `translateY(${virtualRow.start}px)`,
+                      contain: 'layout paint',
                     }}
                   >
                     <div
@@ -1211,6 +1214,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                       left: 0,
                       width: '100%',
                       transform: `translateY(${virtualRow.start}px)`,
+                      contain: 'layout paint',
                     }}
                   >
                     <div
@@ -1293,6 +1297,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                     left: 0,
                     width: '100%',
                     transform: `translateY(${virtualRow.start}px)`,
+                    contain: 'layout paint',
                   }}
                 >
                   <div
@@ -1352,7 +1357,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                       )}
                     </div>
                     <div
-                      className="flex-shrink-0 flex items-center justify-center text-[10px] font-mono text-muted hover:text-primary transition-colors group/rownum"
+                      className="flex-shrink-0 flex items-center justify-center text-[10px] font-mono text-muted hover:text-primary group/rownum"
                       style={{ width: 40 }}
                       aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
                       title={`Row ${rowIndex + 1}`}
@@ -1360,7 +1365,7 @@ export const DataTable = forwardRef<DataTableHandle, DataTableProps>(function Da
                       <span className={`group-hover/rownum:hidden ${isExpanded ? 'hidden' : ''}`}>{rowIndex + 1}</span>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className={`h-3.5 w-3.5 transition-transform duration-150 hidden group-hover/rownum:block ${isExpanded ? 'rotate-90 !block' : ''}`}
+                        className={`h-3.5 w-3.5 hidden group-hover/rownum:block ${isExpanded ? 'rotate-90 !block' : ''}`}
                         viewBox="0 0 20 20"
                         fill="currentColor"
                       >

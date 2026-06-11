@@ -33,8 +33,10 @@ interface PendingQueryConfirmation {
   requiresTypedConfirmation: boolean;
 }
 
-/** Maximum rows to display in query results to prevent UI freezing */
-const MAX_RESULT_ROWS = 1000;
+// 1k wide rows (16+ varchar cols on a remote DB) hung the webview after
+// render — no console error, just frozen. 200 keeps the grid responsive
+// even on heavy result shapes. Add an explicit LIMIT to pull more.
+const MAX_RESULT_ROWS = 200;
 
 interface ResultTab {
   id: string;
