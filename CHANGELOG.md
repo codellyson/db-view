@@ -3,6 +3,11 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.14] - 2026-06-12
+
+### Fixed
+- **tauri:** Bump libsql 0.6 → 0.9 to unblock Windows build ([6c6d2bc](https://github.com/codellyson/justdb/commit/6c6d2bc9ce4ade373dbc3ca05d6587b56b2b6211))
+
 ## [0.1.13] - 2026-06-12
 ## [0.1.13] - 2026-06-12
 
