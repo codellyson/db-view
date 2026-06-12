@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ConnectionStatus } from './connection-status';
 import { ConnectionSelector } from './connection-selector';
 import { Button } from './ui/button';
@@ -23,7 +23,6 @@ export const Header: React.FC<HeaderProps> = ({
   onMenuToggle,
   onShortcutsHelp,
 }) => {
-  const pathname = useLocation().pathname;
   const navigate = useNavigate();
   const { disconnect } = useConnection();
   const { latency, healthy } = useConnectionHealth(isConnected);
@@ -109,32 +108,6 @@ export const Header: React.FC<HeaderProps> = ({
             />
             <span className="text-base font-semibold text-primary">JustDB</span>
           </div>
-        )}
-        {isConnected && (
-          <nav aria-label="Main navigation" className="flex items-center gap-1">
-            <button
-              onClick={() => navigate('/')}
-              aria-current={pathname === '/' ? 'page' : undefined}
-              className={`inline-flex text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-                pathname === '/'
-                  ? 'bg-accent/10 text-accent'
-                  : 'text-secondary hover:text-primary hover:bg-bg-secondary'
-              }`}
-            >
-              Workspace
-            </button>
-            <button
-              onClick={() => navigate('/connections')}
-              aria-current={pathname === '/connections' ? 'page' : undefined}
-              className={`inline-flex text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-                pathname === '/connections'
-                  ? 'bg-accent/10 text-accent'
-                  : 'text-secondary hover:text-primary hover:bg-bg-secondary'
-              }`}
-            >
-              Connections
-            </button>
-          </nav>
         )}
       </div>
       <div className="flex items-center gap-2 md:gap-3">

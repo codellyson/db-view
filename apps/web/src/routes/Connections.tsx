@@ -46,7 +46,17 @@ export function Connections() {
             }`}
           >
             {!isConnected && (
-              <div className="text-center mb-6">
+              <div className="text-center mb-6 flex flex-col items-center">
+                {/* Logo scaled to match the title's visual weight — much
+                    smaller than the original 80px so it doesn't dominate
+                    the compact form layout. */}
+                <img
+                  src="/logo.svg"
+                  alt="JustDB"
+                  width={36}
+                  height={36}
+                  className="mb-2"
+                />
                 <h1 className="text-xl font-bold tracking-tight text-primary">
                   JustDB
                 </h1>

@@ -1,6 +1,5 @@
 
 import React, { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -8,17 +7,11 @@ interface MobileMenuProps {
   children: React.ReactNode;
 }
 
-const navItems = [
-  { label: 'Connections', path: '/connections' },
-];
-
 export const MobileMenu: React.FC<MobileMenuProps> = ({
   isOpen,
   onClose,
   children,
 }) => {
-  const pathname = useLocation().pathname;
-  const navigate = useNavigate();
   useEffect(() => {
     if (!isOpen) return;
 
@@ -57,22 +50,6 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             </svg>
           </button>
         </div>
-        <nav className="flex gap-1 px-3 py-2 border-b border-border">
-          {navItems.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => { navigate(item.path); onClose(); }}
-              aria-current={pathname === item.path ? 'page' : undefined}
-              className={`flex-1 text-xs font-medium px-2 py-1.5 rounded-md text-center transition-colors ${
-                pathname === item.path
-                  ? 'bg-accent/10 text-accent'
-                  : 'text-secondary hover:text-primary hover:bg-bg-secondary'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
         <div className="p-4">{children}</div>
       </div>
     </div>

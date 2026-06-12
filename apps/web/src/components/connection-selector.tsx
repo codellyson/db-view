@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useConnection } from '../contexts/connection-context';
 import { useToast } from '../contexts/toast-context';
 import { ConfirmDialog } from './ui/confirm-dialog';
@@ -13,14 +14,14 @@ export const ConnectionSelector: React.FC = () => {
     isConnecting,
   } = useConnection();
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
 
-  if (savedConnections.length === 0) {
-    return null;
-  }
-
+  // Render even when there are no saved connections — the dropdown still
+  // needs to expose the "Add new connection" path now that the top-level
+  // Connections tab has been removed.
   const currentConnection = savedConnections.find(c => c.id === currentConnectionId);
 
   const handleSwitch = async (connectionId: string) => {
@@ -82,9 +83,11 @@ export const ConnectionSelector: React.FC = () => {
             aria-hidden="true"
           />
           <div className="absolute top-full right-0 mt-2 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[220px] overflow-hidden" role="listbox" aria-label="Saved connections">
-            <div className="px-3 py-2 border-b border-border bg-bg-secondary">
-              <p className="text-xs font-medium text-muted">Saved connections</p>
-            </div>
+            {savedConnections.length > 0 && (
+              <div className="px-3 py-2 border-b border-border bg-bg-secondary">
+                <p className="text-xs font-medium text-muted">Saved connections</p>
+              </div>
+            )}
             <div className="max-h-64 overflow-y-auto">
               {savedConnections.map((connection) => (
                 <div
@@ -127,6 +130,19 @@ export const ConnectionSelector: React.FC = () => {
                 </div>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/connections');
+              }}
+              className="w-full text-left px-3 py-2.5 border-t border-border text-sm text-secondary hover:text-primary hover:bg-bg-secondary transition-colors flex items-center gap-2"
+            >
+              <svg className="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M10 5a1 1 0 0 1 1 1v3h3a1 1 0 1 1 0 2h-3v3a1 1 0 1 1-2 0v-3H6a1 1 0 1 1 0-2h3V6a1 1 0 0 1 1-1z" clipRule="evenodd" />
+              </svg>
+              Add new connection
+            </button>
           </div>
         </>
       )}
