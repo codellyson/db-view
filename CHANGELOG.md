@@ -4,6 +4,7 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.1.11] - 2026-06-12
+## [0.1.11] - 2026-06-12
 
 ### Added
 - **tauri:** SQLite + libsql/Turso browse-only backend (slice 1) ([3504f9c](https://github.com/codellyson/justdb/commit/3504f9c456116d21f4c4db06985c1a2b1e39e889))
