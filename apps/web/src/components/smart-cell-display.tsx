@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState, memo } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { createPortal } from 'react-dom';
 
 interface SmartCellDisplayProps {
