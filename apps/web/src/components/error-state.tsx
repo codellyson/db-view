@@ -37,8 +37,11 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-3">
-            <span className="flex-shrink-0 text-danger text-sm font-medium">!</span>
-            <p className="text-sm text-primary">{message}</p>
+            <span className="flex-shrink-0 text-danger text-sm font-medium self-start mt-0.5">!</span>
+            {/* Preserve newlines so multi-line SQL errors (ERROR / Detail /
+                Hint / Position / SQLSTATE) stay readable instead of being
+                collapsed onto one line. */}
+            <p className="text-sm text-primary whitespace-pre-wrap break-words">{message}</p>
           </div>
           {hint && (
             <p className="text-xs text-muted ml-6">{hint}</p>

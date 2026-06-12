@@ -6,7 +6,7 @@ mod sqlite;
 
 use dashmap::DashMap;
 use mutation::MutationRequest;
-use postgres::{DbConfig, DbType, PgConnection, QueryResult};
+use postgres::{format_error as format_pg_error, DbConfig, DbType, PgConnection, QueryResult};
 use saved_connections::{ClientSavedConnection, SavedConnection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -146,7 +146,7 @@ async fn db_query(
         DbConnection::Pg(pg) => pg
             .query(&sql)
             .await
-            .map_err(|e| CommandError::Query(e.to_string())),
+            .map_err(|e| CommandError::Query(format_pg_error(&e))),
         DbConnection::Sqlite(sq) => sq.query(&sql).await.map_err(CommandError::Query),
     }
 }
@@ -221,7 +221,7 @@ async fn db_list_schemas(
                      ORDER BY schema_name",
                 )
                 .await
-                .map_err(|e| CommandError::Query(e.to_string()))?;
+                .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
             Ok(first_column_strings(&res.rows))
         }
         DbConnection::Sqlite(sq) => sq.list_schemas().await.map_err(CommandError::Query),
@@ -246,7 +246,7 @@ async fn db_list_tables(
                     &[Some(schema)],
                 )
                 .await
-                .map_err(|e| CommandError::Query(e.to_string()))?;
+                .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
             Ok(first_column_strings(&res.rows))
         }
         DbConnection::Sqlite(sq) => sq.list_tables().await.map_err(CommandError::Query),
@@ -432,7 +432,7 @@ async fn db_table_rows(
                 &filter_params,
             )
             .await
-            .map_err(|e| CommandError::Query(e.to_string()))?;
+            .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
         let n: i64 = c
             .rows
             .first()
@@ -450,7 +450,7 @@ async fn db_table_rows(
                 &[Some(table.clone()), Some(schema.clone())],
             )
             .await
-            .map_err(|e| CommandError::Query(e.to_string()))?;
+            .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
         let estimate: i64 = est
             .rows
             .first()
@@ -463,7 +463,7 @@ async fn db_table_rows(
             let c = pg
                 .query(&format!("SELECT COUNT(*) AS count FROM {qualified}"))
                 .await
-                .map_err(|e| CommandError::Query(e.to_string()))?;
+                .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
             let n: i64 = c
                 .rows
                 .first()
@@ -485,7 +485,7 @@ async fn db_table_rows(
     let rows = pg
         .query_objects(&data_sql, &filter_params)
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
 
     Ok(TableRowsResponse {
         rows,
@@ -541,7 +541,7 @@ async fn db_import(
         DbConnection::Pg(pg) => {
             pg.run_transaction(&statements)
                 .await
-                .map_err(|e| CommandError::Query(e.to_string()))?;
+                .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
         }
         DbConnection::Sqlite(sq) => {
             sq.run_transaction(&statements)
@@ -625,7 +625,7 @@ async fn db_explain(
     )
     .await
     .map_err(|_| CommandError::Query("EXPLAIN timeout exceeded (30s)".into()))?
-    .map_err(|e| CommandError::Query(e.to_string()))?;
+    .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
     let execution_time = start.elapsed().as_millis() as u64;
 
     // EXPLAIN (FORMAT JSON) returns exactly one row, one column ("QUERY PLAN")
@@ -765,7 +765,7 @@ async fn db_run_query(
     )
     .await
     .map_err(|_| CommandError::Query("Query timeout exceeded (30s)".into()))?
-    .map_err(|e| CommandError::Query(e.to_string()))?;
+    .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
     let execution_time = start.elapsed().as_millis() as u64;
 
     // Resolve base-table sources for any result columns that came from a
@@ -994,7 +994,7 @@ async fn db_mutate(
             let result = pg
                 .query(&sql)
                 .await
-                .map_err(|e| CommandError::Query(e.to_string()))?;
+                .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
             let rows = postgres::rows_as_objects(&result);
             Ok(MutateResponse {
                 success: true,
@@ -1006,7 +1006,7 @@ async fn db_mutate(
             let affected = pg
                 .execute(&sql, &[])
                 .await
-                .map_err(|e| CommandError::Query(e.to_string()))?;
+                .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
             Ok(MutateResponse {
                 success: true,
                 affected_rows: Some(affected as i64),
@@ -1048,7 +1048,7 @@ async fn db_mutate_batch(
         DbConnection::Pg(pg) => pg
             .run_transaction(&statements)
             .await
-            .map_err(|e| CommandError::Query(e.to_string()))?,
+            .map_err(|e| CommandError::Query(format_pg_error(&e)))?,
         DbConnection::Sqlite(sq) => sq
             .run_transaction(&statements)
             .await
@@ -1092,7 +1092,7 @@ async fn db_ddl(
         DbConnection::Pg(pg) => {
             pg.execute(&sql, &[])
                 .await
-                .map_err(|e| CommandError::Query(e.to_string()))?;
+                .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
         }
         DbConnection::Sqlite(sq) => {
             sq.execute(&sql).await.map_err(CommandError::Query)?;
@@ -1153,7 +1153,7 @@ async fn db_schema_map(
             &[Some(schema)],
         )
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
 
     let mut schema_map: std::collections::BTreeMap<String, Vec<String>> =
         std::collections::BTreeMap::new();
@@ -1211,7 +1211,7 @@ async fn db_views(
             &[Some(schema.clone())],
         )
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
 
     let matviews_res = pg
         .query_with_params(
@@ -1221,7 +1221,7 @@ async fn db_views(
             &[Some(schema)],
         )
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
 
     Ok(ViewsResponse {
         views: first_column_strings(&views_res.rows),
@@ -1272,7 +1272,7 @@ async fn db_functions(
             &[Some(schema)],
         )
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
 
     Ok(FunctionsResponse { functions })
 }
@@ -1323,7 +1323,7 @@ async fn db_table_counts(
             &[Some(schema)],
         )
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
 
     let mut counts: std::collections::BTreeMap<String, i64> =
         std::collections::BTreeMap::new();
@@ -1384,7 +1384,7 @@ async fn db_table_stats(
             &[Some(table), Some(schema)],
         )
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
 
     Ok(TableStatsResponse {
         stats: rows.into_iter().next(),
@@ -1442,7 +1442,7 @@ async fn db_relationships(
             &[Some(table.clone()), Some(schema.clone())],
         )
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
 
     // Indexes — SaaS uses array_agg, but our postgres_value_to_json doesn't
     // yet decode pg arrays. jsonb_agg gives us a jsonb that decodes
@@ -1467,7 +1467,7 @@ async fn db_relationships(
             &[Some(table), Some(schema)],
         )
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
 
     Ok(RelationshipsResponse {
         relationships,
@@ -1514,7 +1514,7 @@ async fn db_lookup_row(
     let rows = pg
         .query_objects(&sql, &[])
         .await
-        .map_err(|e| CommandError::Query(e.to_string()))?;
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
     Ok(LookupResponse { rows })
 }
 
@@ -1557,7 +1557,7 @@ async fn db_table_schema(
         &[Some(table), Some(schema)],
     )
     .await
-    .map_err(|e| CommandError::Query(e.to_string()))
+    .map_err(|e| CommandError::Query(format_pg_error(&e)))
 }
 
 // Writes raw bytes to an absolute path the user already picked via the dialog

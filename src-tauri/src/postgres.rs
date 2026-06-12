@@ -7,6 +7,45 @@ use tokio_postgres::{
     Client, Row,
 };
 
+/// Render a `tokio_postgres::Error` as something a SQL user can act on.
+///
+/// `Error`'s own `Display` only emits its outermost variant — for SQL
+/// failures that's the literal string "db error", with the actual server
+/// message hidden on the wrapped `DbError`. Unwrapping it here gives the
+/// editor the message, hint, detail, position, and SQLSTATE so the user
+/// doesn't see an unhelpful "db error" toast.
+pub fn format_error(e: &tokio_postgres::Error) -> String {
+    if let Some(db) = e.as_db_error() {
+        let mut msg = String::new();
+        msg.push_str(&format!("{}: {}", db.severity(), db.message()));
+        if let Some(detail) = db.detail() {
+            msg.push_str("\nDetail: ");
+            msg.push_str(detail);
+        }
+        if let Some(hint) = db.hint() {
+            msg.push_str("\nHint: ");
+            msg.push_str(hint);
+        }
+        if let Some(pos) = db.position() {
+            // `ErrorPosition` is an enum; `{:?}` would leak "Original(54)" /
+            // "Internal { .. }" wrappers into the UI. Format it as a plain
+            // character offset (internal-query positions are rare and the
+            // offset alone is what users act on).
+            let offset = match pos {
+                tokio_postgres::error::ErrorPosition::Original(n) => *n,
+                tokio_postgres::error::ErrorPosition::Internal { position, .. } => *position,
+            };
+            msg.push_str(&format!("\nPosition: {}", offset));
+        }
+        msg.push_str(&format!("\nSQLSTATE: {}", db.code().code()));
+        msg
+    } else {
+        // Non-SQL failures (connection closed, decode error, etc.) carry
+        // their useful text in Display already.
+        e.to_string()
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum DbType {
