@@ -29,10 +29,9 @@ export const Header: React.FC<HeaderProps> = ({
   const onMac = isMacOSTauri();
 
   const handleDisconnect = async () => {
-    // No explicit navigate after disconnect — Home synchronously redirects
-    // to /connections via <Navigate> the moment isConnected flips. Calling
-    // navigate('/') here was racing the state update and producing a frame
-    // where Dashboard returned null before the redirect committed.
+    // No explicit navigate after disconnect — Home swaps the rendered
+    // view from Dashboard to the Connections landing the moment
+    // isConnected flips, so we don't need to push a new route.
     await disconnect();
   };
 

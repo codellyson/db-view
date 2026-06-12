@@ -10,7 +10,6 @@ import { TauriTitleBar } from './components/tauri-title-bar';
 import { ThemeToggle } from './components/theme-toggle';
 import { UpdatePrompt } from './components/update-prompt';
 import { Home } from './routes/Home';
-import { Connections } from './routes/Connections';
 import { Query } from './routes/Query';
 
 // Defaults match apps/next/app/providers.tsx — DashboardProvider's queries
@@ -34,7 +33,7 @@ const queryClient = new QueryClient({
 //                            toasts (idle disconnect), Dashboard does too.
 //   ThemeProvider          — independent of connection, applies CSS vars to
 //                            <html> on mount. Outside connection so the
-//                            disconnected /connections page is themed too.
+//                            disconnected landing is themed too.
 //   ConnectionProvider     — owns the active DB session + saved connections.
 //   PendingChangesProvider — stages mutations until the user reviews them;
 //                            owned per-connection but state is local to the
@@ -55,9 +54,8 @@ export function App() {
               <DashboardProvider>
                 <Routes>
                   <Route path="/" element={<Home />} />
-                  <Route path="/connections" element={<Connections />} />
                   <Route path="/query" element={<Query />} />
-                  <Route path="*" element={<Navigate to="/connections" replace />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
                 <ToastContainer />
                 <ThemeToggle />

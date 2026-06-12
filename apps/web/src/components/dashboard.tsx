@@ -411,8 +411,9 @@ export function Dashboard() {
 
   if (!isConnected) {
     // Synchronous redirect so the user never sees a `null` frame while
-    // Home is in the middle of swapping us out for /connections.
-    return <Navigate to="/connections" replace />;
+    // Home is in the middle of swapping us out for the Connections
+    // landing. (Home itself picks the right view based on session.)
+    return <Navigate to="/" replace />;
   }
 
   return (

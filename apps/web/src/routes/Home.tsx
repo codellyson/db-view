@@ -1,13 +1,12 @@
-import { Navigate } from 'react-router-dom';
 import { useConnection } from '../contexts/connection-context';
 import { Dashboard } from '../components/dashboard';
+import { Connections } from './Connections';
 
-// `/` is the workspace entry. Connected → render Dashboard. Disconnected →
-// redirect to /connections **synchronously** via <Navigate /> so there's
-// no frame where we render `null` (the previous useEffect-based redirect
-// flashed a blank screen during the unmount → effect → navigate roundtrip).
+// `/` is the single entry point. Connected → render Dashboard.
+// Disconnected → render the Connections landing inline. There's no
+// dedicated /connections route any more — we just swap the view based
+// on session state.
 export function Home() {
   const { isConnected } = useConnection();
-  if (!isConnected) return <Navigate to="/connections" replace />;
-  return <Dashboard />;
+  return isConnected ? <Dashboard /> : <Connections />;
 }
