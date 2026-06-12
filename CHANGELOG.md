@@ -3,6 +3,31 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.11] - 2026-06-12
+
+### Added
+- **tauri:** SQLite + libsql/Turso browse-only backend (slice 1) ([3504f9c](https://github.com/codellyson/justdb/commit/3504f9c456116d21f4c4db06985c1a2b1e39e889))
+- **web:** Cancel in-flight connect attempts from the connection form ([5677baa](https://github.com/codellyson/justdb/commit/5677baaabb449801f5e2cdcbb6d8273d2a5d2863))
+- **web:** Smarter SQL autocomplete — curated keywords, FROM-context columns, gated schema source ([2ea5883](https://github.com/codellyson/justdb/commit/2ea58834e239876edfad56064df3bb3b375866fc))
+- **web:** Collapse top nav into ConnectionSelector dropdown; restore landing logo ([6c371eb](https://github.com/codellyson/justdb/commit/6c371eb6a1500a6680c34db491f75801e3c25464))
+
+
+### Fixed
+- **web:** Connect was leaving sessionId null; ship SQLite write paths ([8c8819c](https://github.com/codellyson/justdb/commit/8c8819cb325ea91613a2ac8668aefbccc74d5b86))
+- **web:** Use Tauri dialog to pick SQLite file instead of broken HTTP upload ([0285cad](https://github.com/codellyson/justdb/commit/0285cad26b0a308e34aa7328316ee539040b39dd))
+- **web:** Keep cell editor focused when clicking inside the popover ([a23d4e5](https://github.com/codellyson/justdb/commit/a23d4e5f1a543f87ae1096cbfc3533061895b6a7))
+- **tauri:** Surface full Postgres error detail instead of "db error" ([0b773fc](https://github.com/codellyson/justdb/commit/0b773fcd3a95d6aa570fe8be1d3f43debb063027))
+
+
+### Maintenance
+- **test:** Add SQLite test fixture (seed + prebuilt .db) ([a55ba22](https://github.com/codellyson/justdb/commit/a55ba225d488510f38a240ff311543cce978d60d))
+
+
+### Performance
+- **web:** Optimize DataTable rendering and limit query results ([74d67b7](https://github.com/codellyson/justdb/commit/74d67b7de74f42a9762f86b0d3a0f58505557a58))
+- **web:** Cut paint/layout work in DataTable, cap result rows at 200 ([441a5e3](https://github.com/codellyson/justdb/commit/441a5e3c42853541708c0d217586e9457de49f9e))
+- **web:** Replace DataTable with QueryResultGrid; compact Connections ([bb8ae56](https://github.com/codellyson/justdb/commit/bb8ae5681a824607a2997647b2c8e5eb25aef8df))
+
 ## [0.1.10] - 2026-06-07
 ## [0.1.10] - 2026-06-07
 
