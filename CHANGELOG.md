@@ -3,6 +3,11 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.12] - 2026-06-12
+
+### Changed
+- **web:** Collapse /connections route into Home ([fc3a765](https://github.com/codellyson/justdb/commit/fc3a7650e9ef1978a696f6f8b973b9f58bb11e86))
+
 ## [0.1.11] - 2026-06-12
 ## [0.1.11] - 2026-06-12
 
