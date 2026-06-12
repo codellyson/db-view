@@ -43,7 +43,7 @@ keyring = { version = "3", features = ["apple-native", "windows-native", "linux-
 # = false` drops the encryption + replication features we don't ship; we
 # explicitly enable `core` (the local file backend) and `remote` (the HTTP
 # transport for Turso).
-libsql = { version = "0.6", default-features = false, features = ["core", "remote", "tls"] }
+libsql = { version = "0.9", default-features = false, features = ["core", "remote", "tls"] }
 async-trait = "0.1"
 
 # Single-instance is only needed on Windows + Linux. macOS's LaunchServices
