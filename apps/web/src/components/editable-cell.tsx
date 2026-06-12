@@ -255,7 +255,15 @@ export const EditableCell = memo(function EditableCell({
               left: position.left,
               width: position.width,
             }}
+            // Stop React-synthetic event propagation so clicks inside the
+            // editor don't bubble up to the Cell (which is the React parent
+            // even though the DOM parent is document.body via the portal).
+            // The Cell's onClick blurs the active element to defeat
+            // CodeMirror; without this, clicking the input would blur it.
             onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.stopPropagation()}
           >
             {/* Header: column name + type */}
             <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border bg-bg-secondary/40 flex-shrink-0">
