@@ -30,13 +30,33 @@ export interface ProviderMeta {
   defaultModel: string;
   /** Placeholder hinting the key format for this provider. */
   keyPlaceholder: string;
+  /** Suggested models offered in AI mode's model picker (user can also type one). */
+  models: string[];
 }
 
 /** Providers offered in the key-entry form. Models are user-overridable. */
 export const PROVIDERS: ProviderMeta[] = [
-  { id: "anthropic", label: "Anthropic (Claude)", defaultModel: "claude-opus-4-8", keyPlaceholder: "sk-ant-..." },
-  { id: "openai", label: "OpenAI (GPT)", defaultModel: "gpt-4o", keyPlaceholder: "sk-..." },
-  { id: "google", label: "Google (Gemini)", defaultModel: "gemini-2.5-flash", keyPlaceholder: "AIza..." },
+  {
+    id: "anthropic",
+    label: "Anthropic (Claude)",
+    defaultModel: "claude-opus-4-8",
+    keyPlaceholder: "sk-ant-...",
+    models: ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+  },
+  {
+    id: "openai",
+    label: "OpenAI (GPT)",
+    defaultModel: "gpt-4o",
+    keyPlaceholder: "sk-...",
+    models: ["gpt-4o", "gpt-4o-mini"],
+  },
+  {
+    id: "google",
+    label: "Google (Gemini)",
+    defaultModel: "gemini-2.5-flash",
+    keyPlaceholder: "AIza...",
+    models: ["gemini-2.5-pro", "gemini-2.5-flash"],
+  },
 ];
 
 const status = () => tauriInvoke<AiStatus>("ai_status");
@@ -69,12 +89,13 @@ export interface ChatResponse {
   proposedWrites: string[];
 }
 
-const chat = (args: { messages: ChatMessage[]; dialect: string; schema: string }) =>
+const chat = (args: { messages: ChatMessage[]; dialect: string; schema: string; model?: string }) =>
   tauriInvoke<ChatResponse>("ai_chat", {
     sessionId: getSessionId(),
     messages: args.messages,
     dialect: args.dialect,
     schema: args.schema,
+    model: args.model,
   });
 
 /**

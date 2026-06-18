@@ -1803,6 +1803,7 @@ async fn ai_chat(
     messages: Vec<ai::ChatMessage>,
     dialect: String,
     schema: String,
+    model: Option<String>,
     window: tauri::Window,
     state: State<'_, AppState>,
 ) -> CommandResult<ai::ChatResponse> {
@@ -1817,7 +1818,7 @@ async fn ai_chat(
     let on_token = move |token: &str| {
         let _ = window.emit("ai-chat-token", token);
     };
-    ai::chat(&runner, messages, dialect, schema, &on_step, &on_token)
+    ai::chat(&runner, messages, dialect, schema, model, &on_step, &on_token)
         .await
         .map_err(CommandError::Query)
 }
