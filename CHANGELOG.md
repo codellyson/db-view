@@ -3,6 +3,19 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.15] - 2026-06-18
+
+### Added
+- **ai:** Add opt-in, provider-agnostic AI integration ([fc79fda](https://github.com/codellyson/justdb/commit/fc79fda04294e5fca566665814e2cd2af45094f2))
+
+
+### Fixed
+- **connection-selector:** Interpolate the host:port/database subtitle ([0a58d0f](https://github.com/codellyson/justdb/commit/0a58d0f4985e063517b1f61437a0021569096537))
+
+
+### Maintenance
+- **tauri:** Use the native window title bar on Windows ([12aee14](https://github.com/codellyson/justdb/commit/12aee14cb25e057e0628a72919ae20a36ac7d419))
+
 ## [0.1.14] - 2026-06-12
 ## [0.1.14] - 2026-06-12
 
