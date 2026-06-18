@@ -3,6 +3,11 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.17] - 2026-06-18
+
+### Added
+- **ai:** Agent recovery tools + anti-repeat guard (phase 1) ([45fd108](https://github.com/codellyson/justdb/commit/45fd108f21ba8daa1e79ed3de9bfed12646342d0))
+
 ## [0.1.16] - 2026-06-18
 ## [0.1.16] - 2026-06-18
 
