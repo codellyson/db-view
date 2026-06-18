@@ -205,36 +205,58 @@ const AppearanceSection: React.FC = () => {
 
 // ─── Data ───────────────────────────────────────────────────────────────────
 
-const DataSection: React.FC = () => {
-  const [rowCap, setRowCap] = useState(getResultRowCap());
-  const [idleMin, setIdleMin] = useState(getIdleTimeoutMin());
+const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
-  const onRowCap = (v: number) => { setRowCap(v); setResultRowCap(v); };
-  const onIdle = (v: number) => { setIdleMin(v); setIdleTimeoutMin(v); };
+const DataSection: React.FC = () => {
+  const [rowCap, setRowCap] = useState(String(getResultRowCap()));
+  const [idleMin, setIdleMin] = useState(String(getIdleTimeoutMin()));
+
+  // Commit on blur/Enter so the field can be edited (incl. temporarily empty)
+  // freely, then snaps to a clamped, persisted value that matches what's used.
+  const commitRowCap = () => {
+    const n = parseInt(rowCap, 10);
+    const v = Number.isNaN(n) ? getResultRowCap() : clamp(n, 10, 5000);
+    setResultRowCap(v);
+    setRowCap(String(v));
+  };
+  const commitIdle = () => {
+    const n = parseInt(idleMin, 10);
+    const v = Number.isNaN(n) ? getIdleTimeoutMin() : clamp(n, 1, 1440);
+    setIdleTimeoutMin(v);
+    setIdleMin(String(v));
+  };
+
+  const numberInput =
+    'w-32 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent';
 
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">SQL editor result limit</label>
         <input
-          type="number" min={10} max={5000} value={rowCap}
-          onChange={(e) => onRowCap(Number(e.target.value))}
-          className="w-32 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+          type="text" inputMode="numeric" value={rowCap}
+          onChange={(e) => setRowCap(e.target.value.replace(/[^0-9]/g, ''))}
+          onBlur={commitRowCap}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+          className={numberInput}
         />
         <p className="text-xs text-muted">
-          Max rows rendered before truncating (default {DEFAULT_ROW_CAP}). Add an explicit LIMIT for more.
-          Applies to the next query.
+          Max rows rendered before truncating (default {DEFAULT_ROW_CAP}, range 10–5000). Add an
+          explicit LIMIT for more. Applies to the next query.
         </p>
       </div>
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">Idle disconnect (minutes)</label>
         <input
-          type="number" min={1} max={1440} value={idleMin}
-          onChange={(e) => onIdle(Number(e.target.value))}
-          className="w-32 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+          type="text" inputMode="numeric" value={idleMin}
+          onChange={(e) => setIdleMin(e.target.value.replace(/[^0-9]/g, ''))}
+          onBlur={commitIdle}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+          className={numberInput}
         />
         <p className="text-xs text-muted">
-          Auto-disconnect after this much inactivity (default {DEFAULT_IDLE_MIN}). Applies to the next connection.
+          Auto-disconnect after this much inactivity (default {DEFAULT_IDLE_MIN}, range 1–1440).
+          Applies to the next connection.
         </p>
       </div>
     </div>
