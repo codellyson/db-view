@@ -89,6 +89,19 @@ const onChatToken = (cb: (text: string) => void): Promise<UnlistenFn> =>
   listen<string>("ai-chat-token", (e) => cb(e.payload));
 
 /**
+ * Quote an identifier the way the model must write it. PostgreSQL folds
+ * unquoted identifiers to lowercase, so a mixed-case table like `Educator`
+ * only matches when written `"Educator"`. We double-quote anything that
+ * isn't a plain lowercase `[a-z_][a-z0-9_]*` name so the model copies the
+ * exact, case-correct, quoted form. Double quotes are valid for both
+ * Postgres and SQLite. All-lowercase simple names are left bare (they work
+ * either way and keep the listing readable).
+ */
+function quoteIdent(name: string): string {
+  return /^[a-z_][a-z0-9_]*$/.test(name) ? name : `"${name.replace(/"/g, '""')}"`;
+}
+
+/**
  * Flatten the dashboard's `{ table: columns[] }` map into a compact,
  * schema-qualified listing the model can ground on, e.g.
  *   public.users(id, email, created_at)
@@ -100,11 +113,12 @@ export function formatSchemaForPrompt(
 ): string {
   const entries = Object.entries(schemaMap);
   if (entries.length === 0) return "(no tables available)";
+  const s = quoteIdent(schemaName);
   return entries
     .map(([table, cols]) =>
       cols.length > 0
-        ? `${schemaName}.${table}(${cols.join(", ")})`
-        : `${schemaName}.${table}`,
+        ? `${s}.${quoteIdent(table)}(${cols.map(quoteIdent).join(", ")})`
+        : `${s}.${quoteIdent(table)}`,
     )
     .join("\n");
 }
@@ -119,17 +133,18 @@ export function formatTypedSchema(
   tables: SchemaOverviewTable[],
 ): string {
   if (tables.length === 0) return "(no tables available)";
+  const s = quoteIdent(schemaName);
   return tables
     .map((t) => {
       const cols = t.columns
         .map((c) => {
-          let s = `${c.name} ${c.type}`.trimEnd();
-          if (c.pk) s += " PK";
-          if (c.fk) s += ` -> ${schemaName}.${c.fk.table}.${c.fk.column}`;
-          return s;
+          let col = `${quoteIdent(c.name)} ${c.type}`.trimEnd();
+          if (c.pk) col += " PK";
+          if (c.fk) col += ` -> ${s}.${quoteIdent(c.fk.table)}.${quoteIdent(c.fk.column)}`;
+          return col;
         })
         .join(", ");
-      return `${schemaName}.${t.name}(${cols})`;
+      return `${s}.${quoteIdent(t.name)}(${cols})`;
     })
     .join("\n");
 }

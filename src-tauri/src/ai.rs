@@ -164,10 +164,13 @@ fn system_prompt(dialect: &str, schema: &str) -> String {
     format!(
         "You are an expert {dialect} SQL author. Given a database schema and a \
          natural-language request, produce ONE valid {dialect} SQL statement that \
-         fulfills it. Use only the tables and columns present in the schema. Prefer \
-         an explicit column list over SELECT *. Do not wrap the SQL in markdown \
-         fences. If the request cannot be satisfied with the given schema, return an \
-         empty `sql` and explain why in `explanation`.\n\nSchema:\n{schema}",
+         fulfills it. Use only the tables and columns present in the schema, and \
+         write every identifier EXACTLY as it appears there, including any double \
+         quotes — in PostgreSQL an unquoted MixedCase name folds to lowercase and \
+         won't match (e.g. use \"Educator\", not Educator). Prefer an explicit \
+         column list over SELECT *. Do not wrap the SQL in markdown fences. If the \
+         request cannot be satisfied with the given schema, return an empty `sql` \
+         and explain why in `explanation`.\n\nSchema:\n{schema}",
     )
 }
 
@@ -507,11 +510,16 @@ fn chat_system_prompt(dialect: &str, schema: &str) -> String {
         "You are a {dialect} database assistant embedded in a SQL GUI. Answer the \
          user's questions about their database by exploring it with the `run_sql` \
          tool (read-only: SELECT / WITH / EXPLAIN only). Prefer running real queries \
-         over guessing, and add a LIMIT when scanning potentially large tables. To \
-         change data or schema, do NOT use run_sql — call `propose_write` with the \
-         exact SQL and a short reason; the user reviews and runs it themselves. When \
-         you have the answer, reply concisely in plain language with the relevant \
-         numbers or a small table; never paste large result sets.\n\nSchema:\n{schema}",
+         over guessing, and add a LIMIT when scanning potentially large tables. Write \
+         every identifier EXACTLY as it appears in the schema, including any double \
+         quotes — in PostgreSQL an unquoted MixedCase name folds to lowercase and \
+         won't match (e.g. use \"Educator\", not Educator). If a query fails with \
+         'relation does not exist', do NOT re-run the same query — re-check the schema \
+         for the exact (possibly quoted) name. To change data or schema, do NOT use \
+         run_sql — call `propose_write` with the exact SQL and a short reason; the user \
+         reviews and runs it themselves. When you have the answer, reply concisely in \
+         plain language with the relevant numbers or a small table; never paste large \
+         result sets.\n\nSchema:\n{schema}",
     )
 }
 
