@@ -16,6 +16,13 @@ const SparkleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   </svg>
 );
 
+const fmtCell = (v: unknown): string =>
+  v === null || v === undefined
+    ? 'NULL'
+    : typeof v === 'object'
+      ? JSON.stringify(v)
+      : String(v);
+
 const StepRow: React.FC<{ step: ChatStep }> = ({ step }) => (
   <div className="flex items-start gap-1.5 text-[11px]">
     <span className={`mt-0.5 flex-shrink-0 ${step.ok ? 'text-green-500' : 'text-danger'}`}>
@@ -25,9 +32,31 @@ const StepRow: React.FC<{ step: ChatStep }> = ({ step }) => (
           ? '🔍'
           : step.ok ? '✓' : '✕'}
     </span>
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       <code className="block font-mono text-muted break-all whitespace-pre-wrap">{step.sql}</code>
       <span className="text-muted/70">{step.summary}</span>
+      {step.columns && step.rows && step.rows.length > 0 && (
+        <div className="mt-1 overflow-x-auto">
+          <table className="text-[10px] border-collapse">
+            <thead>
+              <tr>
+                {step.columns.map((c) => (
+                  <th key={c} className="text-left px-1 py-0.5 border-b border-border font-medium text-muted whitespace-nowrap">{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {step.rows.map((r, ri) => (
+                <tr key={ri}>
+                  {r.map((cell, ci) => (
+                    <td key={ci} className="px-1 py-0.5 border-b border-border/40 text-primary/80 whitespace-nowrap max-w-[160px] truncate" title={fmtCell(cell)}>{fmtCell(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   </div>
 );

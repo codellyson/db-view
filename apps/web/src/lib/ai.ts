@@ -81,6 +81,9 @@ export interface ChatStep {
   sql: string;
   ok: boolean;
   summary: string;
+  /** Small result preview (run_sql success) for rendering as a table. */
+  columns?: string[];
+  rows?: unknown[][];
 }
 
 export interface ChatResponse {
