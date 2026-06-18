@@ -34,6 +34,7 @@ import { TableCreationWizard } from "./table-creation-wizard";
 import { BatchExportModal } from "./batch-export-modal";
 import { TabBar } from "./tab-bar";
 import { QueryEditor } from "./query-editor";
+import { AiChatPanel } from "./ai-chat-panel";
 import { Button } from "./ui/button";
 import { useConnection } from "../contexts/connection-context";
 import { useDashboard } from "../contexts/dashboard-context";
@@ -149,6 +150,7 @@ export function Dashboard() {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
   const [fkQuery, setFkQuery] = useState<FKQuery | null>(null);
   const [editorEditableTarget, setEditorEditableTarget] = useState<{ schema: string; table: string } | null>(null);
 
@@ -284,6 +286,11 @@ export function Dashboard() {
       action: () => setIsCommandPaletteOpen((prev) => !prev),
     },
     {
+      key: 'i', meta: true, description: 'Toggle AI mode',
+      category: 'AI',
+      action: () => setIsAiOpen((prev) => !prev),
+    },
+    {
       // Bare `?` (Shift + /) — companion to Cmd+/, matches the doc.
       key: '?', shift: true, description: 'Show keyboard shortcuts',
       category: 'General',
@@ -304,6 +311,13 @@ export function Dashboard() {
       category: 'Editor',
       shortcut: '⌘T',
       run: () => openEditorTab(),
+    },
+    {
+      id: 'toggle-ai',
+      label: 'Toggle AI mode',
+      category: 'AI',
+      shortcut: '⌘I',
+      run: () => setIsAiOpen((prev) => !prev),
     },
     {
       id: 'jump-to-table',
@@ -496,6 +510,20 @@ export function Dashboard() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
+                </button>
+                <button
+                  onClick={() => setIsAiOpen((v) => !v)}
+                  className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                    isAiOpen ? 'text-accent bg-accent/15' : 'text-muted hover:text-accent hover:bg-accent/10'
+                  }`}
+                  title="Toggle AI mode"
+                  aria-label="Toggle AI mode"
+                  aria-pressed={isAiOpen}
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M8 0l1.6 4.4L14 6l-4.4 1.6L8 12l-1.6-4.4L2 6l4.4-1.6L8 0zM13 10l.7 1.9L15.6 12.6l-1.9.7L13 15l-.7-1.9L10.4 12.6l1.9-.7L13 10z" />
+                  </svg>
+                  AI
                 </button>
               </>
             }
@@ -771,6 +799,8 @@ export function Dashboard() {
         </div>
       }
     />
+    {/* AI mode — docked chat drawer, toggled from the tab bar */}
+    {isAiOpen && <AiChatPanel onClose={() => setIsAiOpen(false)} />}
     <PendingChangesBar onOpenReview={() => setIsReviewOpen(true)} target={reviewTarget} />
     <CommandPalette
       isOpen={isCommandPaletteOpen}

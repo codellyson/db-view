@@ -7,6 +7,9 @@ const BAR_HEIGHT = 32;
 const isMacOS = () =>
   typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
 
+const isWindows = () =>
+  typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
+
 async function withWindow<T>(fn: (win: import("@tauri-apps/api/window").Window) => Promise<T>): Promise<T | void> {
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
   return fn(getCurrentWindow());
@@ -16,15 +19,16 @@ export function TauriTitleBar() {
   const [show, setShow] = useState(false);
   const [maximized, setMaximized] = useState(false);
 
-  // On macOS the native overlay title bar already reserves room for traffic
-  // lights and the app's Header component lifts itself into that band
-  // (see header.tsx). Nothing to render here. Windows/Linux still get the
+  // macOS uses the native overlay title bar (tauri.macos.conf.json) and the
+  // Header lifts itself into the traffic-light band. Windows now uses native
+  // decorations too (tauri.windows.conf.json). Only Linux still gets the
   // custom bar below.
   const onMac = isMacOS();
+  const onWindows = isWindows();
 
   useEffect(() => {
     if (!isTauriRuntime()) return;
-    if (onMac) return;
+    if (onMac || onWindows) return;
     setShow(true);
     let unlisten: (() => void) | undefined;
     let cancelled = false;
@@ -43,7 +47,7 @@ export function TauriTitleBar() {
       unlisten?.();
       document.body.style.paddingTop = "";
     };
-  }, [onMac]);
+  }, [onMac, onWindows]);
 
   if (!show) return null;
 

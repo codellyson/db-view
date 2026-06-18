@@ -5,6 +5,8 @@ interface ErrorStateProps {
   message: string;
   onRetry?: () => void;
   className?: string;
+  /** Extra action(s) rendered alongside Retry (e.g. "Fix with AI"). */
+  action?: React.ReactNode;
 }
 
 function getErrorHint(message: string): string | null {
@@ -26,6 +28,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   message,
   onRetry,
   className = "",
+  action,
 }) => {
   const hint = getErrorHint(message);
 
@@ -47,15 +50,15 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
             <p className="text-xs text-muted ml-6">{hint}</p>
           )}
         </div>
-        {onRetry && (
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={onRetry}
-            className="flex-shrink-0"
-          >
-            Retry
-          </Button>
+        {(onRetry || action) && (
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {action}
+            {onRetry && (
+              <Button variant="danger" size="sm" onClick={onRetry}>
+                Retry
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>

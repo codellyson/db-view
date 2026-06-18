@@ -122,10 +122,30 @@ impl SqliteConnection {
         Ok(rows_as_objects(&result))
     }
 
+    /// Like `query_objects`, but runs on a freshly checked-out connection from
+    /// the same database rather than the shared `conn` Mutex. Used by AI mode
+    /// so the agent's exploratory reads never serialize behind — or starve —
+    /// the app's own queries or the health ping. Checking out a connection from
+    /// an already-open `libsql::Database` is cheap (no file/network re-open).
+    pub async fn query_objects_isolated(&self, sql: &str) -> Result<Vec<JsonValue>, String> {
+        let conn = self
+            ._db
+            .connect()
+            .map_err(|e| format!("libsql connect: {e}"))?;
+        let result = Self::run_query_on(&conn, sql).await?;
+        Ok(rows_as_objects(&result))
+    }
+
     /// Run a query and capture column metadata + rows as JSON values. Mirrors
     /// the shape of `postgres::QueryResult`.
     pub async fn query(&self, sql: &str) -> Result<QueryResult, String> {
         let conn = self.conn.lock().await;
+        Self::run_query_on(&conn, sql).await
+    }
+
+    /// Connection-agnostic query body, so the shared `conn` and a checked-out
+    /// isolated connection share one implementation.
+    async fn run_query_on(conn: &Connection, sql: &str) -> Result<QueryResult, String> {
         let mut rows = conn
             .query(sql, ())
             .await

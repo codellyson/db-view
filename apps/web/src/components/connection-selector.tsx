@@ -106,7 +106,7 @@ export const ConnectionSelector: React.FC = () => {
                       <p className="text-xs font-mono text-muted truncate">
                         {isConnecting && switchingTo === connection.id
                           ? 'Connecting...'
-                          : `${connection.config.host}:{connection.config.port}/{connection.config.database}`}
+                          : `${connection.config.host}:${connection.config.port}/${connection.config.database}`}
                       </p>
                     </div>
                     {isConnecting && switchingTo === connection.id ? (
