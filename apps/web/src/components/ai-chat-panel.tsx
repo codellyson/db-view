@@ -25,7 +25,11 @@ const SparkleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
 const StepRow: React.FC<{ step: ChatStep }> = ({ step }) => (
   <div className="flex items-start gap-1.5 text-[11px]">
     <span className={`mt-0.5 flex-shrink-0 ${step.ok ? 'text-green-500' : 'text-danger'}`}>
-      {step.kind === 'propose_write' ? '✎' : step.ok ? '✓' : '✕'}
+      {step.kind === 'propose_write'
+        ? '✎'
+        : step.kind === 'list_tables' || step.kind === 'describe_table'
+          ? '🔍'
+          : step.ok ? '✓' : '✕'}
     </span>
     <div className="min-w-0">
       <code className="block font-mono text-muted break-all whitespace-pre-wrap">{step.sql}</code>

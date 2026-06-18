@@ -514,8 +514,9 @@ fn chat_system_prompt(dialect: &str, schema: &str) -> String {
          every identifier EXACTLY as it appears in the schema, including any double \
          quotes — in PostgreSQL an unquoted MixedCase name folds to lowercase and \
          won't match (e.g. use \"Educator\", not Educator). If a query fails with \
-         'relation does not exist', do NOT re-run the same query — re-check the schema \
-         for the exact (possibly quoted) name. To change data or schema, do NOT use \
+         'relation/column does not exist', do NOT re-run the same query — call \
+         `list_tables` to find the exact table name or `describe_table` to get exact \
+         column names, then write a corrected query. To change data or schema, do NOT use \
          run_sql — call `propose_write` with the exact SQL and a short reason; the user \
          reviews and runs it themselves. When you have the answer, reply concisely in \
          plain language with the relevant numbers or a small table; never paste large \
@@ -549,6 +550,8 @@ pub async fn chat(
 
 const RUN_SQL_DESC: &str = "Run a READ-ONLY SQL query (SELECT/WITH/EXPLAIN only) against the connected database and get the rows back. Use this to explore the data and answer the question. Never use it to modify data or schema.";
 const PROPOSE_DESC: &str = "Propose a data-modifying or DDL statement (INSERT/UPDATE/DELETE/CREATE/ALTER/DROP) for the user to review and run. This does NOT execute. Use it whenever the task requires changing data or schema.";
+const LIST_TABLES_DESC: &str = "List the real, schema-qualified table names in the database. Call this to discover exact names when a query fails with 'does not exist' or when you are unsure a table exists.";
+const DESCRIBE_TABLE_DESC: &str = "Show a table's columns and types. Call this to get the exact, correctly-cased column names before querying.";
 
 fn run_sql_params() -> Value {
     json!({
@@ -567,6 +570,45 @@ fn propose_params() -> Value {
         },
         "required": ["sql"]
     })
+}
+
+fn no_params() -> Value {
+    json!({ "type": "object", "properties": {} })
+}
+
+fn describe_params() -> Value {
+    json!({
+        "type": "object",
+        "properties": { "table": { "type": "string", "description": "Table name to describe, as shown by list_tables." } },
+        "required": ["table"]
+    })
+}
+
+fn list_tables_sql(dialect: &str) -> String {
+    if dialect.eq_ignore_ascii_case("sqlite") {
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name".to_string()
+    } else {
+        "SELECT table_schema || '.' || table_name AS \"table\" \
+         FROM information_schema.tables \
+         WHERE table_schema NOT IN ('pg_catalog', 'information_schema') \
+           AND table_type = 'BASE TABLE' \
+         ORDER BY table_schema, table_name".to_string()
+    }
+}
+
+fn describe_table_sql(dialect: &str, table: &str) -> String {
+    // The model may pass `schema.table`, `"Table"`, or bare — reduce to the
+    // bare, unquoted name for matching/PRAGMA.
+    let bare = table.rsplit('.').next().unwrap_or(table).trim().trim_matches('"');
+    if dialect.eq_ignore_ascii_case("sqlite") {
+        format!("PRAGMA table_info(\"{}\")", bare.replace('"', "\"\""))
+    } else {
+        format!(
+            "SELECT column_name, data_type, is_nullable FROM information_schema.columns \
+             WHERE table_name = '{}' ORDER BY ordinal_position",
+            bare.replace('\'', "''")
+        )
+    }
 }
 
 /// Execute one tool call. Shared by all providers — only the request/response
@@ -618,8 +660,64 @@ async fn exec_tool(
     steps: &mut Vec<ChatStep>,
     proposed: &mut Vec<String>,
     on_step: StepSink<'_>,
+    dialect: &str,
 ) -> Value {
     match name {
+        "list_tables" => {
+            let sql = list_tables_sql(dialect);
+            match runner.run_readonly(&sql).await {
+                Ok(rows) => {
+                    let names: Vec<String> = rows
+                        .iter()
+                        .filter_map(|r| {
+                            r.as_object()
+                                .and_then(|o| o.values().next())
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string())
+                        })
+                        .collect();
+                    record(
+                        ChatStep { kind: "list_tables".into(), sql: "list_tables".into(), ok: true, summary: format!("{} table(s)", names.len()) },
+                        steps,
+                        on_step,
+                    );
+                    json!({ "tables": names })
+                }
+                Err(e) => {
+                    record(
+                        ChatStep { kind: "list_tables".into(), sql: "list_tables".into(), ok: false, summary: e.clone() },
+                        steps,
+                        on_step,
+                    );
+                    json!({ "error": e })
+                }
+            }
+        }
+        "describe_table" => {
+            let table = args.get("table").and_then(|s| s.as_str()).unwrap_or("").trim().to_string();
+            if table.is_empty() {
+                return json!({ "error": "missing table argument" });
+            }
+            let sql = describe_table_sql(dialect, &table);
+            match runner.run_readonly(&sql).await {
+                Ok(rows) => {
+                    record(
+                        ChatStep { kind: "describe_table".into(), sql: format!("describe_table({table})"), ok: true, summary: format!("{} column(s)", rows.len()) },
+                        steps,
+                        on_step,
+                    );
+                    json!({ "columns": rows })
+                }
+                Err(e) => {
+                    record(
+                        ChatStep { kind: "describe_table".into(), sql: format!("describe_table({table})"), ok: false, summary: e.clone() },
+                        steps,
+                        on_step,
+                    );
+                    json!({ "error": e })
+                }
+            }
+        }
         "run_sql" => {
             let sql = args.get("sql").and_then(|s| s.as_str()).unwrap_or("").trim().to_string();
             if sql.is_empty() {
@@ -632,6 +730,14 @@ async fn exec_tool(
                     on_step,
                 );
                 return json!({ "error": "This statement is not read-only. Use propose_write for any change." });
+            }
+            // Anti-repeat guard: if this exact query already failed this turn,
+            // don't re-run it — push the agent to introspect instead of looping.
+            if let Some(prev) = steps.iter().find(|s| s.kind == "run_sql" && !s.ok && s.sql == sql) {
+                return json!({ "error": format!(
+                    "You already ran this exact query and it failed ({}). Do NOT repeat it — call list_tables / describe_table to find the correct, exact (possibly quoted) names, then write a different query.",
+                    prev.summary
+                ) });
             }
             match runner.run_readonly(&sql).await {
                 Ok(rows) => {
@@ -697,6 +803,8 @@ async fn chat_google(
 
     let tools = json!([{
         "functionDeclarations": [
+            { "name": "list_tables", "description": LIST_TABLES_DESC, "parameters": no_params() },
+            { "name": "describe_table", "description": DESCRIBE_TABLE_DESC, "parameters": describe_params() },
             { "name": "run_sql", "description": RUN_SQL_DESC, "parameters": run_sql_params() },
             { "name": "propose_write", "description": PROPOSE_DESC, "parameters": propose_params() }
         ]
@@ -794,7 +902,7 @@ async fn chat_google(
 
         let mut response_parts: Vec<Value> = Vec::new();
         for (name, args) in fn_calls {
-            let result = exec_tool(&name, &args, runner, &mut steps, &mut proposed, on_step).await;
+            let result = exec_tool(&name, &args, runner, &mut steps, &mut proposed, on_step, dialect).await;
             response_parts.push(fn_response(&name, result));
         }
         contents.push(json!({ "role": "user", "parts": response_parts }));
@@ -834,6 +942,8 @@ async fn chat_anthropic(
         .collect();
 
     let tools = json!([
+        { "name": "list_tables", "description": LIST_TABLES_DESC, "input_schema": no_params() },
+        { "name": "describe_table", "description": DESCRIBE_TABLE_DESC, "input_schema": describe_params() },
         { "name": "run_sql", "description": RUN_SQL_DESC, "input_schema": run_sql_params() },
         { "name": "propose_write", "description": PROPOSE_DESC, "input_schema": propose_params() }
     ]);
@@ -962,7 +1072,7 @@ async fn chat_anthropic(
 
         let mut results: Vec<Value> = Vec::new();
         for (id, name, input) in tool_uses {
-            let result = exec_tool(&name, &input, runner, &mut steps, &mut proposed, on_step).await;
+            let result = exec_tool(&name, &input, runner, &mut steps, &mut proposed, on_step, dialect).await;
             let is_error = result.get("error").is_some();
             results.push(json!({
                 "type": "tool_result",
@@ -996,6 +1106,8 @@ async fn chat_openai(
     }));
 
     let tools = json!([
+        { "type": "function", "function": { "name": "list_tables", "description": LIST_TABLES_DESC, "parameters": no_params() } },
+        { "type": "function", "function": { "name": "describe_table", "description": DESCRIBE_TABLE_DESC, "parameters": describe_params() } },
         { "type": "function", "function": { "name": "run_sql", "description": RUN_SQL_DESC, "parameters": run_sql_params() } },
         { "type": "function", "function": { "name": "propose_write", "description": PROPOSE_DESC, "parameters": propose_params() } }
     ]);
@@ -1103,7 +1215,7 @@ async fn chat_openai(
 
         for (id, name, args_str) in tcs {
             let args: Value = serde_json::from_str(&args_str).unwrap_or_else(|_| json!({}));
-            let result = exec_tool(&name, &args, runner, &mut steps, &mut proposed, on_step).await;
+            let result = exec_tool(&name, &args, runner, &mut steps, &mut proposed, on_step, dialect).await;
             msgs.push(json!({
                 "role": "tool",
                 "tool_call_id": id,

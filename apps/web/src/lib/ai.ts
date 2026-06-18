@@ -57,7 +57,7 @@ export interface ChatMessage {
 }
 
 export interface ChatStep {
-  kind: "run_sql" | "propose_write";
+  kind: "run_sql" | "propose_write" | "list_tables" | "describe_table" | string;
   sql: string;
   ok: boolean;
   summary: string;
