@@ -1,5 +1,5 @@
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Navigate } from "react-router-dom";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
@@ -35,7 +35,6 @@ import { BatchExportModal } from "./batch-export-modal";
 import { TabBar } from "./tab-bar";
 import { QueryEditor } from "./query-editor";
 import { AiChatPanel } from "./ai-chat-panel";
-import { SettingsModal } from "./settings-modal";
 import { Button } from "./ui/button";
 import { useConnection } from "../contexts/connection-context";
 import { useDashboard } from "../contexts/dashboard-context";
@@ -152,15 +151,6 @@ export function Dashboard() {
   const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isAiOpen, setIsAiOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Let any component (e.g. the editor's AI bar) open Settings without prop
-  // drilling, via a window event.
-  useEffect(() => {
-    const open = () => setIsSettingsOpen(true);
-    window.addEventListener('justdb:open-settings', open);
-    return () => window.removeEventListener('justdb:open-settings', open);
-  }, []);
   const [fkQuery, setFkQuery] = useState<FKQuery | null>(null);
   const [editorEditableTarget, setEditorEditableTarget] = useState<{ schema: string; table: string } | null>(null);
 
@@ -499,7 +489,7 @@ export function Dashboard() {
             tableCount={tables.length}
             onMenuToggle={() => setIsMobileMenuOpen(true)}
             onShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => window.dispatchEvent(new CustomEvent('justdb:open-settings'))}
           />
           <TabBar
             tabs={openTabs}
@@ -812,7 +802,6 @@ export function Dashboard() {
     />
     {/* AI mode — docked chat drawer, toggled from the tab bar */}
     {isAiOpen && <AiChatPanel onClose={() => setIsAiOpen(false)} />}
-    <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     <PendingChangesBar onOpenReview={() => setIsReviewOpen(true)} target={reviewTarget} />
     <CommandPalette
       isOpen={isCommandPaletteOpen}
