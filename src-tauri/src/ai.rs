@@ -454,6 +454,54 @@ fn is_read_only(sql: &str) -> bool {
     !WRITE_KW.iter().any(|kw| padded.contains(kw))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::is_read_only;
+
+    #[test]
+    fn allows_read_only_statements() {
+        assert!(is_read_only("SELECT * FROM users"));
+        assert!(is_read_only("select id from t where x = 1"));
+        assert!(is_read_only("WITH c AS (SELECT 1) SELECT * FROM c"));
+        assert!(is_read_only("EXPLAIN SELECT * FROM t"));
+        assert!(is_read_only("SHOW TABLES"));
+        assert!(is_read_only("SELECT 1; ")); // single statement, trailing ;
+        assert!(is_read_only("-- a comment\nSELECT * FROM t"));
+    }
+
+    #[test]
+    fn blocks_writes_and_ddl() {
+        for sql in [
+            "INSERT INTO t VALUES (1)",
+            "UPDATE t SET x = 1",
+            "DELETE FROM t",
+            "DROP TABLE t",
+            "ALTER TABLE t ADD COLUMN x int",
+            "CREATE TABLE t (id int)",
+            "TRUNCATE t",
+        ] {
+            assert!(!is_read_only(sql), "should block: {sql}");
+        }
+    }
+
+    #[test]
+    fn blocks_multiple_statements() {
+        assert!(!is_read_only("SELECT 1; DELETE FROM t"));
+    }
+
+    #[test]
+    fn blocks_writable_cte_and_explained_write() {
+        assert!(!is_read_only("WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d"));
+        assert!(!is_read_only("EXPLAIN ANALYZE INSERT INTO t VALUES (1)"));
+    }
+
+    #[test]
+    fn blocks_empty() {
+        assert!(!is_read_only(""));
+        assert!(!is_read_only("   "));
+    }
+}
+
 fn chat_system_prompt(dialect: &str, schema: &str) -> String {
     format!(
         "You are a {dialect} database assistant embedded in a SQL GUI. Answer the \
