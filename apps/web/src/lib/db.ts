@@ -181,6 +181,16 @@ const schemaMap = async (schema = "public"): Promise<Record<string, string[]>> =
   return res.schemaMap ?? {};
 };
 
+// Typed schema overview (column types + PK/FK) for the whole schema — used to
+// ground the AI. Rust wraps in `{ tables }` — peel.
+const schemaOverview = async (schema = "public"): Promise<SchemaOverviewTable[]> => {
+  const res = await invoke<{ tables: SchemaOverviewTable[] }>("db_schema_overview", {
+    sessionId: requireSession(),
+    schema,
+  });
+  return res.tables ?? [];
+};
+
 // Rust wraps in `{ counts }` — peel.
 const tableCounts = async (schema = "public"): Promise<Record<string, number>> => {
   const res = await invoke<{ counts: Record<string, number> }>(
@@ -393,6 +403,7 @@ export const db = {
   listViews,
   listFunctions,
   schemaMap,
+  schemaOverview,
   tableCounts,
 
   // table-level
@@ -418,5 +429,16 @@ export const db = {
   // SQL editor
   runQuery,
 };
+
+export interface SchemaOverviewColumn {
+  name: string;
+  type: string;
+  pk: boolean;
+  fk?: { table: string; column: string };
+}
+export interface SchemaOverviewTable {
+  name: string;
+  columns: SchemaOverviewColumn[];
+}
 
 export type { TableRowsResponse, ConnectResult, HealthState, RunQueryResult, RunQueryConfirmation };

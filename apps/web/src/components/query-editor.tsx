@@ -11,6 +11,7 @@ import { QueryHistory } from './query-history';
 import { formatSQL } from '@/lib/sql-formatter';
 import { getStatementAtCursor } from '@/lib/sql-statements';
 import { db } from '@/lib/db';
+import { ai } from '@/lib/ai';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
 import { useToast } from '../contexts/toast-context';
@@ -24,6 +25,9 @@ import { QueryExecutionConfirmation } from './query-execution-confirmation';
 import { TabBar, type Tab } from './tab-bar';
 import { SaveQueryDialog } from './save-query-dialog';
 import { ExportModal } from './export-modal';
+import { AiSqlBar } from './ai-sql-bar';
+import { ExplainPlan } from './explain-plan';
+import { useAiSchemaText } from '../hooks/use-ai-schema';
 
 interface PendingQueryConfirmation {
   sql: string;
@@ -100,7 +104,18 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     }
   }, [query, tabId]);
   const [error, setError] = useState<string | null>(null);
+  const [failedSql, setFailedSql] = useState<string | null>(null);
+  const [isFixing, setIsFixing] = useState(false);
+  const [aiConfigured, setAiConfigured] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [explainData, setExplainData] = useState<{ plan: any; executionTime: number; sql: string } | null>(null);
+  const [isExplaining, setIsExplaining] = useState(false);
+  const [interpretation, setInterpretation] = useState<string | null>(null);
+  const [isInterpreting, setIsInterpreting] = useState(false);
+
+  useEffect(() => {
+    ai.status().then((s) => setAiConfigured(!!s.configured)).catch(() => {});
+  }, []);
   const [showHistory, setShowHistory] = useState(false);
   const editorViewRef = useRef<EditorView | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
@@ -145,6 +160,18 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     return { ...flat, [selectedSchema]: flat };
   }, [schemaMap, tables, selectedSchema]);
 
+  // Typed schema (column types + PK/FK) handed to the AI for grounding.
+  const aiSchemaText = useAiSchemaText();
+
+  // AI-generated SQL lands in the editor — it never runs automatically.
+  // The user reviews it and runs it through the normal classifier/confirm
+  // gate, same as anything they'd type.
+  const handleAiGenerated = useCallback((sql: string, explanation: string) => {
+    setQuery(sql);
+    setError(null);
+    if (explanation.trim()) addToast(explanation, 'info');
+  }, [addToast]);
+
   const { history, addQuery, favoriteQuery, deleteQuery, clearHistory } = useQueryHistory();
 
   const parseColumnTypes = (data: any) => {
@@ -166,6 +193,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     async (execQuery: string, confirmed = false) => {
       setIsExecuting(true);
       setError(null);
+      setFailedSql(null);
 
       try {
         const data = await db.runQuery(execQuery, confirmed);
@@ -235,12 +263,82 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
         addQuery(execQuery, execTime, totalRows);
       } catch (err: any) {
         setError(err.message || 'Query execution failed');
+        setFailedSql(execQuery);
       } finally {
         setIsExecuting(false);
       }
     },
     [addQuery, resultTabs]
   );
+
+  // Send the failing SQL + error to the model and drop a corrected query into
+  // the editor (never auto-run — it goes through the normal confirm gate).
+  const handleFixWithAi = useCallback(async () => {
+    const sql = failedSql ?? query.trim();
+    if (!sql || !error || isFixing) return;
+    setIsFixing(true);
+    try {
+      const prompt =
+        `The following ${databaseType} SQL query failed. Return a corrected version ` +
+        `that runs successfully while preserving the original intent.\n\n` +
+        `Error:\n${error}\n\nQuery:\n${sql}`;
+      const res = await ai.generateSql({ prompt, dialect: databaseType, schema: aiSchemaText });
+      if (res.sql.trim()) {
+        setQuery(res.sql);
+        setError(null);
+        setFailedSql(null);
+        if (res.explanation.trim()) addToast(res.explanation, 'info');
+      } else {
+        addToast(res.explanation || 'AI could not produce a fix.', 'warning');
+      }
+    } catch (e: any) {
+      addToast(e?.message || 'AI fix failed', 'error');
+    } finally {
+      setIsFixing(false);
+    }
+  }, [failedSql, query, error, isFixing, databaseType, aiSchemaText, addToast]);
+
+  // Run EXPLAIN on the current query and show the plan.
+  const handleExplain = useCallback(async () => {
+    const sql = getExecutableQuery();
+    if (!sql || isExplaining) return;
+    setIsExplaining(true);
+    setError(null);
+    setInterpretation(null);
+    try {
+      const res: any = await db.explain(sql);
+      setExplainData({ plan: res.plan, executionTime: res.executionTime ?? 0, sql });
+    } catch (e: any) {
+      setError(e?.message || 'EXPLAIN failed');
+      setExplainData(null);
+    } finally {
+      setIsExplaining(false);
+    }
+  }, [getExecutableQuery, isExplaining]);
+
+  // Hand the plan to the model for a plain-English read + index suggestions.
+  const handleInterpretPlan = useCallback(async () => {
+    if (!explainData || isInterpreting) return;
+    setIsInterpreting(true);
+    try {
+      const prompt =
+        `Interpret this ${databaseType} EXPLAIN plan for the query below. Identify the ` +
+        `main cost driver / bottleneck, any sequential scans or large row-estimate ` +
+        `mismatches, and suggest concrete indexes or query rewrites if warranted. Be ` +
+        `concise. Do not run any queries — everything you need is provided.\n\n` +
+        `Query:\n${explainData.sql}\n\nPlan (JSON):\n${JSON.stringify(explainData.plan)}`;
+      const res = await ai.chat({
+        messages: [{ role: 'user', content: prompt }],
+        dialect: databaseType,
+        schema: aiSchemaText,
+      });
+      setInterpretation(res.reply || 'No interpretation returned.');
+    } catch (e: any) {
+      addToast(e?.message || 'AI interpretation failed', 'error');
+    } finally {
+      setIsInterpreting(false);
+    }
+  }, [explainData, isInterpreting, databaseType, aiSchemaText, addToast]);
 
   const handleExecute = async () => {
     const execQuery = getExecutableQuery();
@@ -513,6 +611,12 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
 
   return (
     <div className="space-y-4">
+      <AiSqlBar
+        dialect={databaseType}
+        schema={aiSchemaText}
+        onGenerated={handleAiGenerated}
+        disabled={isExecuting}
+      />
       <Card title="SQL query">
         <div className="space-y-3">
           <div className="flex border border-border rounded-md overflow-hidden">
@@ -533,6 +637,14 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 title="Format SQL"
               >
                 <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="10" height="2" rx="1"/><rect x="1" y="12" width="12" height="2" rx="1"/></svg>
+              </button>
+              <button
+                onClick={handleExplain}
+                disabled={isExecuting || isExplaining || !query.trim()}
+                className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
+                title="Explain query plan"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 14V2M2 14h12M5 11V7M8 11V4M11 11V8" strokeLinecap="round"/></svg>
               </button>
               <button
                 onClick={() => {
@@ -577,6 +689,19 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
             <ErrorState
               message={error}
               onRetry={query.trim() ? handleExecute : undefined}
+              action={aiConfigured ? (
+                <button
+                  onClick={handleFixWithAi}
+                  disabled={isFixing}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                  title="Send the error and query to the AI for a fix"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M8 0l1.6 4.4L14 6l-4.4 1.6L8 12l-1.6-4.4L2 6l4.4-1.6L8 0zM13 10l.7 1.9L15.6 12.6l-1.9.7L13 15l-.7-1.9L10.4 12.6l1.9-.7L13 10z" />
+                  </svg>
+                  {isFixing ? 'Fixing…' : 'Fix with AI'}
+                </button>
+              ) : undefined}
             />
           )}
           {showHistory && (
@@ -597,6 +722,52 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
           )}
         </div>
       </Card>
+
+      {/* EXPLAIN plan panel */}
+      {explainData && (
+        <Card title="Query plan">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted font-mono">{explainData.executionTime}ms</span>
+              <div className="flex items-center gap-2">
+                {aiConfigured && (
+                  <button
+                    onClick={handleInterpretPlan}
+                    disabled={isInterpreting}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                    title="Have the AI read the plan and suggest improvements"
+                  >
+                    <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <path d="M8 0l1.6 4.4L14 6l-4.4 1.6L8 12l-1.6-4.4L2 6l4.4-1.6L8 0zM13 10l.7 1.9L15.6 12.6l-1.9.7L13 15l-.7-1.9L10.4 12.6l1.9-.7L13 10z" />
+                    </svg>
+                    {isInterpreting ? 'Interpreting…' : 'Interpret with AI'}
+                  </button>
+                )}
+                <button
+                  onClick={() => { setExplainData(null); setInterpretation(null); }}
+                  className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary transition-colors"
+                  title="Close plan"
+                  aria-label="Close plan"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+                </button>
+              </div>
+            </div>
+            {Array.isArray(explainData.plan) && explainData.plan[0]?.Plan ? (
+              <ExplainPlan plan={explainData.plan} />
+            ) : (
+              <pre className="text-xs font-mono text-muted overflow-x-auto whitespace-pre-wrap max-h-64">
+                {JSON.stringify(explainData.plan, null, 2)}
+              </pre>
+            )}
+            {interpretation && (
+              <div className="border-t border-border pt-3 text-sm text-primary whitespace-pre-wrap leading-relaxed">
+                {interpretation}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Result tabs bar */}
       {resultTabs.length > 0 && (

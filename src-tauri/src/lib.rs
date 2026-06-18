@@ -1,3 +1,4 @@
+mod ai;
 mod cascade;
 mod mutation;
 mod postgres;
@@ -12,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use sqlite::SqliteConnection;
 use std::sync::Arc;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 /// One sessioned database connection — Postgres or SQLite/libsql. Stored
 /// behind an `Arc` in `AppState.sessions`; commands `match` on the variant
@@ -1171,6 +1172,182 @@ async fn db_schema_map(
     Ok(SchemaMapResponse { schema_map })
 }
 
+// ─── typed schema overview (for AI grounding) ─────────────────────────────
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct FkRef {
+    table: String,
+    column: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SchemaColumnInfo {
+    name: String,
+    #[serde(rename = "type")]
+    data_type: String,
+    pk: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fk: Option<FkRef>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SchemaTableInfo {
+    name: String,
+    columns: Vec<SchemaColumnInfo>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SchemaOverviewResponse {
+    tables: Vec<SchemaTableInfo>,
+}
+
+/// Column types + primary/foreign keys for every base table in the schema.
+/// Feeds the AI a typed schema so it writes better casts/joins. Postgres path
+/// is three set-based queries (no N+1); SQLite walks PRAGMAs per table.
+#[tauri::command]
+async fn db_schema_overview(
+    session_id: String,
+    schema: String,
+    state: State<'_, AppState>,
+) -> CommandResult<SchemaOverviewResponse> {
+    use std::collections::{BTreeMap, HashMap, HashSet};
+
+    let conn = require_session(&state, &session_id)?;
+
+    if let DbConnection::Sqlite(sq) = conn.as_ref() {
+        let table_names = sq.list_tables().await.map_err(CommandError::Query)?;
+        let mut tables = Vec::with_capacity(table_names.len());
+        for t in table_names {
+            let cols = sq.table_schema(&t).await.map_err(CommandError::Query)?;
+            // foreign_key_list: id, seq, table(target), from, to, ...
+            let safe = t.replace('"', "\"\"");
+            let fk_rows = sq
+                .query(&format!("PRAGMA foreign_key_list(\"{safe}\")"))
+                .await
+                .map_err(CommandError::Query)?;
+            let mut fk_map: HashMap<String, FkRef> = HashMap::new();
+            for r in &fk_rows.rows {
+                let from = r.get(3).and_then(|v| v.as_str()).unwrap_or_default();
+                let tgt_t = r.get(2).and_then(|v| v.as_str()).unwrap_or_default();
+                let tgt_c = r.get(4).and_then(|v| v.as_str()).unwrap_or_default();
+                if !from.is_empty() && !tgt_t.is_empty() {
+                    fk_map.insert(
+                        from.to_string(),
+                        FkRef { table: tgt_t.to_string(), column: tgt_c.to_string() },
+                    );
+                }
+            }
+            let columns = cols
+                .iter()
+                .filter_map(|row| {
+                    let name = row.get("column_name").and_then(|v| v.as_str())?.to_string();
+                    let data_type = row
+                        .get("data_type")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    let pk = row.get("is_primary_key").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let fk = fk_map.get(&name).cloned();
+                    Some(SchemaColumnInfo { name, data_type, pk, fk })
+                })
+                .collect();
+            tables.push(SchemaTableInfo { name: t, columns });
+        }
+        return Ok(SchemaOverviewResponse { tables });
+    }
+
+    let pg = conn.require_pg("db_schema_overview")?;
+
+    let cols_res = pg
+        .query_with_params(
+            "SELECT c.table_name, c.column_name, c.data_type
+             FROM information_schema.columns c
+             JOIN information_schema.tables t
+               ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+             WHERE c.table_schema = $1 AND t.table_type = 'BASE TABLE'
+             ORDER BY c.table_name, c.ordinal_position",
+            &[Some(schema.clone())],
+        )
+        .await
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
+
+    let pk_res = pg
+        .query_with_params(
+            "SELECT kcu.table_name, kcu.column_name
+             FROM information_schema.table_constraints tc
+             JOIN information_schema.key_column_usage kcu
+               ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+             WHERE tc.table_schema = $1 AND tc.constraint_type = 'PRIMARY KEY'",
+            &[Some(schema.clone())],
+        )
+        .await
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
+
+    let fk_res = pg
+        .query_with_params(
+            "SELECT kcu.table_name, kcu.column_name, ccu.table_name, ccu.column_name
+             FROM information_schema.table_constraints tc
+             JOIN information_schema.key_column_usage kcu
+               ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+             JOIN information_schema.constraint_column_usage ccu
+               ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+             WHERE tc.table_schema = $1 AND tc.constraint_type = 'FOREIGN KEY'",
+            &[Some(schema)],
+        )
+        .await
+        .map_err(|e| CommandError::Query(format_pg_error(&e)))?;
+
+    let mut pk_set: HashSet<(String, String)> = HashSet::new();
+    for row in &pk_res.rows {
+        let t = row.first().and_then(|v| v.as_str()).unwrap_or_default();
+        let c = row.get(1).and_then(|v| v.as_str()).unwrap_or_default();
+        if !t.is_empty() && !c.is_empty() {
+            pk_set.insert((t.to_string(), c.to_string()));
+        }
+    }
+
+    let mut fk_map: HashMap<(String, String), FkRef> = HashMap::new();
+    for row in &fk_res.rows {
+        let st = row.first().and_then(|v| v.as_str()).unwrap_or_default();
+        let sc = row.get(1).and_then(|v| v.as_str()).unwrap_or_default();
+        let tt = row.get(2).and_then(|v| v.as_str()).unwrap_or_default();
+        let tc = row.get(3).and_then(|v| v.as_str()).unwrap_or_default();
+        if !st.is_empty() && !sc.is_empty() && !tt.is_empty() {
+            fk_map.insert(
+                (st.to_string(), sc.to_string()),
+                FkRef { table: tt.to_string(), column: tc.to_string() },
+            );
+        }
+    }
+
+    let mut grouped: BTreeMap<String, Vec<SchemaColumnInfo>> = BTreeMap::new();
+    for row in &cols_res.rows {
+        let t = row.first().and_then(|v| v.as_str()).unwrap_or_default();
+        let c = row.get(1).and_then(|v| v.as_str()).unwrap_or_default();
+        let ty = row.get(2).and_then(|v| v.as_str()).unwrap_or_default();
+        if t.is_empty() || c.is_empty() {
+            continue;
+        }
+        let key = (t.to_string(), c.to_string());
+        grouped.entry(t.to_string()).or_default().push(SchemaColumnInfo {
+            name: c.to_string(),
+            data_type: ty.to_string(),
+            pk: pk_set.contains(&key),
+            fk: fk_map.get(&key).cloned(),
+        });
+    }
+
+    let tables = grouped
+        .into_iter()
+        .map(|(name, columns)| SchemaTableInfo { name, columns })
+        .collect();
+    Ok(SchemaOverviewResponse { tables })
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ViewsResponse {
@@ -1572,6 +1749,79 @@ async fn save_export_file(path: String, bytes: Vec<u8>) -> CommandResult<()> {
         .map_err(|e| CommandError::Query(format!("Failed to write {path}: {e}")))
 }
 
+// ─── AI (opt-in natural-language → SQL) ───────────────────────────────────
+
+#[tauri::command]
+async fn ai_status() -> CommandResult<ai::AiStatus> {
+    ai::status().map_err(CommandError::Query)
+}
+
+#[tauri::command]
+async fn ai_set_key(
+    provider: String,
+    api_key: String,
+    model: Option<String>,
+) -> CommandResult<ai::AiStatus> {
+    ai::set_key(provider, api_key, model).map_err(CommandError::Query)
+}
+
+#[tauri::command]
+async fn ai_clear_key() -> CommandResult<()> {
+    ai::clear_key().map_err(CommandError::Query)
+}
+
+#[tauri::command]
+async fn ai_generate_sql(args: ai::GenerateArgs) -> CommandResult<ai::GenerateResult> {
+    ai::generate_sql(args).await.map_err(CommandError::Query)
+}
+
+// Bridges the AI agent's read-only `run_sql` tool to whichever backend the
+// session is connected to. Lives here (not in ai.rs) so the ai module stays
+// free of DbConnection knowledge.
+struct SessionRunner(Arc<DbConnection>);
+
+#[async_trait::async_trait]
+impl ai::SqlRunner for SessionRunner {
+    async fn run_readonly(&self, sql: &str) -> Result<Vec<JsonValue>, String> {
+        match self.0.as_ref() {
+            // Postgres pipelines concurrent queries on its single Client, so the
+            // agent's reads don't block the app — share it.
+            DbConnection::Pg(pg) => pg
+                .query_objects(sql, &[])
+                .await
+                .map_err(|e| format_pg_error(&e)),
+            // SQLite serializes on a Mutex, so give the agent its own
+            // checked-out connection to avoid starving the app / health ping.
+            DbConnection::Sqlite(sq) => sq.query_objects_isolated(sql).await,
+        }
+    }
+}
+
+#[tauri::command]
+async fn ai_chat(
+    session_id: String,
+    messages: Vec<ai::ChatMessage>,
+    dialect: String,
+    schema: String,
+    window: tauri::Window,
+    state: State<'_, AppState>,
+) -> CommandResult<ai::ChatResponse> {
+    let conn = require_session(&state, &session_id)?;
+    let runner = SessionRunner(conn);
+    // Stream each tool step and each answer-text chunk to the webview as they
+    // arrive, so the UI shows live progress and types the reply out.
+    let step_window = window.clone();
+    let on_step = move |step: &ai::ChatStep| {
+        let _ = step_window.emit("ai-chat-step", step);
+    };
+    let on_token = move |token: &str| {
+        let _ = window.emit("ai-chat-token", token);
+    };
+    ai::chat(&runner, messages, dialect, schema, &on_step, &on_token)
+        .await
+        .map_err(CommandError::Query)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[allow(unused_mut)]
@@ -1627,6 +1877,7 @@ pub fn run() {
             db_lookup_row,
             db_ddl,
             db_schema_map,
+            db_schema_overview,
             db_relationships,
             db_views,
             db_functions,
@@ -1641,6 +1892,11 @@ pub fn run() {
             db_explain,
             db_import,
             save_export_file,
+            ai_status,
+            ai_set_key,
+            ai_clear_key,
+            ai_generate_sql,
+            ai_chat,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
