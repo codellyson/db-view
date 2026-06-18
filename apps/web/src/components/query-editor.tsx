@@ -12,6 +12,7 @@ import { formatSQL } from '@/lib/sql-formatter';
 import { getStatementAtCursor } from '@/lib/sql-statements';
 import { db } from '@/lib/db';
 import { ai } from '@/lib/ai';
+import { getResultRowCap } from '@/lib/app-settings';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
 import { useToast } from '../contexts/toast-context';
@@ -38,9 +39,9 @@ interface PendingQueryConfirmation {
 }
 
 // 1k wide rows (16+ varchar cols on a remote DB) hung the webview after
-// render — no console error, just frozen. 200 keeps the grid responsive
-// even on heavy result shapes. Add an explicit LIMIT to pull more.
-const MAX_RESULT_ROWS = 200;
+// render — no console error, just frozen. The cap (default 200) keeps the
+// grid responsive even on heavy result shapes; configurable in Settings →
+// Data. Add an explicit LIMIT to pull more.
 
 interface ResultTab {
   id: string;
@@ -212,8 +213,9 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
 
         const allRows = data.rows || [];
         const totalRows = allRows.length;
-        const truncated = totalRows > MAX_RESULT_ROWS;
-        const rows = truncated ? allRows.slice(0, MAX_RESULT_ROWS) : allRows;
+        const maxRows = getResultRowCap();
+        const truncated = totalRows > maxRows;
+        const rows = truncated ? allRows.slice(0, maxRows) : allRows;
         const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
         const columnTypes = parseColumnTypes(data);
         const fields = data.fields as QueryFieldInfo[] | undefined;
@@ -221,7 +223,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
         const label = execQuery.length > 30 ? execQuery.slice(0, 30) + '...' : execQuery;
 
         if (truncated) {
-          addToast(`Showing first ${MAX_RESULT_ROWS.toLocaleString()} of ${totalRows.toLocaleString()} rows. Add LIMIT to your query for better performance.`, 'warning');
+          addToast(`Showing first ${maxRows.toLocaleString()} of ${totalRows.toLocaleString()} rows. Add LIMIT to your query for better performance.`, 'warning');
         }
 
         const existingId = resultTabs.find((t) => t.sql === execQuery)?.id;

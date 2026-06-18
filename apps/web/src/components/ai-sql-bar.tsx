@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ai, PROVIDERS, type AiStatus, type ProviderId } from '@/lib/ai';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ai, type AiStatus } from '@/lib/ai';
 
 interface AiSqlBarProps {
   /** "postgresql" | "sqlite" | "mysql" — steers dialect-specific SQL. */
@@ -17,57 +17,25 @@ const SparkleIcon = () => (
   </svg>
 );
 
+const openSettings = () => window.dispatchEvent(new CustomEvent('justdb:open-settings'));
+
 export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated, disabled }) => {
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [prompt, setPrompt] = useState('');
-  const [keyInput, setKeyInput] = useState('');
-  const [provider, setProvider] = useState<ProviderId>('anthropic');
-  const [modelInput, setModelInput] = useState('');
-  const [showKeyForm, setShowKeyForm] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const providerMeta = useMemo(
-    () => PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0],
-    [provider],
-  );
+  const refreshStatus = useCallback(() => {
+    ai.status().then(setStatus).catch(() => setStatus({ configured: false }));
+  }, []);
 
+  // Re-check status on mount and whenever the window regains focus (covers the
+  // user configuring/removing a key in the Settings modal).
   useEffect(() => {
-    ai.status()
-      .then(setStatus)
-      .catch(() => setStatus({ configured: false }));
-  }, []);
-
-  const saveKey = useCallback(async () => {
-    if (!keyInput.trim()) return;
-    setIsBusy(true);
-    setError(null);
-    try {
-      const s = await ai.setKey(keyInput.trim(), provider, modelInput.trim() || undefined);
-      setStatus(s);
-      setShowKeyForm(false);
-      setKeyInput('');
-      setModelInput('');
-    } catch (e: any) {
-      setError(e?.message || 'Failed to save key');
-    } finally {
-      setIsBusy(false);
-    }
-  }, [keyInput, provider, modelInput]);
-
-  const clearKey = useCallback(async () => {
-    setIsBusy(true);
-    setError(null);
-    try {
-      await ai.clearKey();
-      setStatus({ configured: false });
-      setShowKeyForm(false);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to remove key');
-    } finally {
-      setIsBusy(false);
-    }
-  }, []);
+    refreshStatus();
+    window.addEventListener('focus', refreshStatus);
+    return () => window.removeEventListener('focus', refreshStatus);
+  }, [refreshStatus]);
 
   const generate = useCallback(async () => {
     if (!prompt.trim() || isBusy) return;
@@ -90,75 +58,18 @@ export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated
   // Still loading the initial status — render nothing to avoid a flash.
   if (status === null) return null;
 
-  // Key-entry form: shown when no key is configured, or the gear is clicked.
-  if (!status.configured || showKeyForm) {
+  // Not configured → point the user at Settings (key management lives there now).
+  if (!status.configured) {
     return (
-      <div className="flex flex-col gap-2 p-3 border border-border rounded-md bg-bg-secondary/30">
-        <div className="flex items-center gap-2 text-sm text-primary">
-          <span className="text-accent"><SparkleIcon /></span>
-          <span className="font-medium">Generate SQL with AI</span>
-        </div>
-        <p className="text-xs text-muted">
-          Pick a provider and paste an API key to enable natural-language → SQL. The key is stored
-          in your OS keychain and only leaves your machine on requests you make.
-        </p>
-        <div className="flex items-center gap-2">
-          <select
-            value={provider}
-            onChange={(e) => setProvider(e.target.value as ProviderId)}
-            className="px-2 py-1.5 text-sm border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent flex-shrink-0"
-            aria-label="AI provider"
-          >
-            {PROVIDERS.map((p) => (
-              <option key={p.id} value={p.id}>{p.label}</option>
-            ))}
-          </select>
-          <input
-            type="text"
-            value={modelInput}
-            onChange={(e) => setModelInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') saveKey(); }}
-            placeholder={`Model (default: ${providerMeta.defaultModel})`}
-            className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted font-mono"
-            aria-label="Model (optional)"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="password"
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') saveKey(); }}
-            placeholder={providerMeta.keyPlaceholder}
-            className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted font-mono"
-            aria-label="API key"
-          />
-          <button
-            onClick={saveKey}
-            disabled={isBusy || !keyInput.trim()}
-            className="px-3 py-1.5 text-sm rounded bg-accent text-white hover:bg-accent-hover disabled:opacity-40 transition-colors"
-          >
-            Save
-          </button>
-          {status.configured && (
-            <>
-              <button
-                onClick={clearKey}
-                disabled={isBusy}
-                className="px-3 py-1.5 text-sm rounded text-danger hover:bg-danger/10 disabled:opacity-40 transition-colors"
-              >
-                Remove
-              </button>
-              <button
-                onClick={() => { setShowKeyForm(false); setKeyInput(''); setError(null); }}
-                className="px-3 py-1.5 text-sm rounded text-muted hover:text-primary hover:bg-bg-secondary transition-colors"
-              >
-                Cancel
-              </button>
-            </>
-          )}
-        </div>
-        {error && <p className="text-xs text-danger" role="alert">{error}</p>}
+      <div className="flex items-center gap-2 p-3 border border-border rounded-md bg-bg-secondary/30 text-sm">
+        <span className="text-accent flex-shrink-0"><SparkleIcon /></span>
+        <span className="text-muted flex-1 min-w-0">Generate SQL from plain English — add an API key to enable it.</span>
+        <button
+          onClick={openSettings}
+          className="px-3 py-1.5 text-sm rounded bg-accent text-white hover:bg-accent-hover transition-colors flex-shrink-0"
+        >
+          Set up AI
+        </button>
       </div>
     );
   }
@@ -167,7 +78,7 @@ export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <span className="text-accent flex-shrink-0" title={`Powered by ${status.model ?? 'Claude'}`}>
+        <span className="text-accent flex-shrink-0" title={`Powered by ${status.model ?? 'AI'}`}>
           <SparkleIcon />
         </span>
         <input
@@ -194,13 +105,7 @@ export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated
           {isBusy ? 'Generating…' : 'Generate'}
         </button>
         <button
-          onClick={() => {
-            if (status.provider && PROVIDERS.some((p) => p.id === status.provider)) {
-              setProvider(status.provider as ProviderId);
-            }
-            setShowKeyForm(true);
-            setError(null);
-          }}
+          onClick={openSettings}
           disabled={isBusy}
           title="AI settings"
           aria-label="AI settings"
