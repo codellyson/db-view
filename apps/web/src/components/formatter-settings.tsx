@@ -11,6 +11,13 @@ interface FormatterSettingsProps {
   onClose: () => void;
 }
 
+/** Standalone modal wrapper — kept for existing callers. */
+export const FormatterSettings: React.FC<FormatterSettingsProps> = ({ isOpen, onClose }) => (
+  <Modal isOpen={isOpen} onClose={onClose} title="Data Formatters" className="max-w-lg">
+    <FormatterSettingsBody />
+  </Modal>
+);
+
 const PRESET_OPTIONS: { value: FormatterPreset; label: string }[] = [
   { value: "relative-date", label: "Relative Date" },
   { value: "json-pretty", label: "Pretty JSON" },
@@ -27,10 +34,8 @@ const MATCHER_TYPE_OPTIONS: { value: FormatterMatcher["type"]; label: string }[]
   { value: "column-name-pattern", label: "Column Name Pattern" },
 ];
 
-export const FormatterSettings: React.FC<FormatterSettingsProps> = ({
-  isOpen,
-  onClose,
-}) => {
+/** Reusable body (no Modal wrapper) so the Settings screen can embed it. */
+export const FormatterSettingsBody: React.FC = () => {
   const { config, allFormatters, addFormatter, deleteFormatter, toggleBuiltIn } = usePlugins();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
@@ -52,13 +57,7 @@ export const FormatterSettings: React.FC<FormatterSettingsProps> = ({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Data Formatters"
-      className="max-w-lg"
-    >
-      <div className="space-y-4">
+    <div className="space-y-4">
         <div className="text-xs text-secondary">
           Formatters automatically transform how cell values are displayed in data tables.
         </div>
@@ -178,7 +177,6 @@ export const FormatterSettings: React.FC<FormatterSettingsProps> = ({
             + Add Custom Formatter
           </Button>
         )}
-      </div>
-    </Modal>
+    </div>
   );
 };

@@ -7,7 +7,6 @@ import { DashboardProvider } from './contexts/dashboard-context';
 import { PendingChangesProvider } from './contexts/pending-changes-context';
 import { ToastContainer } from './components/ui/toast';
 import { TauriTitleBar } from './components/tauri-title-bar';
-import { ThemeToggle } from './components/theme-toggle';
 import { UpdatePrompt } from './components/update-prompt';
 import { Home } from './routes/Home';
 import { Query } from './routes/Query';
@@ -58,7 +57,6 @@ export function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
                 <ToastContainer />
-                <ThemeToggle />
                 <UpdatePrompt />
               </DashboardProvider>
             </PendingChangesProvider>

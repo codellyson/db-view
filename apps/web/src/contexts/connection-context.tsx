@@ -2,9 +2,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { DBConfig, SavedConnection } from '@/types';
 import { db } from '@/lib/db';
+import { getIdleTimeoutMin } from '@/lib/app-settings';
 import { useToast } from './toast-context';
 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 5_000;
 const ACTIVITY_CHANNEL = 'justdb-activity';
 const ACTIVITY_EVENTS: Array<keyof DocumentEventMap> = [
@@ -197,12 +197,13 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         ? new BroadcastChannel(ACTIVITY_CHANNEL)
         : null;
 
+    const idleMin = getIdleTimeoutMin();
     const arm = () => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       idleTimerRef.current = setTimeout(() => {
         void disconnect();
-        addToast('Disconnected after 30 minutes of inactivity', 'info');
-      }, IDLE_TIMEOUT_MS);
+        addToast(`Disconnected after ${idleMin} minutes of inactivity`, 'info');
+      }, idleMin * 60 * 1000);
     };
 
     const noteActivity = (broadcast: boolean) => {
