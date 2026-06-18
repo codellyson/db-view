@@ -4,6 +4,7 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.1.16] - 2026-06-18
+## [0.1.16] - 2026-06-18
 
 ### Fixed
 - **ai:** Quote case-sensitive identifiers in the schema sent to the model ([2da753b](https://github.com/codellyson/justdb/commit/2da753b58dd1253159feff9bc11a88a79228db36))
