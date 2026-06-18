@@ -496,7 +496,43 @@ fn is_read_only(sql: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::is_read_only;
+    use super::{describe_table_sql, is_read_only, list_tables_sql, preview_table};
+    use serde_json::json;
+
+    #[test]
+    fn list_tables_sql_is_dialect_aware() {
+        assert!(list_tables_sql("sqlite").contains("sqlite_master"));
+        assert!(list_tables_sql("postgresql").contains("information_schema.tables"));
+    }
+
+    #[test]
+    fn describe_table_sql_normalizes_identifier() {
+        // schema prefix + quotes stripped to the bare name for matching
+        let pg = describe_table_sql("postgresql", "public.\"Educator\"");
+        assert!(pg.contains("table_name = 'Educator'"), "{pg}");
+        let lite = describe_table_sql("sqlite", "Educator");
+        assert!(lite.contains("PRAGMA table_info(\"Educator\")"), "{lite}");
+    }
+
+    #[test]
+    fn preview_table_extracts_and_caps() {
+        let rows = vec![
+            json!({ "id": 1, "name": "a" }),
+            json!({ "id": 2, "name": "b" }),
+            json!({ "id": 3, "name": "c" }),
+        ];
+        let (cols, prows) = preview_table(&rows, 2);
+        assert_eq!(cols.unwrap(), vec!["id", "name"]);
+        let prows = prows.unwrap();
+        assert_eq!(prows.len(), 2); // capped at limit
+        assert_eq!(prows[0], vec![json!(1), json!("a")]);
+    }
+
+    #[test]
+    fn preview_table_handles_empty() {
+        let (cols, prows) = preview_table(&[], 10);
+        assert!(cols.is_none() && prows.is_none());
+    }
 
     #[test]
     fn allows_read_only_statements() {
