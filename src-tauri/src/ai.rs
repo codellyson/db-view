@@ -412,10 +412,47 @@ pub struct ChatMessage {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatStep {
-    pub kind: String, // "run_sql" | "propose_write"
+    pub kind: String, // run_sql | propose_write | list_tables | describe_table
     pub sql: String,
     pub ok: bool,
     pub summary: String,
+    /// Small result preview for the UI to render as a table (run_sql success).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub columns: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rows: Option<Vec<Vec<Value>>>,
+}
+
+impl ChatStep {
+    fn note(kind: &str, sql: impl Into<String>, ok: bool, summary: impl Into<String>) -> Self {
+        ChatStep {
+            kind: kind.into(),
+            sql: sql.into(),
+            ok,
+            summary: summary.into(),
+            columns: None,
+            rows: None,
+        }
+    }
+}
+
+/// Build a small column/row table preview (first `limit` rows) from JSON row
+/// objects, preserving column order (serde_json preserve_order is enabled).
+fn preview_table(rows: &[Value], limit: usize) -> (Option<Vec<String>>, Option<Vec<Vec<Value>>>) {
+    let Some(first) = rows.first().and_then(|r| r.as_object()) else {
+        return (None, None);
+    };
+    let cols: Vec<String> = first.keys().cloned().collect();
+    let prows: Vec<Vec<Value>> = rows
+        .iter()
+        .take(limit)
+        .map(|r| {
+            cols.iter()
+                .map(|c| r.get(c).cloned().unwrap_or(Value::Null))
+                .collect()
+        })
+        .collect();
+    (Some(cols), Some(prows))
 }
 
 #[derive(Debug, Serialize)]
@@ -683,7 +720,7 @@ async fn exec_tool(
                         })
                         .collect();
                     record(
-                        ChatStep { kind: "list_tables".into(), sql: "list_tables".into(), ok: true, summary: format!("{} table(s)", names.len()) },
+                        ChatStep::note("list_tables", "list_tables", true, format!("{} table(s)", names.len())),
                         steps,
                         on_step,
                     );
@@ -691,7 +728,7 @@ async fn exec_tool(
                 }
                 Err(e) => {
                     record(
-                        ChatStep { kind: "list_tables".into(), sql: "list_tables".into(), ok: false, summary: e.clone() },
+                        ChatStep::note("list_tables", "list_tables", false, e.clone()),
                         steps,
                         on_step,
                     );
@@ -708,7 +745,7 @@ async fn exec_tool(
             match runner.run_readonly(&sql).await {
                 Ok(rows) => {
                     record(
-                        ChatStep { kind: "describe_table".into(), sql: format!("describe_table({table})"), ok: true, summary: format!("{} column(s)", rows.len()) },
+                        ChatStep::note("describe_table", format!("describe_table({table})"), true, format!("{} column(s)", rows.len())),
                         steps,
                         on_step,
                     );
@@ -716,7 +753,7 @@ async fn exec_tool(
                 }
                 Err(e) => {
                     record(
-                        ChatStep { kind: "describe_table".into(), sql: format!("describe_table({table})"), ok: false, summary: e.clone() },
+                        ChatStep::note("describe_table", format!("describe_table({table})"), false, e.clone()),
                         steps,
                         on_step,
                     );
@@ -731,7 +768,7 @@ async fn exec_tool(
             }
             if !is_read_only(&sql) {
                 record(
-                    ChatStep { kind: "run_sql".into(), sql, ok: false, summary: "blocked: not read-only".into() },
+                    ChatStep::note("run_sql", sql, false, "blocked: not read-only"),
                     steps,
                     on_step,
                 );
@@ -750,16 +787,16 @@ async fn exec_tool(
                     let total = rows.len();
                     let truncated = total > MAX_ROWS_TO_MODEL;
                     let shown: Vec<Value> = rows.into_iter().take(MAX_ROWS_TO_MODEL).collect();
-                    record(
-                        ChatStep { kind: "run_sql".into(), sql, ok: true, summary: format!("{total} row(s)") },
-                        steps,
-                        on_step,
-                    );
+                    let (columns, prows) = preview_table(&shown, 10);
+                    let mut step = ChatStep::note("run_sql", sql, true, format!("{total} row(s)"));
+                    step.columns = columns;
+                    step.rows = prows;
+                    record(step, steps, on_step);
                     json!({ "rows": shown, "rowCount": total, "truncated": truncated })
                 }
                 Err(e) => {
                     record(
-                        ChatStep { kind: "run_sql".into(), sql, ok: false, summary: e.clone() },
+                        ChatStep::note("run_sql", sql, false, e.clone()),
                         steps,
                         on_step,
                     );
@@ -772,7 +809,7 @@ async fn exec_tool(
             if !sql.is_empty() {
                 proposed.push(sql.clone());
                 record(
-                    ChatStep { kind: "propose_write".into(), sql, ok: true, summary: "proposed for review".into() },
+                    ChatStep::note("propose_write", sql, true, "proposed for review"),
                     steps,
                     on_step,
                 );
