@@ -1,6 +1,6 @@
 [package]
 name = "justdb"
-version = "0.1.15"
+version = "0.1.16"
 description = "JustDB desktop"
 authors = ["KreativeKorna"]
 license = ""
