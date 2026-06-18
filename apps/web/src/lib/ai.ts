@@ -149,6 +149,29 @@ export function formatTypedSchema(
     .join("\n");
 }
 
+// Above these sizes the full typed schema is too token-heavy to inject every
+// turn, so AI mode sends a compact table list and drills in with describe_table.
+export const COMPACT_TABLE_THRESHOLD = 25;
+export const COMPACT_COLUMN_THRESHOLD = 250;
+
+/**
+ * Compact, names-only listing for large schemas — the agent fetches columns
+ * on demand via the describe_table tool. Single-shot callers (the Generate
+ * bar) must NOT use this, since they can't drill in.
+ */
+export function formatCompactSchema(
+  schemaName: string,
+  tables: SchemaOverviewTable[],
+): string {
+  if (tables.length === 0) return "(no tables available)";
+  const s = quoteIdent(schemaName);
+  const list = tables.map((t) => `${s}.${quoteIdent(t.name)}`).join(", ");
+  return (
+    `Large database — table names only. Call describe_table(name) to get a ` +
+    `table's columns before querying it.\n${list}`
+  );
+}
+
 export const ai = {
   status,
   setKey,

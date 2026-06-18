@@ -42,7 +42,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
   const { databaseType, databaseName, isConnected } = useConnection();
   const { openEditorTab } = useDashboard();
   const { addToast } = useToast();
-  const schemaText = useAiSchemaText();
+  const schemaText = useAiSchemaText({ allowCompact: true });
 
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [messages, setMessages] = useState<UiMessage[]>([]);
