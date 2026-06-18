@@ -529,12 +529,18 @@ pub async fn chat(
     messages: Vec<ChatMessage>,
     dialect: String,
     schema: String,
+    model_override: Option<String>,
     on_step: StepSink<'_>,
     on_token: TokenSink<'_>,
 ) -> Result<ChatResponse, String> {
     let cfg = load()?.ok_or("AI is not configured. Add an API key first.")?;
     let provider = Provider::parse(&cfg.provider)?;
-    let model = cfg.resolved_model()?;
+    // AI mode may request a different (e.g. stronger) model than the stored
+    // default used by the single-shot Generate bar.
+    let model = match model_override {
+        Some(m) if !m.trim().is_empty() => m.trim().to_string(),
+        _ => cfg.resolved_model()?,
+    };
     match provider {
         Provider::Google => {
             chat_google(&cfg.api_key, &model, runner, messages, &dialect, &schema, on_step, on_token).await

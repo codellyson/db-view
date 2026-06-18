@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
-import { ai, type ChatStep, type AiStatus } from '@/lib/ai';
+import { ai, PROVIDERS, type ChatStep, type AiStatus } from '@/lib/ai';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
 import { useToast } from '../contexts/toast-context';
@@ -54,10 +54,35 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
   const [editValue, setEditValue] = useState('');
   // Input-history cursor: null = not navigating, else index into sentPrompts.
   const [histIdx, setHistIdx] = useState<number | null>(null);
+  const [chatModel, setChatModel] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const draftKey = `justdb-ai-draft-${databaseName ?? 'default'}`;
+  const modelKey = `justdb-ai-model-${status?.provider ?? 'default'}`;
+
+  // AI mode's model (may differ from the Generate bar's default), persisted
+  // per provider. Defaults to the configured model.
+  useEffect(() => {
+    if (!status?.configured) return;
+    let saved: string | null = null;
+    try { saved = localStorage.getItem(modelKey); } catch { /* ignore */ }
+    setChatModel(saved || status.model || '');
+  }, [status?.configured, status?.model, modelKey]);
+
+  const onModelChange = useCallback((m: string) => {
+    setChatModel(m);
+    try { localStorage.setItem(modelKey, m); } catch { /* ignore */ }
+  }, [modelKey]);
+
+  const modelOptions = useMemo(() => {
+    const meta = PROVIDERS.find((p) => p.id === status?.provider);
+    const opts = new Set<string>();
+    if (status?.model) opts.add(status.model);
+    if (chatModel) opts.add(chatModel);
+    (meta?.models ?? []).forEach((m) => opts.add(m));
+    return Array.from(opts);
+  }, [status?.provider, status?.model, chatModel]);
   const sentPrompts = useMemo(
     () => messages.filter((m) => m.role === 'user').map((m) => m.content),
     [messages],
@@ -121,6 +146,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
         messages: history.map((m) => ({ role: m.role, content: m.content })),
         dialect: databaseType,
         schema: schemaText,
+        model: chatModel || undefined,
       });
       setMessages([
         ...history,
@@ -135,7 +161,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
       setLiveText('');
       setIsBusy(false);
     }
-  }, [input, isBusy, messages, databaseType, schemaText, setMessages, draftKey]);
+  }, [input, isBusy, messages, databaseType, schemaText, setMessages, draftKey, chatModel]);
 
   // ↑/↓ recall of previously sent prompts (only when the input is empty or
   // already navigating, so it doesn't hijack multi-line cursor movement).
@@ -395,9 +421,22 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
             className="block w-full resize-none overflow-y-auto bg-transparent px-3 pt-2.5 pb-1 text-sm leading-relaxed text-primary placeholder:text-muted focus:outline-none disabled:opacity-50"
           />
           <div className="flex items-center justify-between gap-2 px-2 pb-2 pt-0.5">
-            <span className="text-[10px] text-muted px-1 truncate" title={status?.model ?? undefined}>
-              {status?.configured ? status.model : ''}
-            </span>
+            {status?.configured && modelOptions.length > 0 ? (
+              <select
+                value={chatModel}
+                onChange={(e) => onModelChange(e.target.value)}
+                disabled={isBusy}
+                title="Model used for AI mode"
+                aria-label="AI mode model"
+                className="max-w-[60%] text-[10px] text-muted bg-transparent border-0 focus:outline-none focus:ring-0 cursor-pointer disabled:opacity-50 truncate"
+              >
+                {modelOptions.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-[10px] text-muted px-1 truncate">{status?.model ?? ''}</span>
+            )}
             <button
               onClick={send}
               disabled={disabled || !input.trim()}
