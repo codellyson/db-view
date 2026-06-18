@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from './contexts/toast-context';
@@ -8,8 +9,22 @@ import { PendingChangesProvider } from './contexts/pending-changes-context';
 import { ToastContainer } from './components/ui/toast';
 import { TauriTitleBar } from './components/tauri-title-bar';
 import { UpdatePrompt } from './components/update-prompt';
+import { SettingsModal } from './components/settings-modal';
 import { Home } from './routes/Home';
 import { Query } from './routes/Query';
+
+// A single, global Settings modal opened from anywhere via the
+// `justdb:open-settings` window event (header gear, AI bar, Connections gear),
+// so it works both pre- and post-connection.
+function GlobalSettings() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener('justdb:open-settings', onOpen);
+    return () => window.removeEventListener('justdb:open-settings', onOpen);
+  }, []);
+  return <SettingsModal isOpen={open} onClose={() => setOpen(false)} />;
+}
 
 // Defaults match apps/next/app/providers.tsx — DashboardProvider's queries
 // are user-driven (table data, schema), so we don't want focus/mount
@@ -58,6 +73,7 @@ export function App() {
                 </Routes>
                 <ToastContainer />
                 <UpdatePrompt />
+                <GlobalSettings />
               </DashboardProvider>
             </PendingChangesProvider>
           </ConnectionProvider>
