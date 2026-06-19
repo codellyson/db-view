@@ -36,9 +36,10 @@ export function createBrutalistTheme(isDark: boolean) {
         caretColor: rgb('--accent'),
         color: rgb('--text-primary'),
         fontFamily: sans,
-        // 6px top/bottom so the first line lines up with the editor toolbar
-        // (py-2 / 8px) instead of sitting noticeably lower.
-        padding: '6px 0',
+        // 8px top/bottom aligns the first line with the toolbar (py-2); 14px
+        // left/right gives the code an inset so it isn't flush against the
+        // toolbar edge (matches the padding of other fields).
+        padding: '8px 14px',
       },
       '.cm-line': {
         color: rgb('--text-primary'),
