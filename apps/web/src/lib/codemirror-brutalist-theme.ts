@@ -21,13 +21,18 @@ export function createBrutalistTheme(isDark: boolean) {
       '&': {
         backgroundColor: rgb('--bg'),
         color: rgb('--text-primary'),
-        fontFamily: 'var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+        // Match the app's mono (tailwind `font-mono` / @fontsource Geist Mono).
+        // The previous `var(--font-geist-mono)` is a Next.js convention that's
+        // undefined here, so the editor was silently falling back to system mono.
+        fontFamily: "'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
         fontSize: '13px',
       },
       '.cm-content': {
         caretColor: rgb('--accent'),
         color: rgb('--text-primary'),
-        padding: '12px 0',
+        // 6px top/bottom so the first line lines up with the editor toolbar
+        // (py-2 / 8px) instead of sitting noticeably lower.
+        padding: '6px 0',
       },
       '.cm-line': {
         color: rgb('--text-primary'),

@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/theme-context';
 import {
   getResultRowCap, setResultRowCap, DEFAULT_ROW_CAP,
   getIdleTimeoutMin, setIdleTimeoutMin, DEFAULT_IDLE_MIN,
+  getEditorLineNumbers, setEditorLineNumbers, EDITOR_SETTINGS_EVENT,
 } from '@/lib/app-settings';
 
 interface SettingsModalProps {
@@ -210,6 +211,14 @@ const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(mi
 const DataSection: React.FC = () => {
   const [rowCap, setRowCap] = useState(String(getResultRowCap()));
   const [idleMin, setIdleMin] = useState(String(getIdleTimeoutMin()));
+  const [lineNumbers, setLineNumbers] = useState(getEditorLineNumbers());
+
+  const toggleLineNumbers = () => {
+    const next = !lineNumbers;
+    setLineNumbers(next);
+    setEditorLineNumbers(next);
+    window.dispatchEvent(new CustomEvent(EDITOR_SETTINGS_EVENT));
+  };
 
   // Commit on blur/Enter so the field can be edited (incl. temporarily empty)
   // freely, then snaps to a clamped, persisted value that matches what's used.
@@ -231,6 +240,18 @@ const DataSection: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-secondary">Show line numbers in the SQL editor</label>
+        <button
+          onClick={toggleLineNumbers}
+          role="switch"
+          aria-checked={lineNumbers}
+          aria-label="Show line numbers"
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${lineNumbers ? 'bg-accent' : 'bg-border'}`}
+        >
+          <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${lineNumbers ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+        </button>
+      </div>
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">SQL editor result limit</label>
         <input
