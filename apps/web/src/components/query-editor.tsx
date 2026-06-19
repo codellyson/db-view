@@ -623,7 +623,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               disabled={isExecuting}
             />
           )}
-          <div className="flex h-[40vh] min-h-[200px] border border-border rounded-md overflow-hidden">
+          <div className="flex h-64 border border-border rounded-md overflow-hidden">
             <div className="flex flex-col items-center gap-1 px-1.5 py-2 bg-bg-secondary/40 border-r border-border">
               <button
                 onClick={() => setShowAiGenerate((v) => !v)}
