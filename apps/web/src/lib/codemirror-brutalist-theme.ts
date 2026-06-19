@@ -16,19 +16,26 @@ const rgb = (token: string) => `rgb(var(${token}))`;
 const rgba = (token: string, alpha: number) => `rgb(var(${token}) / ${alpha})`;
 
 export function createBrutalistTheme(isDark: boolean) {
+  // Match the rest of the UI — the app's sans font (tailwind `font-sans` /
+  // @fontsource Geist), not monospace. CodeMirror's base theme sets the font
+  // on `.cm-scroller`, so overriding only `.cm-editor` (`&`) leaves the editor
+  // monospace — we set it on the scroller and the text elements too.
+  const sans = "'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
   return EditorView.theme(
     {
       '&': {
         backgroundColor: rgb('--bg'),
         color: rgb('--text-primary'),
-        // Match the rest of the UI — use the app's sans font (tailwind
-        // `font-sans` / @fontsource Geist), not a monospace face.
-        fontFamily: "'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily: sans,
         fontSize: '13px',
+      },
+      '.cm-scroller': {
+        fontFamily: sans,
       },
       '.cm-content': {
         caretColor: rgb('--accent'),
         color: rgb('--text-primary'),
+        fontFamily: sans,
         // 6px top/bottom so the first line lines up with the editor toolbar
         // (py-2 / 8px) instead of sitting noticeably lower.
         padding: '6px 0',
@@ -50,6 +57,7 @@ export function createBrutalistTheme(isDark: boolean) {
         backgroundColor: 'transparent',
         color: rgb('--text-secondary'),
         border: 'none',
+        fontFamily: sans,
       },
       '.cm-activeLineGutter': {
         backgroundColor: rgba('--accent', 0.12),
