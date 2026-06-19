@@ -702,6 +702,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
             <ErrorState
               message={error}
               onRetry={query.trim() ? handleExecute : undefined}
+              onDismiss={() => { setError(null); setFailedSql(null); }}
               action={aiConfigured ? (
                 <button
                   onClick={handleFixWithAi}
