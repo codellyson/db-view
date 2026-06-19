@@ -614,8 +614,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
 
   return (
     <div className="space-y-4">
-      <Card title="SQL query">
-        <div className="space-y-3">
+      <div className="space-y-3">
           {showAiGenerate && (
             <AiSqlBar
               dialect={databaseType}
@@ -624,7 +623,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               disabled={isExecuting}
             />
           )}
-          <div className="flex border border-border rounded-md overflow-hidden">
+          <div className="flex h-[40vh] min-h-[200px] border border-border rounded-md overflow-hidden">
             <div className="flex flex-col items-center gap-1 px-1.5 py-2 bg-bg-secondary/40 border-r border-border">
               <button
                 onClick={() => setShowAiGenerate((v) => !v)}
@@ -687,7 +686,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2.5 2.5"/></svg>
               </button>
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 h-full">
               <SqlEditor
                 value={query}
                 onChange={setQuery}
@@ -734,8 +733,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               }}
             />
           )}
-        </div>
-      </Card>
+      </div>
 
       {/* EXPLAIN plan panel */}
       {explainData && (

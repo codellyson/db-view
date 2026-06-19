@@ -350,15 +350,16 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   }, [isDark, databaseType, schemaSpec, defaultSchema]);
 
   return (
-    <div className="overflow-hidden">
+    <div className="h-full overflow-hidden">
       <CodeMirror
         value={value}
         onChange={onChange}
         extensions={extensions}
         placeholder={placeholder}
         editable={!disabled}
-        height="192px"
+        height="100%"
         theme="none"
+        style={{ height: '100%' }}
         onCreateEditor={handleCreateEditor}
         basicSetup={basicSetup}
       />
