@@ -4,6 +4,7 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.1.18] - 2026-06-19
+## [0.1.18] - 2026-06-19
 
 ### Added
 - **ai:** Compact schema for large databases (phase 2) ([49835fe](https://github.com/codellyson/justdb/commit/49835fefcd8307741a90ab29c592288ce4dd4eb8))
