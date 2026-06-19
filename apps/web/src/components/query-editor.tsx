@@ -118,6 +118,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
     ai.status().then((s) => setAiConfigured(!!s.configured)).catch(() => {});
   }, []);
   const [showHistory, setShowHistory] = useState(false);
+  const [showAiGenerate, setShowAiGenerate] = useState(false);
   const editorViewRef = useRef<EditorView | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
   const [pendingQueryConfirm, setPendingQueryConfirm] = useState<PendingQueryConfirmation | null>(null);
@@ -613,16 +614,27 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
 
   return (
     <div className="space-y-4">
-      <AiSqlBar
-        dialect={databaseType}
-        schema={aiSchemaText}
-        onGenerated={handleAiGenerated}
-        disabled={isExecuting}
-      />
       <Card title="SQL query">
         <div className="space-y-3">
+          {showAiGenerate && (
+            <AiSqlBar
+              dialect={databaseType}
+              schema={aiSchemaText}
+              onGenerated={handleAiGenerated}
+              disabled={isExecuting}
+            />
+          )}
           <div className="flex border border-border rounded-md overflow-hidden">
             <div className="flex flex-col items-center gap-1 px-1.5 py-2 bg-bg-secondary/40 border-r border-border">
+              <button
+                onClick={() => setShowAiGenerate((v) => !v)}
+                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${showAiGenerate ? 'text-accent bg-accent/15' : 'text-muted hover:text-accent hover:bg-accent/10'}`}
+                title="Generate SQL with AI"
+                aria-pressed={showAiGenerate}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l1.6 4.4L14 6l-4.4 1.6L8 12l-1.6-4.4L2 6l4.4-1.6L8 0zM13 10l.7 1.9L15.6 12.6l-1.9.7L13 15l-.7-1.9L10.4 12.6l1.9-.7L13 10z" /></svg>
+              </button>
+              <div className="w-5 border-t border-border my-0.5" />
               <button
                 onClick={handleExecute}
                 disabled={isExecuting || !query.trim()}
