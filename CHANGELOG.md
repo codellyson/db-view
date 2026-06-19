@@ -3,6 +3,30 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.18] - 2026-06-19
+
+### Added
+- **ai:** Compact schema for large databases (phase 2) ([49835fe](https://github.com/codellyson/justdb/commit/49835fefcd8307741a90ab29c592288ce4dd4eb8))
+- **ai:** Robust chat history — multiple conversations + input recall (phase 3) ([3cb8b5f](https://github.com/codellyson/justdb/commit/3cb8b5f57bbc69e445d0ff2fa6b7472bcf283696))
+- **ai:** Per-mode model selection for AI mode (phase 4) ([ed3740a](https://github.com/codellyson/justdb/commit/ed3740a045e20b144e1f9ac8664b18ae78bffb84))
+- **ai:** Render query results as tables in chat (phase 5) ([c1e09d7](https://github.com/codellyson/justdb/commit/c1e09d786f4bef1b22ef738769c023e3009343e7))
+- **settings:** Add a Settings screen consolidating AI, appearance & prefs ([32450ef](https://github.com/codellyson/justdb/commit/32450efa12c41906370c066ee58ed9836083d016))
+- **settings:** Make Settings global + reachable from the connections screen ([2a83afd](https://github.com/codellyson/justdb/commit/2a83afd49fce3aaf489442c5c20138b006f74cd5))
+- **ai:** Fold the Generate bar into the editor toolbar ([e500551](https://github.com/codellyson/justdb/commit/e50055188b4ecb36feacaba160206f8e34ddfe2c))
+- **editor:** Line-number toggle in settings + font/padding/highlight polish ([394cda0](https://github.com/codellyson/justdb/commit/394cda0ce9883b8055dd8037cf9a00c3d1cd3404))
+- **editor:** Drop the SQL-query card chrome, give the editor a roomier height ([dd3d827](https://github.com/codellyson/justdb/commit/dd3d82785324ab18239f085bdeead6f416478ae4))
+- **editor:** Make the query error dismissible ([ba8db6b](https://github.com/codellyson/justdb/commit/ba8db6b7b57ab913b890b31195029b376141b70b))
+
+
+### Fixed
+- **settings:** Validate the Data number inputs ([a08763e](https://github.com/codellyson/justdb/commit/a08763ef05705fdd0d360e85cac75b37017adcf0))
+- **editor:** Blend the CodeMirror gutter into the editor body ([166a6e2](https://github.com/codellyson/justdb/commit/166a6e2afcdc3e1613c1b0498c7b8f4e839a2be2))
+- **ai:** Tidy the Generate bar — drop duplicate sparkle, controls inside input ([214af46](https://github.com/codellyson/justdb/commit/214af46f5470c5e371f02cb704ce3e5ed923b34f))
+- **editor:** Use the app's sans font in the editor, not monospace ([05cd067](https://github.com/codellyson/justdb/commit/05cd0672a88bb7287c602971ec3e05c3093cd804))
+- **editor:** Actually apply the sans font (override .cm-scroller) ([8cfacbf](https://github.com/codellyson/justdb/commit/8cfacbf87fb0fb2cbaf261d803b1cc365e8f2321))
+- **editor:** Inset editor content so code isn't flush against the toolbar ([4791e33](https://github.com/codellyson/justdb/commit/4791e333c3ebc1a1eb7fd4824c28d9358785134b))
+- **editor:** Restore 12px editor content padding ([d21dc94](https://github.com/codellyson/justdb/commit/d21dc945ed384a8c3a1d3c3a943481a4e4fef8ba))
+
 ## [0.1.17] - 2026-06-18
 ## [0.1.17] - 2026-06-18
 
