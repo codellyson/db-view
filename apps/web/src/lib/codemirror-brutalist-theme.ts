@@ -36,10 +36,10 @@ export function createBrutalistTheme(isDark: boolean) {
         caretColor: rgb('--accent'),
         color: rgb('--text-primary'),
         fontFamily: sans,
-        // 8px top/bottom aligns the first line with the toolbar (py-2); 14px
-        // left/right gives the code an inset so it isn't flush against the
-        // toolbar edge (matches the padding of other fields).
-        padding: '8px 14px',
+        // 12px all around — restores the original vertical breathing room and
+        // gives the code a left/right inset so it isn't flush against the
+        // toolbar edge.
+        padding: '12px',
       },
       '.cm-line': {
         color: rgb('--text-primary'),
