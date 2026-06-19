@@ -1,5 +1,5 @@
 
-import React, { useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import {
   PostgreSQL,
@@ -18,6 +18,7 @@ import {
 } from '@codemirror/autocomplete';
 import { useTheme } from '../contexts/theme-context';
 import { useConnection } from '../contexts/connection-context';
+import { getEditorLineNumbers, EDITOR_SETTINGS_EVENT } from '@/lib/app-settings';
 import {
   createBrutalistTheme,
   createBrutalistHighlight,
@@ -261,6 +262,30 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   const { databaseType } = useConnection();
   const isDark = mode === 'dark';
 
+  // Line-number visibility is a Settings pref; re-read it live when changed.
+  const [lineNumbers, setLineNumbers] = useState(getEditorLineNumbers());
+  useEffect(() => {
+    const onChange = () => setLineNumbers(getEditorLineNumbers());
+    window.addEventListener(EDITOR_SETTINGS_EVENT, onChange);
+    return () => window.removeEventListener(EDITOR_SETTINGS_EVENT, onChange);
+  }, []);
+
+  const basicSetup = useMemo(
+    () => ({
+      lineNumbers,
+      // No active-line / gutter background highlight — keeps the editor clean
+      // on focus (the cursor is enough of an indicator).
+      highlightActiveLineGutter: false,
+      highlightActiveLine: false,
+      bracketMatching: true,
+      closeBrackets: true,
+      autocompletion: true,
+      foldGutter: false,
+      indentOnInput: true,
+    }),
+    [lineNumbers],
+  );
+
   // Hold the selection callback in a ref so extensions stay stable across renders.
   const onSelectionChangeRef = useRef(onSelectionChange);
   useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
@@ -335,16 +360,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
         height="192px"
         theme="none"
         onCreateEditor={handleCreateEditor}
-        basicSetup={{
-          lineNumbers: true,
-          highlightActiveLineGutter: true,
-          highlightActiveLine: true,
-          bracketMatching: true,
-          closeBrackets: true,
-          autocompletion: true,
-          foldGutter: false,
-          indentOnInput: true,
-        }}
+        basicSetup={basicSetup}
       />
     </div>
   );

@@ -7,7 +7,12 @@
 const KEYS = {
   rowCap: 'justdb-result-row-cap',
   idleMin: 'justdb-idle-timeout-min',
+  lineNumbers: 'justdb-editor-line-numbers',
 } as const;
+
+/** Event dispatched when an editor-affecting pref changes, so open editors
+ *  can re-read it without a reload. */
+export const EDITOR_SETTINGS_EVENT = 'justdb:editor-settings';
 
 export const DEFAULT_ROW_CAP = 200;
 export const DEFAULT_IDLE_MIN = 30;
@@ -37,3 +42,19 @@ export const setResultRowCap = (n: number) => writeNumber(KEYS.rowCap, n);
 /** Minutes of inactivity before auto-disconnect (1–1440). */
 export const getIdleTimeoutMin = () => readNumber(KEYS.idleMin, DEFAULT_IDLE_MIN, 1, 1440);
 export const setIdleTimeoutMin = (n: number) => writeNumber(KEYS.idleMin, n);
+
+/** Show line numbers in the SQL editor (default off; only '1' enables). */
+export const getEditorLineNumbers = (): boolean => {
+  try {
+    return localStorage.getItem(KEYS.lineNumbers) === '1';
+  } catch {
+    return false;
+  }
+};
+export const setEditorLineNumbers = (on: boolean) => {
+  try {
+    localStorage.setItem(KEYS.lineNumbers, on ? '1' : '0');
+  } catch {
+    // ignore
+  }
+};
