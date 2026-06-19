@@ -21,10 +21,9 @@ export function createBrutalistTheme(isDark: boolean) {
       '&': {
         backgroundColor: rgb('--bg'),
         color: rgb('--text-primary'),
-        // Match the app's mono (tailwind `font-mono` / @fontsource Geist Mono).
-        // The previous `var(--font-geist-mono)` is a Next.js convention that's
-        // undefined here, so the editor was silently falling back to system mono.
-        fontFamily: "'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+        // Match the rest of the UI — use the app's sans font (tailwind
+        // `font-sans` / @fontsource Geist), not a monospace face.
+        fontFamily: "'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         fontSize: '13px',
       },
       '.cm-content': {
