@@ -39,11 +39,13 @@ export function createBrutalistTheme(isDark: boolean) {
       '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
         backgroundColor: rgba('--accent', 0.18),
       },
+      // Blend the line-number gutter into the editor body — it sits flush
+      // against the editor's own bg-secondary toolbar, and giving it the same
+      // background + a border made it read as a doubled, too-wide gutter.
       '.cm-gutters': {
-        backgroundColor: rgb('--bg-secondary'),
+        backgroundColor: 'transparent',
         color: rgb('--text-secondary'),
         border: 'none',
-        borderRight: `1px solid ${rgb('--border')}`,
       },
       '.cm-activeLineGutter': {
         backgroundColor: rgba('--accent', 0.12),
