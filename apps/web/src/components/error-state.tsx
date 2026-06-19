@@ -7,6 +7,8 @@ interface ErrorStateProps {
   className?: string;
   /** Extra action(s) rendered alongside Retry (e.g. "Fix with AI"). */
   action?: React.ReactNode;
+  /** When provided, shows a dismiss (✕) button that clears the error. */
+  onDismiss?: () => void;
 }
 
 function getErrorHint(message: string): string | null {
@@ -29,6 +31,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   onRetry,
   className = "",
   action,
+  onDismiss,
 }) => {
   const hint = getErrorHint(message);
 
@@ -50,13 +53,25 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
             <p className="text-xs text-muted ml-6">{hint}</p>
           )}
         </div>
-        {(onRetry || action) && (
+        {(onRetry || action || onDismiss) && (
           <div className="flex items-center gap-2 flex-shrink-0">
             {action}
             {onRetry && (
               <Button variant="danger" size="sm" onClick={onRetry}>
                 Retry
               </Button>
+            )}
+            {onDismiss && (
+              <button
+                onClick={onDismiss}
+                aria-label="Dismiss"
+                title="Dismiss"
+                className="p-1.5 rounded-md text-danger/70 hover:text-danger hover:bg-danger/10 transition-colors"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+                  <line x1="3" y1="3" x2="13" y2="13" /><line x1="13" y1="3" x2="3" y2="13" />
+                </svg>
+              </button>
             )}
           </div>
         )}
