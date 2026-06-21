@@ -1,6 +1,6 @@
 {
   "name": "justdb-monorepo",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "private": true,
   "scripts": {
     "dev": "pnpm --filter @justdb/web dev",
