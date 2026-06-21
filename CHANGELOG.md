@@ -4,6 +4,7 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.1.19] - 2026-06-21
+## [0.1.19] - 2026-06-21
 
 ### Added
 - Decode postgres arrays and refine header/result-grid UI ([cbdc905](https://github.com/codellyson/justdb/commit/cbdc9050d9b6a1d8b93fb14d32e86e523e165909))
