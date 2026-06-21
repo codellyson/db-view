@@ -112,8 +112,11 @@ export interface QueryResultGridProps {
   onRemoveFilter?: (column: string) => void;
   /** Vertical max-height for the scroll container. The default lands the
    *  grid below the table-browse chrome; the SQL editor needs more space
-   *  reserved above for the SQL query card. */
+   *  reserved above for the SQL query card. Ignored when `fillParent` is set. */
   maxHeightCss?: string;
+  /** Grow to fill a flex-column parent instead of capping at a viewport-
+   *  relative max-height. The parent must be `flex flex-col min-h-0`. */
+  fillParent?: boolean;
   /** Called with the snapshot rows backing the currently-selected row keys. */
   onBulkExport?: (rows: any[]) => void;
   /** Stable key for layout persistence; usually the SQL string. */
@@ -367,6 +370,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     onAddFilter,
     onRemoveFilter,
     maxHeightCss,
+    fillParent,
     onBulkExport,
     layoutKey,
   } = props;
@@ -1164,9 +1168,11 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
       )}
       <div
         ref={scrollContainerRef}
-        className="border border-border rounded-md overflow-auto relative bg-bg"
+        className={`border border-border rounded-md overflow-auto relative bg-bg${
+          fillParent ? ' flex-1 min-h-0' : ''
+        }`}
         style={{
-          maxHeight: maxHeightCss ?? 'calc(100vh - 360px)',
+          maxHeight: fillParent ? undefined : (maxHeightCss ?? 'calc(100vh - 360px)'),
           minHeight: 240,
           willChange: 'scroll-position',
           // `contain: paint` on the scroll container has been observed to

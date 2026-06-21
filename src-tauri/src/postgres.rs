@@ -454,9 +454,44 @@ fn postgres_value_to_json(row: &Row, idx: usize) -> JsonValue {
             .flatten()
             .map(|v| JsonValue::String(v.to_string()))
             .unwrap_or(JsonValue::Null),
+        Type::BOOL_ARRAY => array_to_json::<bool>(row, idx, JsonValue::Bool),
+        Type::INT2_ARRAY => array_to_json::<i16>(row, idx, |v| JsonValue::from(v as i64)),
+        Type::INT4_ARRAY => array_to_json::<i32>(row, idx, |v| JsonValue::from(v as i64)),
+        Type::INT8_ARRAY => array_to_json::<i64>(row, idx, JsonValue::from),
+        Type::FLOAT4_ARRAY => array_to_json::<f32>(row, idx, |v| JsonValue::from(v as f64)),
+        Type::FLOAT8_ARRAY => array_to_json::<f64>(row, idx, JsonValue::from),
+        Type::TEXT_ARRAY | Type::VARCHAR_ARRAY | Type::BPCHAR_ARRAY | Type::NAME_ARRAY => {
+            array_to_json::<String>(row, idx, JsonValue::String)
+        }
+        Type::UUID_ARRAY => {
+            array_to_json::<uuid::Uuid>(row, idx, |v| JsonValue::String(v.to_string()))
+        }
+        Type::JSON_ARRAY | Type::JSONB_ARRAY => array_to_json::<JsonValue>(row, idx, |v| v),
+        Type::NUMERIC_ARRAY => {
+            array_to_json::<rust_decimal::Decimal>(row, idx, |v| JsonValue::String(v.to_string()))
+        }
+        Type::TIMESTAMP_ARRAY => {
+            array_to_json::<chrono::NaiveDateTime>(row, idx, |v| JsonValue::String(v.to_string()))
+        }
+        Type::TIMESTAMPTZ_ARRAY => array_to_json::<chrono::DateTime<chrono::Utc>>(row, idx, |v| {
+            JsonValue::String(v.to_rfc3339())
+        }),
+        Type::DATE_ARRAY => {
+            array_to_json::<chrono::NaiveDate>(row, idx, |v| JsonValue::String(v.to_string()))
+        }
+        _ if matches!(col_type.kind(), tokio_postgres::types::Kind::Array(_)) => {
+            // Array of an element type we don't decode explicitly. Splitting
+            // it element-wise via AnyAsString still yields a real JSON array
+            // (correct for enum[] and other text-representable elements)
+            // instead of the binary-blob-as-UTF-8 garbage the scalar
+            // fallback below produced.
+            array_to_json::<AnyAsString>(row, idx, |v| {
+                v.0.map(JsonValue::String).unwrap_or(JsonValue::Null)
+            })
+        }
         _ => {
             // Permissive fallback for types we don't decode explicitly
-            // (custom enums, geometric types, intervals, ranges, arrays …).
+            // (custom enums, geometric types, intervals, ranges …).
             // tokio-postgres's String::accepts() only allows TEXT/VARCHAR/
             // BPCHAR/NAME, so the previous Option<String> branch silently
             // failed for everything else and rendered NULL. AnyAsString
@@ -468,6 +503,24 @@ fn postgres_value_to_json(row: &Row, idx: usize) -> JsonValue {
                 _ => JsonValue::Null,
             }
         }
+    }
+}
+
+/// Decode a Postgres array column into a JSON array, mapping each (nullable)
+/// element through `f`. Returns `Null` when the column itself is NULL or the
+/// element type can't be decoded as `T`.
+fn array_to_json<T>(row: &Row, idx: usize, f: impl Fn(T) -> JsonValue) -> JsonValue
+where
+    T: for<'a> FromSql<'a>,
+{
+    match row.try_get::<_, Option<Vec<Option<T>>>>(idx) {
+        Ok(Some(items)) => JsonValue::Array(
+            items
+                .into_iter()
+                .map(|item| item.map(&f).unwrap_or(JsonValue::Null))
+                .collect(),
+        ),
+        _ => JsonValue::Null,
     }
 }
 

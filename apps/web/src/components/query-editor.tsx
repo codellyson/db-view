@@ -613,7 +613,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   }));
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
       <div className="space-y-3">
           {showAiGenerate && (
             <AiSqlBar
@@ -811,7 +811,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
 
       {/* Active result tab content */}
       {activeTab && (
-        <div>
+        <div className="flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-sm text-muted">
               {activeTab.truncated ? (
@@ -889,9 +889,10 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               data={activeTab.rows}
               columnTypes={activeTab.columnTypes}
               layoutKey={activeTab.sql}
-              // SQL editor has a tall SQL-query Card above the grid; the
-              // default leaves the grid extending below the viewport.
-              maxHeightCss="calc(100vh - 520px)"
+              // Fill the remaining height of the flex column rather than
+              // guessing a viewport offset — the SQL editor card above is
+              // 40vh and other panels (AI, errors, EXPLAIN) vary the offset.
+              fillParent
               searchQuery={resultSearchQuery}
               schema={editableMeta?.schema}
               table={editableMeta?.table}
