@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
+import { Select } from "./ui/select";
 import { SqlEditor } from "./sql-editor";
 import { useConnection } from "../contexts/connection-context";
 import { useDashboard } from "../contexts/dashboard-context";
@@ -206,17 +207,17 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
                 <label className="block text-xs font-medium text-secondary mb-1.5">
                   Schema
                 </label>
-                <select
+                <Select
+                  inputSize="md"
                   value={tableSchema}
                   onChange={(e) => setTableSchema(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   {schemas.map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
             <div className="flex justify-end pt-2">
@@ -258,17 +259,18 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
                         placeholder="column_name"
                         className="flex-1 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent font-mono placeholder:text-muted"
                       />
-                      <select
+                      <Select
+                        containerClassName="w-40"
+                        className="font-mono"
                         value={col.type}
                         onChange={(e) => updateColumn(i, { type: e.target.value })}
-                        className="w-40 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent font-mono"
                       >
                         {types.map((t) => (
                           <option key={t} value={t}>
                             {t}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     <div className="flex items-center gap-4 text-xs">
                       <label className="flex items-center gap-1.5 text-secondary cursor-pointer">

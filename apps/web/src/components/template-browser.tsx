@@ -3,6 +3,7 @@ import React, { useState, useMemo } from "react";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { Select } from "./ui/select";
 import { usePlugins } from "../hooks/use-plugins";
 import type { QueryTemplate } from "@/lib/plugin-types";
 
@@ -160,17 +161,16 @@ export const TemplateBrowser: React.FC<TemplateBrowserProps> = ({
                   <div key={v.name}>
                     <label className="block text-xs text-secondary mb-1">{v.label}</label>
                     {v.type === "select" && v.options ? (
-                      <select
+                      <Select
                         value={variables[v.name] || ""}
                         onChange={(e) =>
                           setVariables((prev) => ({ ...prev, [v.name]: e.target.value }))
                         }
-                        className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
                       >
                         {v.options.map((opt) => (
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
-                      </select>
+                      </Select>
                     ) : (
                       <input
                         type="text"

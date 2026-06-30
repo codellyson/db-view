@@ -3,6 +3,7 @@ import React, { useState, useCallback } from "react";
 import Papa from "papaparse";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
+import { Select } from "./ui/select";
 import { ColumnInfo } from "@/types";
 import { db } from "@/lib/db";
 
@@ -231,7 +232,8 @@ export const CSVImportDialog: React.FC<CSVImportDialogProps> = ({
                       d="M14 5l7 7m0 0l-7 7m7-7H3"
                     />
                   </svg>
-                  <select
+                  <Select
+                    containerClassName="flex-1"
                     value={columnMapping[header] || SKIP_COLUMN}
                     onChange={(e) =>
                       setColumnMapping((prev) => ({
@@ -239,7 +241,6 @@ export const CSVImportDialog: React.FC<CSVImportDialogProps> = ({
                         [header]: e.target.value,
                       }))
                     }
-                    className="flex-1 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
                   >
                     <option value={SKIP_COLUMN}>-- Skip --</option>
                     {columns.map((col) => (
@@ -247,7 +248,7 @@ export const CSVImportDialog: React.FC<CSVImportDialogProps> = ({
                         {col.name} ({col.type})
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               ))}
             </div>

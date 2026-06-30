@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from './ui/modal';
+import { Select } from './ui/select';
 import { FormatterSettingsBody } from './formatter-settings';
 import { ai, PROVIDERS, type AiStatus, type ProviderId } from '@/lib/ai';
 import { useTheme } from '../contexts/theme-context';
@@ -120,13 +121,9 @@ const AiSection: React.FC = () => {
       )}
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">Provider</label>
-        <select
-          value={provider}
-          onChange={(e) => setProvider(e.target.value as ProviderId)}
-          className="w-full h-9 px-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-        >
+        <Select value={provider} onChange={(e) => setProvider(e.target.value as ProviderId)}>
           {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-        </select>
+        </Select>
       </div>
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">Model (optional)</label>
@@ -135,7 +132,7 @@ const AiSection: React.FC = () => {
           value={model}
           onChange={(e) => setModel(e.target.value)}
           placeholder={`Default: ${meta.defaultModel}`}
-          className="w-full h-9 px-2 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+          className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
         />
       </div>
       <div className="space-y-1.5">
@@ -148,7 +145,7 @@ const AiSection: React.FC = () => {
           onChange={(e) => setApiKey(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
           placeholder={meta.keyPlaceholder}
-          className="w-full h-9 px-2 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+          className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -199,13 +196,9 @@ const AppearanceSection: React.FC = () => {
       </div>
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">Theme</label>
-        <select
-          value={themeId}
-          onChange={(e) => setThemeId(e.target.value)}
-          className="w-full h-9 px-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-        >
+        <Select value={themeId} onChange={(e) => setThemeId(e.target.value)}>
           {themes.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-        </select>
+        </Select>
       </div>
     </div>
   );

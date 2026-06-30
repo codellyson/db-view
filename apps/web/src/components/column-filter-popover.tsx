@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Select } from './ui/select';
 import type { Filter, FilterOperator } from '@/lib/filters';
 
 interface ColumnFilterPopoverProps {
@@ -134,19 +135,18 @@ export const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
         <div className="text-sm font-medium text-primary truncate">{column}</div>
       </div>
       <div className="p-3 space-y-2">
-        <select
+        <Select
           ref={inputRef as React.RefObject<HTMLSelectElement>}
           value={operator}
           onChange={(e) => setOperator(e.target.value as FilterOperator)}
           onKeyDown={handleKeyDown}
-          className="w-full px-2 py-1.5 text-sm border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
         >
           {OPERATOR_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
 
         {needsValue && (
           <input

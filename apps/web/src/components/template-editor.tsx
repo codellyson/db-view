@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
+import { Select } from "./ui/select";
 import { SqlEditor } from "./sql-editor";
 import type { TemplateVariable } from "@/lib/plugin-types";
 
@@ -115,27 +116,27 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="block text-xs font-medium text-secondary mb-1.5">Dialect</label>
-            <select
+            <Select
+              inputSize="md"
               value={dialect}
               onChange={(e) => setDialect(e.target.value as typeof dialect)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
             >
               {DIALECT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="flex-1">
             <label className="block text-xs font-medium text-secondary mb-1.5">Category</label>
-            <select
+            <Select
+              inputSize="md"
               value={category}
               onChange={(e) => setCategory(e.target.value as typeof category)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
             >
               {CATEGORY_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
         <div>

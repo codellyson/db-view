@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from './ui/modal';
 import { Button } from './ui/button';
+import { Select } from './ui/select';
 import {
   generateCSVContent,
   generateJSONContent,
@@ -255,17 +256,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
         <div>
           <label className="block text-xs font-medium text-secondary mb-1.5">Format</label>
-          <select
+          <Select
             value={format}
             onChange={(e) => setFormat(e.target.value as ExportFormat)}
-            className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
           >
             {formatOptions.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {(showCsvOpts || showJsonOpts || showSqlOpts) && (

@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
+import { Select } from "./ui/select";
 import { DEFAULT_FORMATTERS } from "@/lib/default-plugins";
 import type { FormatterPreset, FormatterMatcher } from "@/lib/plugin-types";
 import { usePlugins } from "../hooks/use-plugins";
@@ -132,15 +133,15 @@ export const FormatterSettingsBody: React.FC = () => {
               className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
             />
             <div className="flex gap-2">
-              <select
+              <Select
+                containerClassName="flex-1"
                 value={newMatcherType}
                 onChange={(e) => setNewMatcherType(e.target.value as FormatterMatcher["type"])}
-                className="flex-1 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 {MATCHER_TYPE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
-              </select>
+              </Select>
               <input
                 type="text"
                 value={newMatcherValue}
@@ -149,15 +150,14 @@ export const FormatterSettingsBody: React.FC = () => {
                 className="flex-1 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent font-mono placeholder:text-muted"
               />
             </div>
-            <select
+            <Select
               value={newPreset}
               onChange={(e) => setNewPreset(e.target.value as FormatterPreset)}
-              className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
             >
               {PRESET_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
-            </select>
+            </Select>
             <div className="flex justify-end gap-2">
               <Button variant="secondary" size="sm" onClick={() => setShowAddForm(false)}>
                 Cancel
