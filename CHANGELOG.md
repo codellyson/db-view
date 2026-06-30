@@ -3,6 +3,29 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.20] - 2026-06-30
+
+### Added
+- **header:** Show app version next to the wordmark ([108c0f8](https://github.com/codellyson/justdb/commit/108c0f893aabc69400d9bfb22f8fca0cb679c1ff))
+- **sidebar:** Pin app version to sidebar bottom, drop from header ([e62fdb6](https://github.com/codellyson/justdb/commit/e62fdb6630945bb08e1a83cef7c95ef2683db0ea))
+
+
+### Fixed
+- **cascade:** Enforce time budget per query so preview can't hang ([35abcd8](https://github.com/codellyson/justdb/commit/35abcd8de7a0c780cabebac23fa584a649fc1ff2))
+- **settings:** Full-height sidebar divider and even AI form spacing ([5d0777e](https://github.com/codellyson/justdb/commit/5d0777eb5ebf6c908acde544fec64c77b68c3b1a))
+- **window:** Force large launch size past macOS frame restoration ([a41e8b7](https://github.com/codellyson/justdb/commit/a41e8b718ee815323121e7ebf1830ba0c4dca482))
+- **pg:** Decode TIME/TIME[] as NaiveTime instead of binary garbage ([4106a6e](https://github.com/codellyson/justdb/commit/4106a6ea02904f8588631998468de58699103fd3))
+- **ui:** Drop modal focus outline, dedup shortcuts help row ([b7fe2bb](https://github.com/codellyson/justdb/commit/b7fe2bb6132a590ff5aa1eaeea567aa7237241d1))
+- **sidebar:** Hide native scrollbar on table list ([7d0879b](https://github.com/codellyson/justdb/commit/7d0879b2ef5294021f5b099263c169833818ae76))
+- **grid:** Hide native scrollbars on the result grid ([75f4bab](https://github.com/codellyson/justdb/commit/75f4bab09e55e76c52bd579a5b1a8d27377f0ada))
+- **grid:** Use thin styled scrollbar instead of hiding it ([17f4792](https://github.com/codellyson/justdb/commit/17f4792f70dc62f0cea9e5e1da1c9e50af6e7961))
+- **sidebar:** Use global thin scrollbar, consistent with the grid ([9a920e8](https://github.com/codellyson/justdb/commit/9a920e82c2a6927a5a1a9c27672e10ee451bc676))
+- **settings:** Even height for Appearance theme select ([078ad1a](https://github.com/codellyson/justdb/commit/078ad1a43989bc6ab9542edf9fb4815ff8095a21))
+
+
+### Maintenance
+- **settings:** Trim verbose divider comment ([ea005bc](https://github.com/codellyson/justdb/commit/ea005bcb9b2d0e881e4ce4674c985d451061ec2b))
+
 ## [0.1.19] - 2026-06-21
 ## [0.1.19] - 2026-06-21
 
