@@ -1855,6 +1855,14 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             app.manage(AppState::default());
+
+            // Force launch size after creation so macOS frame restoration
+            // can't shrink the window below the config size.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_size(tauri::LogicalSize::new(1600.0, 1000.0));
+                let _ = window.center();
+            }
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
