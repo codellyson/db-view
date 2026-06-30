@@ -27,9 +27,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [tab, setTab] = useState<Tab>('ai');
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Settings" className="!max-w-3xl">
-      {/* -my-5 cancels the Modal's p-5 vertical padding so the sidebar's
-          border-r runs flush from the title border to the modal's bottom
-          edge; py-5 inside each column restores the breathing room. */}
+      {/* -my-5 cancels the Modal's p-5 so the divider runs full-height. */}
       <div className="flex gap-5 -my-5">
         <nav className="flex flex-col gap-0.5 w-36 flex-shrink-0 border-r border-border pr-5 py-5">
           {TABS.map((t) => (
