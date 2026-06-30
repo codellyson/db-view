@@ -92,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       data-tauri-drag-region={onMac ? "" : undefined}
       style={onMac ? { paddingTop: 28 } : undefined}
     >
-      <div className="flex-1 overflow-y-auto scrollbar-none p-3">
+      <div className="flex-1 overflow-y-auto p-3">
         {schemas && schemas.length > 1 && onSchemaChange && (
           <div className="mb-3">
             <label className="block text-[10px] uppercase tracking-wider font-semibold text-muted mb-1.5 px-1">
