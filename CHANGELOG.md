@@ -4,6 +4,7 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.1.20] - 2026-06-30
+## [0.1.20] - 2026-06-30
 
 ### Added
 - **header:** Show app version next to the wordmark ([108c0f8](https://github.com/codellyson/justdb/commit/108c0f893aabc69400d9bfb22f8fca0cb679c1ff))
