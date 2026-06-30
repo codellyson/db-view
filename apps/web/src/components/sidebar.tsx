@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getVersion } from '@tauri-apps/api/app';
 import { TableList } from './table-list';
 import { SidebarSkeleton } from './skeletons/sidebar-skeleton';
 import { isMacOSTauri } from '@/lib/runtime';
@@ -76,6 +77,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
+  const [version, setVersion] = useState('');
+  useEffect(() => { getVersion().then(setVersion).catch(() => {}); }, []);
+
   // On macOS Tauri the sidebar starts at the window's top edge, where the
   // overlay title bar draws its traffic lights. Add a 28px reserve so the
   // schema picker / TABLES label don't sit under them.
@@ -83,12 +87,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className="w-full bg-bg h-screen overflow-y-auto border-r border-border"
+      className="w-full bg-bg h-screen flex flex-col border-r border-border"
       aria-label="Database sidebar"
       data-tauri-drag-region={onMac ? "" : undefined}
       style={onMac ? { paddingTop: 28 } : undefined}
     >
-      <div className="p-3">
+      <div className="flex-1 overflow-y-auto p-3">
         {schemas && schemas.length > 1 && onSchemaChange && (
           <div className="mb-3">
             <label className="block text-[10px] uppercase tracking-wider font-semibold text-muted mb-1.5 px-1">
@@ -253,6 +257,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </div>
+      {version && (
+        <div className="border-t border-border px-3 py-2 text-[11px] text-muted font-mono">
+          v{version}
+        </div>
+      )}
     </aside>
   );
 };
