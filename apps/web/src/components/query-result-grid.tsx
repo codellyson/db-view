@@ -1168,7 +1168,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
       )}
       <div
         ref={scrollContainerRef}
-        className={`border border-border rounded-md overflow-auto scrollbar-none relative bg-bg${
+        className={`border border-border rounded-md overflow-auto relative bg-bg${
           fillParent ? ' flex-1 min-h-0' : ''
         }`}
         style={{
