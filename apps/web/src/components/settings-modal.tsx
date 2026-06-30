@@ -202,7 +202,7 @@ const AppearanceSection: React.FC = () => {
         <select
           value={themeId}
           onChange={(e) => setThemeId(e.target.value)}
-          className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-full h-9 px-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
         >
           {themes.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
