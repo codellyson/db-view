@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { getVersion } from '@tauri-apps/api/app';
 import { useNavigate } from 'react-router-dom';
 import { ConnectionSelector } from './connection-selector';
 import { useConnection } from '../contexts/connection-context';
@@ -27,6 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   const { disconnect } = useConnection();
   const { latency, healthy } = useConnectionHealth(isConnected);
   const onMac = isMacOSTauri();
+  const [version, setVersion] = React.useState('');
+  React.useEffect(() => { getVersion().then(setVersion).catch(() => {}); }, []);
 
   const handleDisconnect = async () => {
     // No explicit navigate after disconnect — Home swaps the rendered
@@ -107,6 +110,11 @@ export const Header: React.FC<HeaderProps> = ({
             />
             <span className="text-base font-semibold text-primary">JustDB</span>
           </div>
+        )}
+        {version && (
+          <span className="text-[11px] text-muted font-mono leading-none" title="App version">
+            v{version}
+          </span>
         )}
       </div>
       <div className="flex items-center gap-2 md:gap-3">
