@@ -4,6 +4,7 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.1.21] - 2026-06-30
+## [0.1.21] - 2026-06-30
 
 ### Changed
 - **ui:** Shared Select component for consistent select sizing ([86ada8b](https://github.com/codellyson/justdb/commit/86ada8b22f3934ab757508a482fe95e7a169a284))
