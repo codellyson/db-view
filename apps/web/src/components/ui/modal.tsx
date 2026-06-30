@@ -109,7 +109,7 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         ref={modalRef}
         tabIndex={-1}
-        className={`relative z-10 bg-bg border border-border rounded-lg shadow-lg w-full max-w-md transition-all duration-150 ease-out ${
+        className={`relative z-10 bg-bg border border-border rounded-lg shadow-lg w-full max-w-md transition-all duration-150 ease-out focus:outline-none ${
           isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.97]'
         } ${className}`}
       >

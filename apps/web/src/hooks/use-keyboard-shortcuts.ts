@@ -9,6 +9,8 @@ export interface Shortcut {
   description: string;
   category: string;
   action: () => void;
+  // Active binding kept out of the help list (e.g. alias keys).
+  hidden?: boolean;
 }
 
 function isInputElement(target: EventTarget | null): boolean {

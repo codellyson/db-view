@@ -14,7 +14,8 @@ export const KeyboardShortcutsHelp: React.FC<KeyboardShortcutsHelpProps> = ({
   onClose,
   shortcuts,
 }) => {
-  const categories = Array.from(new Set(shortcuts.map((s) => s.category)));
+  const visible = shortcuts.filter((s) => !s.hidden);
+  const categories = Array.from(new Set(visible.map((s) => s.category)));
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Keyboard shortcuts">
@@ -25,7 +26,7 @@ export const KeyboardShortcutsHelp: React.FC<KeyboardShortcutsHelpProps> = ({
               {category}
             </h4>
             <div className="space-y-1">
-              {shortcuts
+              {visible
                 .filter((s) => s.category === category)
                 .map((shortcut) => (
                   <div

@@ -291,9 +291,9 @@ export function Dashboard() {
       action: () => setIsAiOpen((prev) => !prev),
     },
     {
-      // Bare `?` (Shift + /) — companion to Cmd+/, matches the doc.
+      // Bare `?` (Shift + /) — companion to Cmd+/; hidden to avoid a dup row.
       key: '?', shift: true, description: 'Show keyboard shortcuts',
-      category: 'General',
+      category: 'General', hidden: true,
       action: () => setIsShortcutsHelpOpen((prev) => !prev),
     },
   ], [primaryKeys, selectedTable, selectedSchema, isShortcutsHelpOpen, isReviewOpen, openEditorTab, pending, activeTabId, closeTab, isEditorTab, isQueryTab, isTablePickerOpen, isCommandPaletteOpen, fkQuery, refreshTableData]);
