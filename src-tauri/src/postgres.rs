@@ -448,6 +448,14 @@ fn postgres_value_to_json(row: &Row, idx: usize) -> JsonValue {
             .flatten()
             .map(|v| JsonValue::String(v.to_string()))
             .unwrap_or(JsonValue::Null),
+        // Without this, TIME's binary repr fell through to AnyAsString and
+        // rendered as mojibake.
+        Type::TIME => row
+            .try_get::<_, Option<chrono::NaiveTime>>(idx)
+            .ok()
+            .flatten()
+            .map(|v| JsonValue::String(v.to_string()))
+            .unwrap_or(JsonValue::Null),
         Type::NUMERIC => row
             .try_get::<_, Option<rust_decimal::Decimal>>(idx)
             .ok()
@@ -478,6 +486,9 @@ fn postgres_value_to_json(row: &Row, idx: usize) -> JsonValue {
         }),
         Type::DATE_ARRAY => {
             array_to_json::<chrono::NaiveDate>(row, idx, |v| JsonValue::String(v.to_string()))
+        }
+        Type::TIME_ARRAY => {
+            array_to_json::<chrono::NaiveTime>(row, idx, |v| JsonValue::String(v.to_string()))
         }
         _ if matches!(col_type.kind(), tokio_postgres::types::Kind::Array(_)) => {
             // Array of an element type we don't decode explicitly. Splitting
