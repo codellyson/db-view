@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::postgres::{
     json_to_text, pg_quote_literal, quote_identifier, rows_as_objects, PgConnection, QueryResult,
@@ -174,6 +174,14 @@ pub async fn preview(
         }
 
         for group in by_constraint.into_values() {
+            // The outer `while` only re-checks the budget between nodes; a node
+            // with many FK constraints could otherwise keep firing per-query
+            // timeouts long after the budget is spent. Bail out of the rest of
+            // this node's constraints once we're over.
+            if (start.elapsed().as_millis() as u64) > time_budget_ms {
+                truncated_any = true;
+                break;
+            }
             let first = group[0].clone();
             let child_cols: Vec<String> = group.iter().map(|g| g.child_column.clone()).collect();
             let parent_cols: Vec<String> = group.iter().map(|g| g.parent_column.clone()).collect();
@@ -215,9 +223,13 @@ pub async fn preview(
                 }
             };
 
-            let count = match conn.query(&count_sql).await {
+            let count = match query_within_budget(conn, &count_sql, start, time_budget_ms).await {
                 Ok(r) => extract_count(&r),
                 Err(e) => {
+                    // A query that errors or outruns the budget leaves us unable
+                    // to fully assess impact — flag the preview as truncated so
+                    // the modal doesn't present a partial result as complete.
+                    truncated_any = true;
                     warnings.push(format!(
                         "Count query failed for {}.{}: {e}",
                         first.child_schema, first.child_table
@@ -293,9 +305,13 @@ pub async fn preview(
                 }
             };
 
-            let child_rows = match conn.query(&pk_sql).await {
+            let child_rows = match query_within_budget(conn, &pk_sql, start, time_budget_ms).await {
                 Ok(r) => rows_as_objects(&r),
                 Err(e) => {
+                    // Counted the children but couldn't fetch their PKs (error or
+                    // budget) — record the bucket, but we can't recurse, so the
+                    // deeper cascade is unexplored: mark truncated.
+                    truncated_any = true;
                     warnings.push(format!(
                         "Child PK fetch failed for {}.{}: {e}",
                         first.child_schema, first.child_table
@@ -351,6 +367,33 @@ pub async fn preview(
         truncated: truncated_any,
         elapsed_ms: start.elapsed().as_millis() as u64,
         warnings,
+    }
+}
+
+/// Run a preview query but never block past the remaining time budget.
+///
+/// The BFS only re-checks the budget *between* nodes, so without this a single
+/// slow `COUNT(*) … WHERE fk IN (…)` or PK `SELECT` — e.g. deleting a parent
+/// whose child table is large or lacks an index on the FK column — would hang
+/// the whole preview, and with it the Review-SQL modal's "Checking cascade
+/// impact…" spinner, indefinitely. On timeout we surface a readable error the
+/// caller folds into `warnings` exactly like any other query failure, so the
+/// preview still returns a partial, best-effort (truncated) result.
+async fn query_within_budget(
+    conn: &PgConnection,
+    sql: &str,
+    start: Instant,
+    time_budget_ms: u64,
+) -> Result<QueryResult, String> {
+    let elapsed = start.elapsed().as_millis() as u64;
+    let remaining = time_budget_ms.saturating_sub(elapsed);
+    if remaining == 0 {
+        return Err("cascade preview time budget exhausted".into());
+    }
+    match tokio::time::timeout(Duration::from_millis(remaining), conn.query(sql)).await {
+        Ok(Ok(result)) => Ok(result),
+        Ok(Err(e)) => Err(e.to_string()),
+        Err(_) => Err("query exceeded the cascade preview time budget".into()),
     }
 }
 
