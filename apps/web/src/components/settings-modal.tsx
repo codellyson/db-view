@@ -27,8 +27,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [tab, setTab] = useState<Tab>('ai');
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Settings" className="!max-w-3xl">
-      <div className="flex gap-6 -mt-1">
-        <nav className="flex flex-col gap-0.5 w-36 flex-shrink-0 border-r border-border pr-2">
+      {/* -my-5 cancels the Modal's p-5 vertical padding so the sidebar's
+          border-r runs flush from the title border to the modal's bottom
+          edge; py-5 inside each column restores the breathing room. */}
+      <div className="flex gap-5 -my-5">
+        <nav className="flex flex-col gap-0.5 w-36 flex-shrink-0 border-r border-border pr-5 py-5">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -41,7 +44,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             </button>
           ))}
         </nav>
-        <div className="flex-1 min-w-0 min-h-[360px] max-h-[60vh] overflow-y-auto pr-1">
+        <div className="flex-1 min-w-0 min-h-[360px] max-h-[60vh] overflow-y-auto pr-1 py-5">
           {tab === 'ai' && <AiSection />}
           {tab === 'appearance' && <AppearanceSection />}
           {tab === 'formatting' && <FormatterSettingsBody />}
@@ -104,7 +107,7 @@ const AiSection: React.FC = () => {
   }, [refresh]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <p className="text-xs text-muted">
         AI is opt-in. Your key is stored in the OS keychain and only leaves your machine on
         requests you make. Used by the SQL editor's Generate bar and AI mode.
@@ -117,33 +120,39 @@ const AiSection: React.FC = () => {
           <span className="font-mono text-muted">{status.model}</span>
         </div>
       )}
-      <label className="block text-xs font-medium text-secondary">Provider</label>
-      <select
-        value={provider}
-        onChange={(e) => setProvider(e.target.value as ProviderId)}
-        className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-      >
-        {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-      </select>
-      <label className="block text-xs font-medium text-secondary">Model (optional)</label>
-      <input
-        type="text"
-        value={model}
-        onChange={(e) => setModel(e.target.value)}
-        placeholder={`Default: ${meta.defaultModel}`}
-        className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
-      />
-      <label className="block text-xs font-medium text-secondary">
-        API key {status?.configured && <span className="text-muted font-normal">(leave blank to keep current)</span>}
-      </label>
-      <input
-        type="password"
-        value={apiKey}
-        onChange={(e) => setApiKey(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
-        placeholder={meta.keyPlaceholder}
-        className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
-      />
+      <div className="space-y-1.5">
+        <label className="block text-xs font-medium text-secondary">Provider</label>
+        <select
+          value={provider}
+          onChange={(e) => setProvider(e.target.value as ProviderId)}
+          className="w-full h-9 px-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select>
+      </div>
+      <div className="space-y-1.5">
+        <label className="block text-xs font-medium text-secondary">Model (optional)</label>
+        <input
+          type="text"
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          placeholder={`Default: ${meta.defaultModel}`}
+          className="w-full h-9 px-2 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <label className="block text-xs font-medium text-secondary">
+          API key {status?.configured && <span className="text-muted font-normal">(leave blank to keep current)</span>}
+        </label>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+          placeholder={meta.keyPlaceholder}
+          className="w-full h-9 px-2 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+        />
+      </div>
       <div className="flex items-center gap-2">
         <button
           onClick={save}
