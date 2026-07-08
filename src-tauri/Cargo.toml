@@ -50,6 +50,7 @@ async-trait = "0.1"
 # so this is a plain JSON POST. `native-tls` reuses the TLS stack already
 # pulled in by postgres-native-tls rather than adding rustls.
 reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+tauri-plugin-aptabase = "1.0.0"
 
 # Single-instance is only needed on Windows + Linux. macOS's LaunchServices
 # already enforces single-instance for bundled apps, so we target-gate to

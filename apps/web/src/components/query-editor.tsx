@@ -13,6 +13,7 @@ import { getStatementAtCursor } from '@/lib/sql-statements';
 import { db } from '@/lib/db';
 import { ai } from '@/lib/ai';
 import { getResultRowCap } from '@/lib/app-settings';
+import { track, bucketDuration } from '@/lib/telemetry';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
 import { useToast } from '../contexts/toast-context';
@@ -264,9 +265,11 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
         });
         setActiveResultTabId(tabId);
         addQuery(execQuery, execTime, totalRows);
+        void track({ name: 'query_executed', duration_bucket: bucketDuration(execTime), has_rows: totalRows > 0 });
       } catch (err: any) {
         setError(err.message || 'Query execution failed');
         setFailedSql(execQuery);
+        void track({ name: 'query_failed' });
       } finally {
         setIsExecuting(false);
       }

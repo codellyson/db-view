@@ -74,6 +74,10 @@ jobs:
           # initial CI runs before you've generated the keypair.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Compiled into the binary via option_env! in src-tauri/src/lib.rs.
+          # When unset (e.g. local dev builds), telemetry is fully disabled —
+          # the Aptabase plugin isn't even registered.
+          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
         with:
           # On tag pushes, tauri-action creates a draft release and uploads
           # the bundles. On workflow_dispatch (no tag), tagName resolves to

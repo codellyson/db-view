@@ -8,24 +8,31 @@ import {
   getResultRowCap, setResultRowCap, DEFAULT_ROW_CAP,
   getIdleTimeoutMin, setIdleTimeoutMin, DEFAULT_IDLE_MIN,
   getEditorLineNumbers, setEditorLineNumbers, EDITOR_SETTINGS_EVENT,
+  getTelemetryEnabled, setTelemetryEnabled,
 } from '@/lib/app-settings';
+
+type Tab = 'ai' | 'appearance' | 'formatting' | 'data' | 'privacy';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Tab to focus when the modal opens (e.g. deep-linked from a banner). */
+  initialTab?: Tab;
 }
-
-type Tab = 'ai' | 'appearance' | 'formatting' | 'data';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'ai', label: 'AI' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'formatting', label: 'Formatting' },
   { id: 'data', label: 'Data' },
+  { id: 'privacy', label: 'Privacy' },
 ];
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [tab, setTab] = useState<Tab>('ai');
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialTab }) => {
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'ai');
+  useEffect(() => {
+    if (isOpen && initialTab) setTab(initialTab);
+  }, [isOpen, initialTab]);
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Settings" className="!max-w-3xl">
       {/* -my-5 cancels the Modal's p-5 so the divider runs full-height. */}
@@ -48,6 +55,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           {tab === 'appearance' && <AppearanceSection />}
           {tab === 'formatting' && <FormatterSettingsBody />}
           {tab === 'data' && <DataSection />}
+          {tab === 'privacy' && <PrivacySection />}
         </div>
       </div>
     </Modal>
@@ -278,6 +286,51 @@ const DataSection: React.FC = () => {
         <p className="text-xs text-muted">
           Auto-disconnect after this much inactivity (default {DEFAULT_IDLE_MIN}, range 1–1440).
           Applies to the next connection.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ─── Privacy ─────────────────────────────────────────────────────────────────
+
+const PrivacySection: React.FC = () => {
+  const [enabled, setEnabled] = useState(getTelemetryEnabled());
+
+  const toggle = () => {
+    const next = !enabled;
+    setEnabled(next);
+    setTelemetryEnabled(next);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <label className="text-xs font-medium text-secondary">Send anonymous usage analytics</label>
+        <button
+          onClick={toggle}
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Send anonymous usage analytics"
+          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${enabled ? 'bg-accent' : 'bg-border'}`}
+        >
+          <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+        </button>
+      </div>
+      <p className="text-xs text-muted leading-relaxed">
+        Helps us understand how many people use JustDB and which features matter.
+        It's fully anonymous — no account, no tracking across sessions.
+      </p>
+      <div className="text-xs text-muted leading-relaxed space-y-1.5 border-t border-border pt-3">
+        <p className="font-medium text-secondary">We never collect:</p>
+        <ul className="list-disc list-inside space-y-0.5">
+          <li>Your SQL, query results, or any row data</li>
+          <li>Connection details — hosts, ports, database names, credentials</li>
+          <li>Table names, column names, or file paths</li>
+        </ul>
+        <p className="pt-1">
+          Only things like: app version, OS, database engine type, and coarse
+          feature-usage counts.
         </p>
       </div>
     </div>

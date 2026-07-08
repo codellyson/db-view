@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { DBConfig, SavedConnection } from '@/types';
 import { db } from '@/lib/db';
 import { getIdleTimeoutMin } from '@/lib/app-settings';
+import { track, toDbKind } from '@/lib/telemetry';
 import { useToast } from './toast-context';
 
 const ACTIVITY_THROTTLE_MS = 5_000;
@@ -104,6 +105,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       setIsConnected(true);
       setDatabaseName(data.database || config.database);
       setDatabaseType((data.type || config.type || 'postgresql') as 'postgresql' | 'mysql' | 'sqlite');
+      void track({ name: 'connection_opened', db_type: toDbKind(data.type || config.type), success: true });
 
       if (name && data.savedConnection) {
         setSavedConnections(prev => [...prev, data.savedConnection!]);
@@ -115,6 +117,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       setError(err.message || 'Connection failed');
       setIsConnected(false);
       setDatabaseName(undefined);
+      void track({ name: 'connection_opened', db_type: toDbKind(config.type), success: false });
       throw err;
     } finally {
       if (connectTokenRef.current === token) setIsConnecting(false);
@@ -142,6 +145,7 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
       setIsConnected(true);
       setDatabaseName(data.database || connection.config.database);
       setDatabaseType((data.type || connection.config.type || 'postgresql') as 'postgresql' | 'mysql' | 'sqlite');
+      void track({ name: 'connection_opened', db_type: toDbKind(data.type || connection.config.type), success: true });
       setCurrentConnectionId(connectionId);
       localStorage.setItem(CURRENT_CONNECTION_KEY, connectionId);
 

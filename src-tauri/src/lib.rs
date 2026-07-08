@@ -1848,6 +1848,17 @@ pub fn run() {
         }));
     }
 
+    // Anonymous usage analytics (Aptabase). Wired only when the build was
+    // compiled with an app key — release builds via CI set APTABASE_APP_KEY;
+    // dev builds carry no telemetry at all. The plugin is inert until the
+    // frontend calls trackEvent, which is gated on the user's opt-out
+    // setting, so registration alone never sends anything.
+    // `option_env!` is Some("") when CI sets the var from a missing secret,
+    // so filter empties — otherwise we'd register the plugin with a bad key.
+    if let Some(key) = option_env!("APTABASE_APP_KEY").filter(|k| !k.is_empty()) {
+        builder = builder.plugin(tauri_plugin_aptabase::Builder::new(key).build());
+    }
+
     builder
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())

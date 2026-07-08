@@ -8,6 +8,8 @@ const KEYS = {
   rowCap: 'justdb-result-row-cap',
   idleMin: 'justdb-idle-timeout-min',
   lineNumbers: 'justdb-editor-line-numbers',
+  telemetry: 'justdb-telemetry-enabled',
+  telemetryNoticeSeen: 'justdb-telemetry-notice-seen',
 } as const;
 
 /** Event dispatched when an editor-affecting pref changes, so open editors
@@ -54,6 +56,39 @@ export const getEditorLineNumbers = (): boolean => {
 export const setEditorLineNumbers = (on: boolean) => {
   try {
     localStorage.setItem(KEYS.lineNumbers, on ? '1' : '0');
+  } catch {
+    // ignore
+  }
+};
+
+/** Anonymous usage analytics. Opt-out model: enabled unless explicitly
+ *  turned off, so only a stored '0' disables it. */
+export const getTelemetryEnabled = (): boolean => {
+  try {
+    return localStorage.getItem(KEYS.telemetry) !== '0';
+  } catch {
+    return true;
+  }
+};
+export const setTelemetryEnabled = (on: boolean) => {
+  try {
+    localStorage.setItem(KEYS.telemetry, on ? '1' : '0');
+  } catch {
+    // ignore
+  }
+};
+
+/** One-time first-run notice that anonymous analytics is on. */
+export const getTelemetryNoticeSeen = (): boolean => {
+  try {
+    return localStorage.getItem(KEYS.telemetryNoticeSeen) === '1';
+  } catch {
+    return true;
+  }
+};
+export const setTelemetryNoticeSeen = () => {
+  try {
+    localStorage.setItem(KEYS.telemetryNoticeSeen, '1');
   } catch {
     // ignore
   }

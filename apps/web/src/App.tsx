@@ -10,6 +10,7 @@ import { ToastContainer } from './components/ui/toast';
 import { TauriTitleBar } from './components/tauri-title-bar';
 import { UpdatePrompt } from './components/update-prompt';
 import { SettingsModal } from './components/settings-modal';
+import { TelemetryNotice } from './components/telemetry-notice';
 import { Home } from './routes/Home';
 import { Query } from './routes/Query';
 
@@ -18,12 +19,17 @@ import { Query } from './routes/Query';
 // so it works both pre- and post-connection.
 function GlobalSettings() {
   const [open, setOpen] = useState(false);
+  const [initialTab, setInitialTab] = useState<'privacy' | undefined>(undefined);
   useEffect(() => {
-    const onOpen = () => setOpen(true);
+    const onOpen = (e: Event) => {
+      const tab = (e as CustomEvent).detail?.tab;
+      setInitialTab(tab === 'privacy' ? 'privacy' : undefined);
+      setOpen(true);
+    };
     window.addEventListener('justdb:open-settings', onOpen);
     return () => window.removeEventListener('justdb:open-settings', onOpen);
   }, []);
-  return <SettingsModal isOpen={open} onClose={() => setOpen(false)} />;
+  return <SettingsModal isOpen={open} onClose={() => setOpen(false)} initialTab={initialTab} />;
 }
 
 // Defaults match apps/next/app/providers.tsx — DashboardProvider's queries
@@ -74,6 +80,7 @@ export function App() {
                 <ToastContainer />
                 <UpdatePrompt />
                 <GlobalSettings />
+                <TelemetryNotice />
               </DashboardProvider>
             </PendingChangesProvider>
           </ConnectionProvider>
