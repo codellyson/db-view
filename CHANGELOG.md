@@ -3,6 +3,11 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.24] - 2026-07-08
+
+### Fixed
+- **telemetry:** Boot crash in keyed builds + subtler first-run notice ([e51f90e](https://github.com/codellyson/justdb/commit/e51f90e5e18e280de5b48ca03a34e9169369f4dd))
+
 ## [0.1.23] - 2026-07-08
 ## [0.1.23] - 2026-07-08
 
