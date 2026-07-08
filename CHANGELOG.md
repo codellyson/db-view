@@ -3,6 +3,11 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.22] - 2026-07-08
+
+### Fixed
+- **saved-connections:** Store secrets per-connection to bypass Windows keychain limit ([729c552](https://github.com/codellyson/justdb/commit/729c5525332220fbd036852aa590de17b6547229))
+
 ## [0.1.21] - 2026-06-30
 ## [0.1.21] - 2026-06-30
 
