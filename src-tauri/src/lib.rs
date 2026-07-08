@@ -39,6 +39,9 @@ impl DbConnection {
 struct AppState {
     // session_id -> live backend connection
     sessions: DashMap<String, Arc<DbConnection>>,
+    // Where saved-connection metadata is persisted (the OS keychain holds the
+    // secrets). Resolved once at startup from the app config dir.
+    config_dir: std::path::PathBuf,
 }
 
 /// Uniform "not implemented for SQLite yet" surface so the frontend gets
@@ -884,8 +887,8 @@ async fn resolve_field_sources(
 }
 
 #[tauri::command]
-async fn db_saved_list() -> CommandResult<Vec<ClientSavedConnection>> {
-    saved_connections::list_sanitized().map_err(CommandError::Query)
+async fn db_saved_list(state: State<'_, AppState>) -> CommandResult<Vec<ClientSavedConnection>> {
+    saved_connections::list_sanitized(&state.config_dir).map_err(CommandError::Query)
 }
 
 #[tauri::command]
@@ -893,13 +896,14 @@ async fn db_saved_create(
     id: String,
     name: String,
     config: DbConfig,
+    state: State<'_, AppState>,
 ) -> CommandResult<ClientSavedConnection> {
-    saved_connections::save(id, name, config).map_err(CommandError::Query)
+    saved_connections::save(&state.config_dir, id, name, config).map_err(CommandError::Query)
 }
 
 #[tauri::command]
-async fn db_saved_delete(id: String) -> CommandResult<()> {
-    saved_connections::delete(&id).map_err(CommandError::Query)
+async fn db_saved_delete(id: String, state: State<'_, AppState>) -> CommandResult<()> {
+    saved_connections::delete(&state.config_dir, &id).map_err(CommandError::Query)
 }
 
 #[tauri::command]
@@ -907,7 +911,7 @@ async fn db_saved_connect(
     id: String,
     state: State<'_, AppState>,
 ) -> CommandResult<ConnectResponse> {
-    let saved: SavedConnection = saved_connections::get(&id)
+    let saved: SavedConnection = saved_connections::get(&state.config_dir, &id)
         .map_err(CommandError::Query)?
         .ok_or_else(|| CommandError::Query(format!("No saved connection with id {id}")))?;
 
@@ -932,7 +936,7 @@ async fn db_saved_connect(
     state.sessions.insert(session_id.clone(), Arc::new(conn));
 
     // Bump lastUsed timestamp; failures here don't abort the connect.
-    saved_connections::mark_used(&id);
+    saved_connections::mark_used(&state.config_dir, &id);
 
     Ok(ConnectResponse {
         session_id,
@@ -1854,7 +1858,16 @@ pub fn run() {
         // window forward when justdb://<anything> is invoked.
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
-            app.manage(AppState::default());
+            // Saved-connection metadata lands here (secrets stay in the OS
+            // keychain). app_config_dir is per-app and stable across launches.
+            let config_dir = app
+                .path()
+                .app_config_dir()
+                .expect("failed to resolve app config dir");
+            app.manage(AppState {
+                config_dir,
+                ..Default::default()
+            });
 
             // Force launch size after creation so macOS frame restoration
             // can't shrink the window below the config size.
