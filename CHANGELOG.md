@@ -4,6 +4,7 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.1.23] - 2026-07-08
+## [0.1.23] - 2026-07-08
 
 ### Added
 - **telemetry:** Anonymous usage analytics via Aptabase ([b43acfd](https://github.com/codellyson/justdb/commit/b43acfd48585de01bca79fcd11b121d1f50c30ec))
