@@ -1829,6 +1829,25 @@ async fn ai_chat(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // The Aptabase telemetry plugin (registered below in keyed builds) calls
+    // tokio::spawn in its Tauri setup hook to start a background flush loop.
+    // Tauri's setup does not run inside a Tokio runtime, so without an ambient
+    // one that spawn panics and the app never boots.
+    //
+    // Stand up one runtime, register it as Tauri's own via async_runtime::set
+    // (so Tauri doesn't lazily create a *second* runtime — which would then
+    // panic with "cannot start a runtime from within a runtime" under our
+    // enter-guard), then enter it and hold both for the whole process. Gated
+    // on the same key so dev builds (no plugin) keep Tauri's default runtime.
+    let _telemetry_runtime = option_env!("APTABASE_APP_KEY")
+        .filter(|k| !k.is_empty())
+        .map(|_| {
+            let rt = tokio::runtime::Runtime::new().expect("failed to start Tokio runtime");
+            tauri::async_runtime::set(rt.handle().clone());
+            rt
+        });
+    let _telemetry_guard = _telemetry_runtime.as_ref().map(|rt| rt.enter());
+
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
 

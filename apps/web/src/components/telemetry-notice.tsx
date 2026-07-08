@@ -35,34 +35,23 @@ export const TelemetryNotice: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-border bg-bg shadow-2xl p-4">
-      <div className="flex items-start gap-3">
-        <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-          <circle cx="8" cy="8" r="6.5" />
-          <path strokeLinecap="round" d="M8 7.5v3.5M8 5h.01" />
+    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2.5 rounded-md border border-border bg-bg/95 backdrop-blur px-3 py-1.5 text-xs text-muted shadow-md">
+      <span>Anonymous usage stats help improve JustDB.</span>
+      <button
+        onClick={openPrivacy}
+        className="text-secondary hover:text-primary transition-colors"
+      >
+        Settings
+      </button>
+      <button
+        onClick={dismiss}
+        aria-label="Dismiss"
+        className="-mr-0.5 text-muted hover:text-primary transition-colors"
+      >
+        <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+          <path strokeLinecap="round" d="M3 3l10 10M13 3L3 13" />
         </svg>
-        <div className="min-w-0">
-          <p className="text-sm text-primary font-medium">Anonymous usage analytics</p>
-          <p className="text-xs text-muted mt-1 leading-relaxed">
-            JustDB counts app usage to guide what we build. No queries, no data,
-            no connection details — ever.
-          </p>
-          <div className="flex items-center gap-2 mt-3">
-            <button
-              onClick={dismiss}
-              className="px-2.5 py-1 text-xs font-medium rounded-md bg-accent text-white hover:bg-accent-hover transition-colors"
-            >
-              Got it
-            </button>
-            <button
-              onClick={openPrivacy}
-              className="px-2.5 py-1 text-xs font-medium rounded-md text-secondary hover:text-primary hover:bg-bg-secondary transition-colors"
-            >
-              Turn off in Settings
-            </button>
-          </div>
-        </div>
-      </div>
+      </button>
     </div>
   );
 };
