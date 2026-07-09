@@ -3,6 +3,11 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.25] - 2026-07-09
+
+### Fixed
+- **telemetry:** Actually deliver events on Tauri v2 ([5473be3](https://github.com/codellyson/justdb/commit/5473be309ac8508807a210d48ffc485ea37d5fc0))
+
 ## [0.1.24] - 2026-07-08
 ## [0.1.24] - 2026-07-08
 
