@@ -12,8 +12,14 @@
  * plugin is only registered in builds carrying an app key, so `trackEvent`
  * rejects harmlessly in dev / browser).
  */
-import { trackEvent } from '@aptabase/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { getTelemetryEnabled } from './app-settings';
+
+// The `@aptabase/tauri` npm shim depends on @tauri-apps/api@^1, so its
+// `invoke` targets the Tauri v1 IPC bridge and silently no-ops in this v2
+// app. We call the plugin command directly through the app's v2 invoke
+// instead — same command the Rust plugin registers.
+const APTABASE_COMMAND = 'plugin:aptabase|track_event';
 
 export type DbKind = 'postgres' | 'mysql' | 'sqlite' | 'unknown';
 
@@ -72,7 +78,10 @@ export async function track(event: TelemetryEvent): Promise<void> {
   }
 
   try {
-    await trackEvent(name, Object.keys(props).length ? props : undefined);
+    await invoke(APTABASE_COMMAND, {
+      name,
+      props: Object.keys(props).length ? props : undefined,
+    });
   } catch {
     // Best-effort: plugin absent (dev / no app key) or offline. Telemetry
     // must never surface an error to the user.

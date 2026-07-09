@@ -16,6 +16,7 @@
     "core:window:allow-set-background-color",
     "updater:default",
     "process:default",
-    "dialog:default"
+    "dialog:default",
+    "aptabase:allow-track-event"
   ]
 }

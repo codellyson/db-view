@@ -57,9 +57,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@aptabase/tauri':
-        specifier: ^0.4.1
-        version: 0.4.1
       '@codemirror/autocomplete':
         specifier: ^6.20.1
         version: 6.20.1
@@ -160,9 +157,6 @@ packages:
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
-
-  '@aptabase/tauri@0.4.1':
-    resolution: {integrity: sha512-ZjCtPN1Tw0y90nxMLR64UqFjgikxfc9NZouxqXlqZFkfpF8D/tPf1xUn0Anu8nvERGND/hAkO3x7ZLyLGI1HRg==}
 
   '@astrojs/check@0.9.9':
     resolution: {integrity: sha512-A5UW8uIuErLWEoRQvzgXpO1gTjUFtK8r7nU2Z7GewAMxUb7bPvpk11qaKKgxqXlHJWlAvaaxy+Xg28A6bmQ1Tg==}
@@ -1044,10 +1038,6 @@ packages:
 
   '@tanstack/virtual-core@3.13.23':
     resolution: {integrity: sha512-zSz2Z2HNyLjCplANTDyl3BcdQJc2k1+yyFoKhNRmCr7V7dY8o8q5m8uFTI1/Pg1kL+Hgrz6u3Xo6eFUB7l66cg==}
-
-  '@tauri-apps/api@1.6.0':
-    resolution: {integrity: sha512-rqI++FWClU5I2UBp4HXFvl+sBWkdigBkxnpJDQUWttNyG7IZP4FwQGhTNL5EOw0vI8i6eSAJ5frLqO7n7jbJdg==}
-    engines: {node: '>= 14.6.0', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
 
   '@tauri-apps/api@2.11.0':
     resolution: {integrity: sha512-7CinYODhky9lmO23xHnUFv0Xt43fbtWMyxZcLcRBlFkcgXKuEirBvHpmtJ89YMhyeGcq20Wuc47Fa4XjyniywA==}
@@ -2958,10 +2948,6 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@aptabase/tauri@0.4.1':
-    dependencies:
-      '@tauri-apps/api': 1.6.0
-
   '@astrojs/check@0.9.9(prettier@3.8.3)(typescript@5.9.3)':
     dependencies:
       '@astrojs/language-server': 2.16.10(prettier@3.8.3)(typescript@5.9.3)
@@ -3715,8 +3701,6 @@ snapshots:
       react-dom: 19.2.5(react@19.2.5)
 
   '@tanstack/virtual-core@3.13.23': {}
-
-  '@tauri-apps/api@1.6.0': {}
 
   '@tauri-apps/api@2.11.0': {}
 
