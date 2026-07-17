@@ -6,6 +6,8 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
+  /** Social share image — resolved to an absolute URL against `site`. */
+  ogImage?: string;
   /** Inline JSON-LD object — stringified into a <script type="application/ld+json"> tag. */
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
@@ -13,10 +15,12 @@ interface Props {
 const {
   title = 'JustDB — Just your data, no bullshit.',
   description = 'Just your data, no bullshit. A local desktop app for PostgreSQL, MySQL, and SQLite. Browse tables, run queries, inspect schemas. Credentials stay on your machine.',
+  ogImage = '/og-image.png',
   jsonLd,
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+const ogImageUrl = new URL(ogImage, Astro.site).toString();
 ---
 
 <!doctype html>
@@ -49,10 +53,15 @@ const canonical = new URL(Astro.url.pathname, Astro.site).toString();
     <meta property="og:site_name" content="JustDB" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="JustDB browsing a PostgreSQL database — table list, rows, and query editor" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
 
     {jsonLd && (
       <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline />

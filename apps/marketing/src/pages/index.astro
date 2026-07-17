@@ -9,7 +9,37 @@ import Button from '../components/Button.astro';
 // redirect to `downloadUrl`. Mobile UAs have no desktop install path, so
 // the script swaps the href to `downloadUrl` up-front.
 const launchUrl = 'justdb://open';
-const downloadUrl = 'https://github.com/codellyson/justdb/releases';
+const repo = 'codellyson/justdb';
+const downloadUrl = `https://github.com/${repo}/releases`;
+
+// Resolve direct installer URLs for the latest release at build time so the
+// device-detected CTA links straight to the right file. Asset names carry the
+// version (e.g. JustDB_0.1.25_x64-setup.exe), so we can't hardcode them — we
+// match by extension against the latest release. Any failure or missing asset
+// falls back to the releases page.
+async function resolveDownloads(): Promise<Record<'macos' | 'windows' | 'linux', string>> {
+  const fallback = { macos: downloadUrl, windows: downloadUrl, linux: downloadUrl };
+  try {
+    const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'justdb-marketing' },
+    });
+    if (!res.ok) return fallback;
+    const { assets = [] } = (await res.json()) as {
+      assets?: { name: string; browser_download_url: string }[];
+    };
+    const find = (re: RegExp) => assets.find((a) => re.test(a.name))?.browser_download_url;
+    return {
+      macos: find(/\.dmg$/i) ?? downloadUrl,
+      // NSIS setup is the standard user installer; .msi is the fallback.
+      windows: find(/-setup\.exe$/i) ?? find(/\.msi$/i) ?? downloadUrl,
+      // Linux bundles aren't published yet — send them to the releases page.
+      linux: downloadUrl,
+    };
+  } catch {
+    return fallback;
+  }
+}
+const downloads = await resolveDownloads();
 
 const FAQ = [
   {
@@ -58,7 +88,7 @@ const faqJsonLd = {
 <Layout jsonLd={[softwareJsonLd, faqJsonLd]}>
   <div class="min-h-screen bg-bg">
     <main class="container mx-auto px-6 sm:px-8 py-16 sm:py-24">
-      <div class="max-w-2xl mx-auto">
+      <div class="max-w-4xl mx-auto">
         <header class="text-center mb-16">
           <img
             src="/logo.svg"
@@ -90,14 +120,32 @@ const faqJsonLd = {
             <Button
               variant="secondary"
               href={downloadUrl}
+              id="cta-download"
               external
+              data-download-macos={downloads.macos}
+              data-download-windows={downloads.windows}
+              data-download-linux={downloads.linux}
             >
               Download desktop app
             </Button>
           </div>
+
+          <div class="mt-14 sm:mt-16">
+            <div class="rounded-xl border border-border bg-bg-secondary shadow-2xl shadow-black/20 overflow-hidden">
+              <img
+                src="/justdb-shot.png"
+                alt="JustDB browsing a PostgreSQL database — table list, rows, and query editor"
+                width="1893"
+                height="993"
+                loading="eager"
+                decoding="async"
+                class="w-full h-auto"
+              />
+            </div>
+          </div>
         </header>
 
-        <section aria-labelledby="how-it-works" class="mb-16">
+        <section aria-labelledby="how-it-works" class="mb-16 max-w-2xl mx-auto">
           <h2 id="how-it-works" class="text-xl font-semibold text-primary mb-6">
             How it works
           </h2>
@@ -133,7 +181,7 @@ const faqJsonLd = {
           </ol>
         </section>
 
-        <section aria-labelledby="faq" class="mb-16">
+        <section aria-labelledby="faq" class="mb-16 max-w-2xl mx-auto">
           <h2 id="faq" class="text-xl font-semibold text-primary mb-6">
             Frequently asked questions
           </h2>
@@ -147,7 +195,7 @@ const faqJsonLd = {
           </dl>
         </section>
 
-        <footer class="pt-8 border-t border-border text-center">
+        <footer class="pt-8 border-t border-border text-center max-w-2xl mx-auto">
           <p class="text-xs text-muted mb-1">Built by</p>
           <a
             href="https://kreativekorna.com"
@@ -181,10 +229,48 @@ const faqJsonLd = {
     //
     // On mobile, no desktop app can exist — swap the href to the download
     // URL up-front so the click goes straight there with no protocol noise.
+    type OS = 'macos' | 'windows' | 'linux';
+
+    function detectOS(): OS | null {
+      // navigator.platform is frozen in modern browsers; prefer the UA-CH hint
+      // where available, then fall back to userAgent + platform sniffing.
+      const uaData = (navigator as any).userAgentData;
+      const hint = `${navigator.userAgent} ${uaData?.platform ?? navigator.platform ?? ''}`;
+      if (/Mac|iPhone|iPad|iPod/i.test(hint)) return 'macos';
+      if (/Win/i.test(hint)) return 'windows';
+      if (/Linux|X11|CrOS/i.test(hint)) return 'linux';
+      return null;
+    }
+
+    const os = detectOS();
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const osLabel: Record<OS, string> = {
+      macos: 'Download for macOS',
+      windows: 'Download for Windows',
+      linux: 'Download for Linux',
+    };
+
+    // Point the "Download desktop app" button at the detected OS's installer.
+    const download = document.getElementById('cta-download');
+    let osDownloadUrl: string | undefined;
+    if (download instanceof HTMLAnchorElement && os) {
+      osDownloadUrl = download.dataset[
+        os === 'macos' ? 'downloadMacos' : os === 'windows' ? 'downloadWindows' : 'downloadLinux'
+      ];
+      if (osDownloadUrl) {
+        download.href = osDownloadUrl;
+        download.textContent = osLabel[os];
+      }
+    }
+
+    // "Open JustDB" CTA: href is `justdb://open`, so a native click hands the
+    // URL to the OS — installed app launches, no JS required. If nothing's
+    // installed, after ~1.5s the tab is still visible (the OS didn't hijack
+    // focus), so we redirect to the best download we have. On mobile there's
+    // no desktop app to launch, so we swap the href up-front.
     const cta = document.getElementById('cta-open-app');
     if (cta instanceof HTMLAnchorElement) {
-      const fallback = cta.dataset.fallback;
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const fallback = osDownloadUrl ?? cta.dataset.fallback;
       if (isMobile) {
         if (fallback) cta.href = fallback;
       } else if (fallback) {
