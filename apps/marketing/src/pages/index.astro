@@ -131,19 +131,42 @@ const faqJsonLd = {
           </div>
 
           <div class="mt-14 sm:mt-16">
-            <div class="rounded-xl border border-border bg-bg-secondary shadow-2xl shadow-black/20 overflow-hidden">
-              <img
-                src="/justdb-shot.png"
-                alt="JustDB browsing a PostgreSQL database — table list, rows, and query editor"
-                width="1893"
-                height="993"
-                loading="eager"
-                decoding="async"
-                class="w-full h-auto"
-              />
+            <div class="relative rounded-xl border border-border bg-bg-secondary shadow-2xl shadow-black/20 overflow-hidden aspect-video">
+              <!-- `muted` is required for autoplay to be allowed; the clip has
+                   no audio track anyway. The screenshot is the poster shown
+                   until the first frame decodes. `webkit-playsinline` covers
+                   older iOS; the CSS below kills the stubborn native controls
+                   iOS injects on the poster. -->
+              <video
+                id="hero-video"
+                class="w-full h-full object-cover"
+                poster="/justdb-shot.png"
+                autoplay
+                muted
+                loop
+                playsinline
+                webkit-playsinline
+                disablepictureinpicture
+                disableRemotePlayback
+                preload="auto"
+              >
+                <source src="/justdb-demo.mp4" type="video/mp4" />
+              </video>
             </div>
           </div>
         </header>
+
+        <style is:global>
+          /* iOS/WebKit paints a big center play glyph over the poster and can
+             surface controls even without the `controls` attribute. Nuke both
+             so the autoplaying loop stays chrome-free. */
+          #hero-video::-webkit-media-controls,
+          #hero-video::-webkit-media-controls-start-playback-button,
+          #hero-video::-webkit-media-controls-panel {
+            display: none !important;
+            -webkit-appearance: none;
+          }
+        </style>
 
         <section aria-labelledby="how-it-works" class="mb-16 max-w-2xl mx-auto">
           <h2 id="how-it-works" class="text-xl font-semibold text-primary mb-6">
@@ -280,6 +303,24 @@ const faqJsonLd = {
           }, 1500);
         });
       }
+    }
+
+    // iOS is finicky about muted autoplay: the `muted` attribute alone is
+    // sometimes ignored, so set it as a property before calling play(). If the
+    // browser still blocks it (e.g. Low Power Mode), fall back to kicking off
+    // playback on the first user interaction. The poster stays put until then.
+    const hero = document.getElementById('hero-video');
+    if (hero instanceof HTMLVideoElement) {
+      hero.muted = true;
+      const tryPlay = () => hero.play().catch(() => {});
+      tryPlay();
+      const onFirstInteraction = () => {
+        tryPlay();
+        window.removeEventListener('touchstart', onFirstInteraction);
+        window.removeEventListener('click', onFirstInteraction);
+      };
+      window.addEventListener('touchstart', onFirstInteraction, { once: true, passive: true });
+      window.addEventListener('click', onFirstInteraction, { once: true });
     }
   </script>
 </Layout>
