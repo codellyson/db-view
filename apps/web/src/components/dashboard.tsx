@@ -1,5 +1,5 @@
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
@@ -151,6 +151,13 @@ export function Dashboard() {
   const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isAiOpen, setIsAiOpen] = useState(false);
+  // Table sidebar dock: collapsible (reclaims full width) and still resizable.
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    try { return localStorage.getItem('justdb:sidebar-open') !== '0'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('justdb:sidebar-open', isSidebarOpen ? '1' : '0'); } catch { /* ignore */ }
+  }, [isSidebarOpen]);
   const [fkQuery, setFkQuery] = useState<FKQuery | null>(null);
   const [editorEditableTarget, setEditorEditableTarget] = useState<{ schema: string; table: string } | null>(null);
 
@@ -452,7 +459,10 @@ export function Dashboard() {
         onSelect={onTableSelect}
       />
     </MobileMenu>
+    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex-1 min-w-0">
     <ResizableSplitter
+      collapsed={!isSidebarOpen}
       storageKey={`dbview-sidebar-width-${databaseName ?? 'default'}`}
       left={
         <div ref={sidebarRef}>
@@ -461,6 +471,7 @@ export function Dashboard() {
           selectedTable={selectedTable}
           onTableSelect={onTableSelect}
           isLoading={isLoadingTables}
+          databaseName={databaseName}
           schemas={schemas}
           selectedSchema={selectedSchema}
           onSchemaChange={handleSchemaChange}
@@ -490,6 +501,8 @@ export function Dashboard() {
             onMenuToggle={() => setIsMobileMenuOpen(true)}
             onShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
             onOpenSettings={() => window.dispatchEvent(new CustomEvent('justdb:open-settings'))}
+            sidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen((v) => !v)}
           />
           <TabBar
             tabs={openTabs}
@@ -800,8 +813,10 @@ export function Dashboard() {
         </div>
       }
     />
-    {/* AI mode — docked chat drawer, toggled from the tab bar */}
+    </div>
+    {/* AI mode — docked side panel; shares layout width instead of overlaying. */}
     {isAiOpen && <AiChatPanel onClose={() => setIsAiOpen(false)} />}
+    </div>
     <PendingChangesBar onOpenReview={() => setIsReviewOpen(true)} target={reviewTarget} />
     <CommandPalette
       isOpen={isCommandPaletteOpen}

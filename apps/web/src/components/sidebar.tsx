@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
 import { TableList } from './table-list';
 import { SidebarSkeleton } from './skeletons/sidebar-skeleton';
-import { isMacOSTauri } from '@/lib/runtime';
 import type { SavedQuery } from '@/types';
 
 interface FunctionInfo {
@@ -19,6 +18,8 @@ interface SidebarProps {
   selectedTable?: string;
   onTableSelect: (table: string) => void;
   isLoading?: boolean;
+  /** Connected database name, shown in the sidebar header band. */
+  databaseName?: string;
   schemas?: string[];
   selectedSchema?: string;
   onSchemaChange?: (schema: string) => void;
@@ -47,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   selectedTable,
   onTableSelect,
   isLoading = false,
+  databaseName,
   schemas,
   selectedSchema = 'public',
   onSchemaChange,
@@ -80,18 +82,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [version, setVersion] = useState('');
   useEffect(() => { getVersion().then(setVersion).catch(() => {}); }, []);
 
-  // On macOS Tauri the sidebar starts at the window's top edge, where the
-  // overlay title bar draws its traffic lights. Add a 28px reserve so the
-  // schema picker / TABLES label don't sit under them.
-  const onMac = isMacOSTauri();
-
   return (
     <aside
       className="w-full bg-bg h-screen flex flex-col border-r border-border"
       aria-label="Database sidebar"
-      data-tauri-drag-region={onMac ? "" : undefined}
-      style={onMac ? { paddingTop: 28 } : undefined}
     >
+      {/* Header band — matches the main Header height so the top border line
+          runs flush across both panes and the sidebar no longer looks headless. */}
+      <div className="h-12 flex-shrink-0 flex items-center gap-2 px-3 border-b border-border">
+        <svg className="h-4 w-4 text-muted flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <ellipse cx="12" cy="5" rx="8" ry="3" />
+          <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
+          <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" />
+        </svg>
+        <span className="text-sm font-medium text-primary truncate" title={databaseName}>
+          {databaseName || 'Database'}
+        </span>
+      </div>
       <div className="flex-1 overflow-y-auto p-3">
         {schemas && schemas.length > 1 && onSchemaChange && (
           <div className="mb-3">

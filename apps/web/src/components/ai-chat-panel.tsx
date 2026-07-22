@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ai, PROVIDERS, type ChatStep, type AiStatus } from '@/lib/ai';
 import { useConnection } from '../contexts/connection-context';
 import { useDashboard } from '../contexts/dashboard-context';
@@ -9,6 +11,44 @@ import { useChatHistory, type UiMessage } from '../hooks/use-chat-history';
 interface AiChatPanelProps {
   onClose: () => void;
 }
+
+/** Renders an assistant reply as GitHub-flavoured markdown, styled to fit the
+ *  compact chat column (lists, bold, code, tables, links). */
+const ChatMarkdown: React.FC<{ children: string }> = ({ children }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+    components={{
+      p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+      ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+      ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+      li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+      strong: ({ children }) => <strong className="font-semibold text-primary">{children}</strong>,
+      em: ({ children }) => <em className="italic">{children}</em>,
+      a: ({ children, href }) => (
+        <a href={href} target="_blank" rel="noreferrer" className="text-accent underline break-all">{children}</a>
+      ),
+      h1: ({ children }) => <h1 className="text-sm font-semibold mb-1.5 mt-2 first:mt-0">{children}</h1>,
+      h2: ({ children }) => <h2 className="text-sm font-semibold mb-1.5 mt-2 first:mt-0">{children}</h2>,
+      h3: ({ children }) => <h3 className="text-[13px] font-semibold mb-1 mt-2 first:mt-0">{children}</h3>,
+      pre: ({ children }) => <pre className="mb-2 overflow-x-auto">{children}</pre>,
+      code: ({ className, children }) =>
+        /language-/.test(className || '') ? (
+          <code className="block font-mono text-[11px] bg-bg-secondary rounded p-2 overflow-x-auto whitespace-pre">{children}</code>
+        ) : (
+          <code className="font-mono text-[12px] bg-bg-secondary rounded px-1 py-0.5">{children}</code>
+        ),
+      table: ({ children }) => (
+        <div className="overflow-x-auto mb-2"><table className="text-[11px] border-collapse">{children}</table></div>
+      ),
+      th: ({ children }) => <th className="text-left px-1.5 py-0.5 border border-border font-medium">{children}</th>,
+      td: ({ children }) => <td className="px-1.5 py-0.5 border border-border/60 align-top">{children}</td>,
+      blockquote: ({ children }) => <blockquote className="border-l-2 border-border pl-2 text-muted mb-2">{children}</blockquote>,
+      hr: () => <hr className="my-2 border-border" />,
+    }}
+  >
+    {children}
+  </ReactMarkdown>
+);
 
 const SparkleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -239,7 +279,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
   const disabled = isBusy || !isConnected || !status?.configured;
 
   return (
-    <div className="fixed top-0 right-0 h-full w-full max-w-[420px] z-[60] flex flex-col bg-bg border-l border-border shadow-xl">
+    <div className="h-screen w-[420px] max-w-[85vw] flex-shrink-0 flex flex-col bg-bg border-l border-border">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 text-sm font-medium text-primary min-w-0">
@@ -376,7 +416,9 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
                   </div>
                 </details>
               )}
-              <div className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</div>
+              {m.role === 'assistant'
+                ? <div className="text-sm break-words">{m.content ? <ChatMarkdown>{m.content}</ChatMarkdown> : null}</div>
+                : <div className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</div>}
               {m.proposedWrites && m.proposedWrites.length > 0 && (
                 <div className="mt-2 space-y-2">
                   {m.proposedWrites.map((sql, wi) => (
@@ -418,8 +460,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
               </div>
             )}
             {liveText ? (
-              <div className="w-full text-sm text-primary whitespace-pre-wrap break-words leading-relaxed">
-                {liveText}
+              <div className="w-full text-sm text-primary break-words">
+                <ChatMarkdown>{liveText}</ChatMarkdown>
                 <span className="inline-block w-1.5 h-4 -mb-0.5 ml-0.5 bg-accent/70 animate-pulse" aria-hidden="true" />
               </div>
             ) : (

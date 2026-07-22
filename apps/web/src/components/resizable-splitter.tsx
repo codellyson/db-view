@@ -9,6 +9,9 @@ interface ResizableSplitterProps {
   maxWidth?: number;
   /** When set, the width is persisted to localStorage under this key. */
   storageKey?: string;
+  /** When true, the left pane and resize handle are hidden and the right
+   *  pane fills the width — the resized width is remembered for re-expand. */
+  collapsed?: boolean;
 }
 
 export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
@@ -18,6 +21,7 @@ export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
   minWidth = 160,
   maxWidth = 600,
   storageKey,
+  collapsed = false,
 }) => {
   const [width, setWidth] = useState(() => {
     if (!storageKey || typeof window === 'undefined') return defaultWidth;
@@ -106,31 +110,35 @@ export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
 
   return (
     <div ref={containerRef} className="flex h-screen">
-      <div
-        style={{ width: `${width}px` }}
-        className="flex-shrink-0 hidden md:block"
-      >
-        {left}
-      </div>
-      <div
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
-        className={`w-1 cursor-col-resize flex-shrink-0 relative hidden md:flex transition-colors ${
-          isDragging ? 'bg-accent' : 'bg-border hover:bg-accent/30'
-        }`}
-        style={{ cursor: 'col-resize' }}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize sidebar"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft') {
-            setWidth((w) => Math.max(minWidth, w - 20));
-          } else if (e.key === 'ArrowRight') {
-            setWidth((w) => Math.min(maxWidth, w + 20));
-          }
-        }}
-      />
+      {!collapsed && (
+        <>
+          <div
+            style={{ width: `${width}px` }}
+            className="flex-shrink-0 hidden md:block"
+          >
+            {left}
+          </div>
+          <div
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            className={`w-1 cursor-col-resize flex-shrink-0 relative hidden md:flex transition-colors ${
+              isDragging ? 'bg-accent' : 'bg-border hover:bg-accent/30'
+            }`}
+            style={{ cursor: 'col-resize' }}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowLeft') {
+                setWidth((w) => Math.max(minWidth, w - 20));
+              } else if (e.key === 'ArrowRight') {
+                setWidth((w) => Math.min(maxWidth, w + 20));
+              }
+            }}
+          />
+        </>
+      )}
       <div className="flex-1 flex flex-col overflow-hidden">
         {right}
       </div>

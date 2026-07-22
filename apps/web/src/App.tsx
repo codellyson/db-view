@@ -7,7 +7,6 @@ import { ThemeProvider } from './contexts/theme-context';
 import { DashboardProvider } from './contexts/dashboard-context';
 import { PendingChangesProvider } from './contexts/pending-changes-context';
 import { ToastContainer } from './components/ui/toast';
-import { TauriTitleBar } from './components/tauri-title-bar';
 import { UpdatePrompt } from './components/update-prompt';
 import { SettingsModal } from './components/settings-modal';
 import { TelemetryNotice } from './components/telemetry-notice';
@@ -66,9 +65,6 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <ThemeProvider>
-          {/* Custom title bar replaces the OS chrome (tauri.conf.json sets
-              decorations:false). Renders only inside Tauri; no-op on web. */}
-          <TauriTitleBar />
           <ConnectionProvider>
             <PendingChangesProvider>
               <DashboardProvider>

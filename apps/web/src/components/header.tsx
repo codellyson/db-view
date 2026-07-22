@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { ConnectionSelector } from './connection-selector';
 import { useConnection } from '../contexts/connection-context';
 import { useConnectionHealth } from '../hooks/use-connection-health';
-import { isMacOSTauri } from '../lib/runtime';
 
 interface HeaderProps {
   isConnected: boolean;
@@ -13,6 +12,9 @@ interface HeaderProps {
   onMenuToggle?: () => void;
   onShortcutsHelp?: () => void;
   onOpenSettings?: () => void;
+  /** Desktop sidebar dock: current open state + toggle. */
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,11 +24,12 @@ export const Header: React.FC<HeaderProps> = ({
   onMenuToggle,
   onShortcutsHelp,
   onOpenSettings,
+  sidebarOpen = true,
+  onToggleSidebar,
 }) => {
   const navigate = useNavigate();
   const { disconnect } = useConnection();
   const { latency, healthy } = useConnectionHealth(isConnected);
-  const onMac = isMacOSTauri();
 
   const handleDisconnect = async () => {
     // No explicit navigate after disconnect — Home swaps the rendered
@@ -58,18 +61,9 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
     )}
     <header
-      // The macOS overlay title bar reserves the top-left ~60px for traffic
-      // lights. We only need to clear them when the Header is rendered at
-      // the left edge of the window — i.e. on the pre-connection screens
-      // before the sidebar appears. Once connected, the sidebar sits left
-      // of the Header and absorbs the traffic-light zone, so the Header
-      // can align flush with the TabBar below.
-      data-tauri-drag-region={onMac ? "" : undefined}
-      style={onMac && !isConnected ? { paddingLeft: 80 } : undefined}
       className="h-12 bg-bg border-b border-border flex items-center justify-between px-4 md:px-6"
     >
       <div
-        data-tauri-drag-region={onMac ? "" : undefined}
         className="flex items-center gap-3 md:gap-6"
       >
         {isConnected && onMenuToggle && (
@@ -80,6 +74,21 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
+        {isConnected && onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="hidden md:flex items-center justify-center w-7 h-7 rounded-md text-secondary hover:text-primary hover:bg-bg-secondary transition-colors"
+            title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+            aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+            aria-pressed={sidebarOpen}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <line x1="9" y1="4" x2="9" y2="20" />
+              {sidebarOpen && <rect x="3" y="4" width="6" height="16" rx="1" fill="currentColor" opacity="0.25" stroke="none" />}
             </svg>
           </button>
         )}
