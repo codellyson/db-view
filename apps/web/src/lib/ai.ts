@@ -21,7 +21,7 @@ export interface GenerateSqlResult {
   explanation: string;
 }
 
-export type ProviderId = "anthropic" | "openai" | "google";
+export type ProviderId = "anthropic" | "openai" | "google" | "claude-cli";
 
 export interface ProviderMeta {
   id: ProviderId;
@@ -32,6 +32,20 @@ export interface ProviderMeta {
   keyPlaceholder: string;
   /** Suggested models offered in AI mode's model picker (user can also type one). */
   models: string[];
+  /**
+   * A local, already-authenticated CLI agent (e.g. Claude Code) driven
+   * headless — no API key. The settings form hides the key field and shows
+   * detection status instead.
+   */
+  local?: boolean;
+}
+
+/** A local CLI agent justdb can drive, and whether it's installed. */
+export interface LocalAgentInfo {
+  id: string;
+  name: string;
+  present: boolean;
+  path?: string;
 }
 
 /** Providers offered in the key-entry form. Models are user-overridable. */
@@ -57,6 +71,14 @@ export const PROVIDERS: ProviderMeta[] = [
     keyPlaceholder: "AIza...",
     models: ["gemini-2.5-pro", "gemini-2.5-flash"],
   },
+  {
+    id: "claude-cli",
+    label: "Local CLI agent (Claude Code)",
+    defaultModel: "sonnet",
+    keyPlaceholder: "",
+    models: ["sonnet", "opus", "haiku"],
+    local: true,
+  },
 ];
 
 const status = () => tauriInvoke<AiStatus>("ai_status");
@@ -65,6 +87,9 @@ const setKey = (apiKey: string, provider: ProviderId = "anthropic", model?: stri
   tauriInvoke<AiStatus>("ai_set_key", { provider, apiKey, model });
 
 const clearKey = () => tauriInvoke<void>("ai_clear_key");
+
+/** Detect local CLI agents (e.g. Claude Code) installed on this machine. */
+const localAgents = () => tauriInvoke<LocalAgentInfo[]>("ai_local_agents");
 
 const generateSql = (args: { prompt: string; dialect: string; schema: string }) =>
   tauriInvoke<GenerateSqlResult>("ai_generate_sql", { args });
@@ -200,6 +225,7 @@ export const ai = {
   status,
   setKey,
   clearKey,
+  localAgents,
   generateSql,
   chat,
   onChatStep,

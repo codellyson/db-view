@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from './ui/modal';
 import { Select } from './ui/select';
 import { FormatterSettingsBody } from './formatter-settings';
-import { ai, PROVIDERS, type AiStatus, type ProviderId } from '@/lib/ai';
+import { ai, PROVIDERS, type AiStatus, type ProviderId, type LocalAgentInfo } from '@/lib/ai';
 import { useTheme } from '../contexts/theme-context';
 import {
   getResultRowCap, setResultRowCap, DEFAULT_ROW_CAP,
@@ -72,8 +72,12 @@ const AiSection: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [agents, setAgents] = useState<LocalAgentInfo[] | null>(null);
 
   const meta = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0];
+  const isLocal = meta.local === true;
+  const localAgent = agents?.find((a) => a.id === provider);
+  const canSave = isLocal ? !!localAgent?.present : !!apiKey.trim();
 
   const refresh = useCallback(() => {
     ai.status().then((s) => {
@@ -86,19 +90,25 @@ const AiSection: React.FC = () => {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Detect installed local CLI agents once (drives the local-provider panel).
+  useEffect(() => {
+    ai.localAgents().then(setAgents).catch(() => setAgents([]));
+  }, []);
+
   const save = useCallback(async () => {
-    if (!apiKey.trim()) return;
+    if (!canSave) return;
     setBusy(true); setError(null); setSaved(false);
     try {
-      await ai.setKey(apiKey.trim(), provider, model.trim() || undefined);
+      // Local agents carry no key — the backend accepts an empty one.
+      await ai.setKey(isLocal ? '' : apiKey.trim(), provider, model.trim() || undefined);
       setApiKey(''); setModel(''); setSaved(true);
       refresh();
     } catch (e: any) {
-      setError(e?.message || 'Failed to save key');
+      setError(e?.message || 'Failed to save settings');
     } finally {
       setBusy(false);
     }
-  }, [apiKey, provider, model, refresh]);
+  }, [canSave, isLocal, apiKey, provider, model, refresh]);
 
   const remove = useCallback(async () => {
     setBusy(true); setError(null);
@@ -116,8 +126,9 @@ const AiSection: React.FC = () => {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted">
-        AI is opt-in. Your key is stored in the OS keychain and only leaves your machine on
-        requests you make. Used by the SQL editor's Generate bar and AI mode.
+        AI is opt-in. {isLocal
+          ? 'The local agent runs on your machine using your own login — no key is stored. Used by AI mode.'
+          : "Your key is stored in the OS keychain and only leaves your machine on requests you make. Used by the SQL editor's Generate bar and AI mode."}
       </p>
       {status?.configured && (
         <div className="flex items-center gap-2 text-xs text-primary bg-bg-secondary/40 border border-border rounded-md px-2.5 py-1.5">
@@ -143,23 +154,44 @@ const AiSection: React.FC = () => {
           className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
         />
       </div>
-      <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-secondary">
-          API key {status?.configured && <span className="text-muted font-normal">(leave blank to keep current)</span>}
-        </label>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
-          placeholder={meta.keyPlaceholder}
-          className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
-        />
-      </div>
+      {isLocal ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs rounded-md border border-border px-2.5 py-1.5">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                localAgent === undefined ? 'bg-muted' : localAgent.present ? 'bg-green-500' : 'bg-danger'
+              }`}
+            />
+            {localAgent === undefined
+              ? 'Checking for a local agent…'
+              : localAgent.present
+                ? <span className="text-primary">Found <span className="font-medium">{localAgent.name}</span>{localAgent.path && <span className="font-mono text-muted"> · {localAgent.path}</span>}</span>
+                : <span className="text-secondary">Claude Code not found — install it and run <span className="font-mono">claude</span> once to sign in.</span>}
+          </div>
+          <p className="text-xs text-muted">
+            Uses your own installed, authenticated Claude Code — no API key, and queries run through
+            the agent you already have. Subject to your agreement with Anthropic.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <label className="block text-xs font-medium text-secondary">
+            API key {status?.configured && <span className="text-muted font-normal">(leave blank to keep current)</span>}
+          </label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+            placeholder={meta.keyPlaceholder}
+            className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+          />
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <button
           onClick={save}
-          disabled={busy || !apiKey.trim()}
+          disabled={busy || !canSave}
           className="px-3 py-1.5 text-sm rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-40 transition-colors"
         >
           {status?.configured ? 'Update' : 'Save'}
@@ -170,7 +202,7 @@ const AiSection: React.FC = () => {
             disabled={busy}
             className="px-3 py-1.5 text-sm rounded-md text-danger hover:bg-danger/10 disabled:opacity-40 transition-colors"
           >
-            Remove key
+            {isLocal ? 'Disconnect' : 'Remove key'}
           </button>
         )}
         {saved && <span className="text-xs text-green-500">Saved ✓</span>}

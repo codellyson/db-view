@@ -14,6 +14,10 @@ use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::process::Command;
 
 const SERVICE: &str = "com.kreativekorna.justdb";
 const ACCOUNT: &str = "ai-provider";
@@ -35,6 +39,9 @@ enum Provider {
     Anthropic,
     OpenAi,
     Google,
+    /// A local, already-authenticated CLI agent (Claude Code `claude`) driven
+    /// headless. Carries no API key — it uses the user's own login.
+    ClaudeCli,
 }
 
 impl Provider {
@@ -43,8 +50,14 @@ impl Provider {
             "anthropic" | "claude" => Ok(Provider::Anthropic),
             "openai" | "gpt" => Ok(Provider::OpenAi),
             "google" | "gemini" => Ok(Provider::Google),
+            "claude-cli" | "local" | "local:claude" => Ok(Provider::ClaudeCli),
             other => Err(format!("Unknown AI provider: {other}")),
         }
+    }
+
+    /// True for providers that need no API key — they lean on a local login.
+    fn is_local(self) -> bool {
+        matches!(self, Provider::ClaudeCli)
     }
 
     fn default_model(self) -> &'static str {
@@ -52,6 +65,8 @@ impl Provider {
             Provider::Anthropic => "claude-opus-4-8",
             Provider::OpenAi => "gpt-4o",
             Provider::Google => "gemini-2.5-flash",
+            // The CLI takes short aliases (sonnet/opus/haiku) or full ids.
+            Provider::ClaudeCli => "sonnet",
         }
     }
 }
@@ -133,11 +148,46 @@ pub fn status() -> Result<AiStatus, String> {
     })
 }
 
+/// A local CLI agent the app can drive, and whether it's installed. Surfaced
+/// to the settings UI so the user can pick one without pasting a key.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalAgentInfo {
+    /// Provider id to store (matches [`Provider::parse`]), e.g. `claude-cli`.
+    pub id: String,
+    pub name: String,
+    pub present: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+}
+
+/// Detect the local CLI agents justdb knows how to drive. Presence only —
+/// authentication is verified on the first real run (a `-p` call errors
+/// clearly if the user hasn't signed in).
+pub fn local_agents() -> Vec<LocalAgentInfo> {
+    let claude = resolve_claude_bin();
+    vec![LocalAgentInfo {
+        id: "claude-cli".to_string(),
+        name: "Claude Code".to_string(),
+        present: claude.is_some(),
+        path: claude.map(|p| p.to_string_lossy().to_string()),
+    }]
+}
+
+/// Whether the configured provider is a local CLI agent (no API key; driven
+/// headless). Lets the `ai_chat` command route to [`chat_claude_cli`].
+pub fn is_local_agent() -> Result<bool, String> {
+    Ok(match load()? {
+        Some(c) => Provider::parse(&c.provider)?.is_local(),
+        None => false,
+    })
+}
+
 pub fn set_key(provider: String, api_key: String, model: Option<String>) -> Result<AiStatus, String> {
     // Validate the provider name up front so a typo fails at save time rather
     // than on the first generate.
-    Provider::parse(&provider)?;
-    if api_key.trim().is_empty() {
+    let p = Provider::parse(&provider)?;
+    if !p.is_local() && api_key.trim().is_empty() {
         return Err("API key is empty".to_string());
     }
     let cfg = AiConfig {
@@ -221,6 +271,11 @@ pub async fn generate_sql(args: GenerateArgs) -> Result<GenerateResult, String> 
         Provider::Anthropic => call_anthropic(&cfg.api_key, &model, &system, &args.prompt).await?,
         Provider::OpenAi => call_openai(&cfg.api_key, &model, &system, &args.prompt).await?,
         Provider::Google => call_google(&cfg.api_key, &model, &system, &args.prompt).await?,
+        // The single-shot Generate bar doesn't drive the local CLI agent yet —
+        // that path is AI-mode chat only (see `chat_claude_cli`).
+        Provider::ClaudeCli => {
+            return Err("The local CLI agent isn't available for the Generate bar — use AI chat mode.".to_string())
+        }
     };
 
     serde_json::from_str::<GenerateResult>(text.trim())
@@ -496,8 +551,65 @@ fn is_read_only(sql: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{describe_table_sql, is_read_only, list_tables_sql, preview_table};
+    use super::{
+        build_step, describe_table_sql, is_read_only, list_tables_sql, preview_table,
+        render_conversation, tool_result_payload, ChatMessage,
+    };
     use serde_json::json;
+
+    #[test]
+    fn render_conversation_single_vs_multi() {
+        let one = vec![ChatMessage { role: "user".into(), content: "hi".into() }];
+        assert_eq!(render_conversation(&one), "hi");
+        let many = vec![
+            ChatMessage { role: "user".into(), content: "a".into() },
+            ChatMessage { role: "assistant".into(), content: "b".into() },
+        ];
+        let s = render_conversation(&many);
+        assert!(s.contains("User: a") && s.contains("Assistant: b"));
+        assert!(s.contains("latest User message"));
+    }
+
+    #[test]
+    fn tool_result_payload_parses_inner_json() {
+        let block = json!({
+            "type": "tool_result",
+            "content": [{ "type": "text", "text": "{\"rowCount\":2,\"rows\":[{\"id\":1}]}" }]
+        });
+        let p = tool_result_payload(&block);
+        assert_eq!(p["rowCount"], 2);
+    }
+
+    #[test]
+    fn build_step_run_sql_success_carries_preview() {
+        let mut proposed = Vec::new();
+        let input = json!({ "sql": "SELECT * FROM t" });
+        let payload = json!({ "rowCount": 1, "rows": [{ "id": 1, "name": "x" }], "truncated": false });
+        let step = build_step("run_sql", &input, &payload, &mut proposed);
+        assert!(step.ok);
+        assert_eq!(step.summary, "1 row(s)");
+        assert_eq!(step.columns.unwrap(), vec!["id", "name"]);
+        assert!(proposed.is_empty());
+    }
+
+    #[test]
+    fn build_step_run_sql_error_is_marked() {
+        let mut proposed = Vec::new();
+        let input = json!({ "sql": "SELECT bad" });
+        let payload = json!({ "error": "no such column: bad" });
+        let step = build_step("run_sql", &input, &payload, &mut proposed);
+        assert!(!step.ok);
+        assert_eq!(step.summary, "no such column: bad");
+    }
+
+    #[test]
+    fn build_step_propose_write_collects_sql() {
+        let mut proposed = Vec::new();
+        let input = json!({ "sql": "DELETE FROM t" });
+        let step = build_step("propose_write", &input, &json!({}), &mut proposed);
+        assert_eq!(step.kind, "propose_write");
+        assert_eq!(proposed, vec!["DELETE FROM t".to_string()]);
+    }
 
     #[test]
     fn list_tables_sql_is_dialect_aware() {
@@ -624,15 +736,294 @@ pub async fn chat(
         Provider::OpenAi => {
             chat_openai(&cfg.api_key, &model, runner, messages, &dialect, &schema, on_step, on_token).await
         }
+        // Routed at the command layer (`ai_chat` → `chat_claude_cli`) since the
+        // CLI path needs the connection config, not a `SqlRunner`. Defensive.
+        Provider::ClaudeCli => {
+            Err("Local CLI agent is driven via chat_claude_cli, not this dispatch.".to_string())
+        }
     }
 }
 
-const RUN_SQL_DESC: &str = "Run a READ-ONLY SQL query (SELECT/WITH/EXPLAIN only) against the connected database and get the rows back. Use this to explore the data and answer the question. Never use it to modify data or schema.";
-const PROPOSE_DESC: &str = "Propose a data-modifying or DDL statement (INSERT/UPDATE/DELETE/CREATE/ALTER/DROP) for the user to review and run. This does NOT execute. Use it whenever the task requires changing data or schema.";
-const LIST_TABLES_DESC: &str = "List the real, schema-qualified table names in the database. Call this to discover exact names when a query fails with 'does not exist' or when you are unsure a table exists.";
-const DESCRIBE_TABLE_DESC: &str = "Show a table's columns and types. Call this to get the exact, correctly-cased column names before querying.";
+// ─── Local CLI agent (Claude Code, headless) ───────────────────────────────
 
-fn run_sql_params() -> Value {
+/// Env var carrying the serialized `DbConfig` to the spawned `--mcp-serve`
+/// subprocess. The value lives only in process environments (this process →
+/// claude → the MCP server); the on-disk mcp-config references it as
+/// `${JUSTDB_MCP_CONFIG}`, so the DB password is never written to disk.
+const MCP_CONFIG_ENV: &str = "JUSTDB_MCP_CONFIG";
+
+/// Locate the `claude` binary. GUI apps launched from Finder/Dock inherit a
+/// stripped PATH, so probe known install locations rather than trusting PATH.
+pub(crate) fn resolve_claude_bin() -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("JUSTDB_CLAUDE_BIN") {
+        let pb = PathBuf::from(p.trim());
+        if !pb.as_os_str().is_empty() && pb.exists() {
+            return Some(pb);
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    #[allow(unused_mut)]
+    let mut candidates: Vec<PathBuf> = vec![
+        format!("{home}/.local/bin/claude").into(),
+        "/opt/homebrew/bin/claude".into(),
+        "/usr/local/bin/claude".into(),
+        format!("{home}/.npm-global/bin/claude").into(),
+    ];
+    #[cfg(target_os = "windows")]
+    if let Ok(up) = std::env::var("USERPROFILE") {
+        candidates.push(format!("{up}\\.local\\bin\\claude.exe").into());
+    }
+    candidates.into_iter().find(|p| p.exists())
+}
+
+/// Render the conversation into a single prompt for a stateless `claude -p`
+/// call. (v1: full transcript each turn; `--resume` is a later optimization.)
+fn render_conversation(messages: &[ChatMessage]) -> String {
+    if messages.len() <= 1 {
+        return messages.first().map(|m| m.content.clone()).unwrap_or_default();
+    }
+    let mut s = String::from("Conversation so far:\n\n");
+    for m in messages {
+        let who = if m.role == "user" { "User" } else { "Assistant" };
+        s.push_str(who);
+        s.push_str(": ");
+        s.push_str(&m.content);
+        s.push_str("\n\n");
+    }
+    s.push_str("Respond to the latest User message.");
+    s
+}
+
+/// Parse our JSON tool payload back out of an MCP `tool_result` block whose
+/// content is `[{type:"text", text:"<json>"}]`.
+fn tool_result_payload(block: &Value) -> Value {
+    let text = block
+        .get("content")
+        .and_then(|c| c.as_array())
+        .and_then(|a| a.iter().find_map(|it| it.get("text").and_then(|t| t.as_str())))
+        .unwrap_or("");
+    serde_json::from_str::<Value>(text).unwrap_or_else(|_| json!({ "raw": text }))
+}
+
+/// Reconstruct a [`ChatStep`] from a tool call (`input`) + its result
+/// (`payload`), mirroring what `exec_tool` records for the key-based providers.
+fn build_step(kind: &str, input: &Value, payload: &Value, proposed: &mut Vec<String>) -> ChatStep {
+    let err = payload.get("error").and_then(|e| e.as_str());
+    match kind {
+        "run_sql" => {
+            let sql = input.get("sql").and_then(|s| s.as_str()).unwrap_or("").to_string();
+            match err {
+                Some(e) => ChatStep::note("run_sql", sql, false, e.to_string()),
+                None => {
+                    let total = payload.get("rowCount").and_then(|c| c.as_u64()).unwrap_or(0);
+                    let mut step = ChatStep::note("run_sql", sql, true, format!("{total} row(s)"));
+                    if let Some(rows) = payload.get("rows").and_then(|r| r.as_array()) {
+                        let (columns, prows) = preview_table(rows, 10);
+                        step.columns = columns;
+                        step.rows = prows;
+                    }
+                    step
+                }
+            }
+        }
+        "list_tables" => match err {
+            Some(e) => ChatStep::note("list_tables", "list_tables", false, e.to_string()),
+            None => {
+                let n = payload.get("tables").and_then(|t| t.as_array()).map_or(0, |a| a.len());
+                ChatStep::note("list_tables", "list_tables", true, format!("{n} table(s)"))
+            }
+        },
+        "describe_table" => {
+            let table = input.get("table").and_then(|s| s.as_str()).unwrap_or("");
+            match err {
+                Some(e) => ChatStep::note("describe_table", format!("describe_table({table})"), false, e.to_string()),
+                None => {
+                    let n = payload.get("columns").and_then(|c| c.as_array()).map_or(0, |a| a.len());
+                    ChatStep::note("describe_table", format!("describe_table({table})"), true, format!("{n} column(s)"))
+                }
+            }
+        }
+        "propose_write" => {
+            let sql = input.get("sql").and_then(|s| s.as_str()).unwrap_or("").to_string();
+            if !sql.is_empty() {
+                proposed.push(sql.clone());
+            }
+            ChatStep::note("propose_write", sql, true, "proposed for review")
+        }
+        other => ChatStep::note(other, other, err.is_none(), err.unwrap_or("done").to_string()),
+    }
+}
+
+/// Drive a headless local Claude Code (`claude -p`) as the AI-mode engine.
+/// `config_json` is the serialized `DbConfig` for the session, handed to the
+/// spawned MCP server via the environment (never written to disk). Streams
+/// answer tokens via `on_token` and reconstructs each tool call as a
+/// [`ChatStep`] via `on_step` from the CLI's own event stream.
+pub async fn chat_claude_cli(
+    config_json: String,
+    messages: Vec<ChatMessage>,
+    dialect: String,
+    schema: String,
+    model_override: Option<String>,
+    on_step: StepSink<'_>,
+    on_token: TokenSink<'_>,
+) -> Result<ChatResponse, String> {
+    let cfg = load()?.ok_or("AI is not configured.")?;
+    let model = model_override
+        .filter(|m| !m.trim().is_empty())
+        .map(|m| m.trim().to_string())
+        .map(Ok)
+        .unwrap_or_else(|| cfg.resolved_model())?;
+
+    let bin = resolve_claude_bin()
+        .ok_or("Claude Code (`claude`) was not found. Install it and run `claude` once to sign in.")?;
+    let self_exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+
+    // mcp-config references the secret via ${JUSTDB_MCP_CONFIG}; nothing
+    // sensitive lands on disk. Removed when the turn finishes.
+    let cfg_path = std::env::temp_dir().join(format!("justdb-mcp-{}.json", uuid::Uuid::new_v4()));
+    let mcp_config = json!({
+        "mcpServers": {
+            "justdb": {
+                "type": "stdio",
+                "command": self_exe.to_string_lossy(),
+                "args": ["--mcp-serve"],
+                "env": { MCP_CONFIG_ENV: format!("${{{MCP_CONFIG_ENV}}}") }
+            }
+        }
+    });
+    std::fs::write(&cfg_path, mcp_config.to_string()).map_err(|e| format!("write mcp-config: {e}"))?;
+
+    let system = chat_system_prompt(&dialect, &schema);
+    let prompt = render_conversation(&messages);
+    const ALLOWED: &str = "mcp__justdb__run_sql,mcp__justdb__list_tables,mcp__justdb__describe_table,mcp__justdb__propose_write";
+
+    let mut child = Command::new(&bin)
+        .arg("-p").arg(&prompt)
+        .arg("--output-format").arg("stream-json")
+        .arg("--include-partial-messages")
+        .arg("--verbose")
+        .arg("--model").arg(&model)
+        .arg("--append-system-prompt").arg(&system)
+        .arg("--mcp-config").arg(&cfg_path)
+        .arg("--allowedTools").arg(ALLOWED)
+        .arg("--permission-mode").arg("default")
+        .env(MCP_CONFIG_ENV, &config_json)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("spawn claude: {e}"))?;
+
+    // Drain stderr concurrently so a chatty CLI can't deadlock on a full pipe.
+    let stderr = child.stderr.take();
+    let err_handle = tokio::spawn(async move {
+        let mut s = String::new();
+        if let Some(mut se) = stderr {
+            let _ = se.read_to_string(&mut s).await;
+        }
+        s
+    });
+
+    let stdout = child.stdout.take().ok_or("no stdout from claude")?;
+    let mut lines = BufReader::new(stdout).lines();
+
+    let mut steps: Vec<ChatStep> = Vec::new();
+    let mut proposed: Vec<String> = Vec::new();
+    let mut reply = String::new();
+    // tool_use_id -> (kind, input); matched when the tool_result arrives.
+    let mut pending: HashMap<String, (String, Value)> = HashMap::new();
+    let mut is_error = false;
+
+    while let Some(line) = lines.next_line().await.map_err(|e| format!("stream read: {e}"))? {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Ok(ev) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        match ev.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+            "stream_event" => {
+                let e = &ev["event"];
+                if e.get("type").and_then(|t| t.as_str()) == Some("content_block_delta")
+                    && e["delta"].get("type").and_then(|t| t.as_str()) == Some("text_delta")
+                {
+                    if let Some(t) = e["delta"].get("text").and_then(|t| t.as_str()) {
+                        reply.push_str(t);
+                        on_token(t);
+                    }
+                }
+            }
+            "assistant" => {
+                if let Some(blocks) = ev["message"]["content"].as_array() {
+                    for b in blocks {
+                        if b.get("type").and_then(|t| t.as_str()) != Some("tool_use") {
+                            continue;
+                        }
+                        let full = b.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        let kind = full.strip_prefix("mcp__justdb__").unwrap_or(full).to_string();
+                        let id = b.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string();
+                        let input = b.get("input").cloned().unwrap_or_else(|| json!({}));
+                        pending.insert(id, (kind, input));
+                    }
+                }
+            }
+            "user" => {
+                if let Some(blocks) = ev["message"]["content"].as_array() {
+                    for b in blocks {
+                        if b.get("type").and_then(|t| t.as_str()) != Some("tool_result") {
+                            continue;
+                        }
+                        let id = b.get("tool_use_id").and_then(|i| i.as_str()).unwrap_or("");
+                        let Some((kind, input)) = pending.remove(id) else {
+                            continue;
+                        };
+                        let payload = tool_result_payload(b);
+                        let step = build_step(&kind, &input, &payload, &mut proposed);
+                        on_step(&step);
+                        steps.push(step);
+                    }
+                }
+            }
+            "result" => {
+                is_error = ev.get("is_error").and_then(|e| e.as_bool()).unwrap_or(false);
+                if let Some(r) = ev.get("result").and_then(|r| r.as_str()) {
+                    reply = r.to_string();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let status = child.wait().await.map_err(|e| format!("wait: {e}"))?;
+    let _ = std::fs::remove_file(&cfg_path);
+    let err_text = err_handle.await.unwrap_or_default();
+
+    if !status.success() {
+        return Err(if err_text.trim().is_empty() {
+            "The local agent exited with an error.".to_string()
+        } else {
+            format!("Local agent error: {}", err_text.trim())
+        });
+    }
+    if is_error && reply.trim().is_empty() {
+        return Err("The local agent reported an error.".to_string());
+    }
+
+    Ok(ChatResponse {
+        reply,
+        steps,
+        proposed_writes: proposed,
+    })
+}
+
+pub(crate) const RUN_SQL_DESC: &str = "Run a READ-ONLY SQL query (SELECT/WITH/EXPLAIN only) against the connected database and get the rows back. Use this to explore the data and answer the question. Never use it to modify data or schema.";
+pub(crate) const PROPOSE_DESC: &str = "Propose a data-modifying or DDL statement (INSERT/UPDATE/DELETE/CREATE/ALTER/DROP) for the user to review and run. This does NOT execute. Use it whenever the task requires changing data or schema.";
+pub(crate) const LIST_TABLES_DESC: &str = "List the real, schema-qualified table names in the database. Call this to discover exact names when a query fails with 'does not exist' or when you are unsure a table exists.";
+pub(crate) const DESCRIBE_TABLE_DESC: &str = "Show a table's columns and types. Call this to get the exact, correctly-cased column names before querying.";
+
+pub(crate) fn run_sql_params() -> Value {
     json!({
         "type": "object",
         "properties": { "sql": { "type": "string", "description": "A single read-only SQL statement." } },
@@ -640,7 +1031,7 @@ fn run_sql_params() -> Value {
     })
 }
 
-fn propose_params() -> Value {
+pub(crate) fn propose_params() -> Value {
     json!({
         "type": "object",
         "properties": {
@@ -651,11 +1042,11 @@ fn propose_params() -> Value {
     })
 }
 
-fn no_params() -> Value {
+pub(crate) fn no_params() -> Value {
     json!({ "type": "object", "properties": {} })
 }
 
-fn describe_params() -> Value {
+pub(crate) fn describe_params() -> Value {
     json!({
         "type": "object",
         "properties": { "table": { "type": "string", "description": "Table name to describe, as shown by list_tables." } },
@@ -851,6 +1242,70 @@ async fn exec_tool(
                 );
             }
             json!({ "status": "proposed to the user for review and manual execution" })
+        }
+        other => json!({ "error": format!("unknown tool: {other}") }),
+    }
+}
+
+/// Pure tool execution shared by the in-process agent loop and the stdio MCP
+/// server (`mcp.rs`). Returns just the JSON payload to hand back to the model.
+/// Unlike [`exec_tool`] it records no [`ChatStep`]s and has no anti-repeat
+/// guard: the MCP/CLI path reconstructs steps from the agent's own stream, and
+/// the driving agent owns its own loop. `run_sql` still passes through the same
+/// [`is_read_only`] gate — that stays the single source of truth.
+pub(crate) async fn exec_tool_body(
+    name: &str,
+    args: &Value,
+    runner: &dyn SqlRunner,
+    dialect: &str,
+) -> Value {
+    match name {
+        "list_tables" => match runner.run_readonly(&list_tables_sql(dialect)).await {
+            Ok(rows) => {
+                let names: Vec<String> = rows
+                    .iter()
+                    .filter_map(|r| {
+                        r.as_object()
+                            .and_then(|o| o.values().next())
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string())
+                    })
+                    .collect();
+                json!({ "tables": names })
+            }
+            Err(e) => json!({ "error": e }),
+        },
+        "describe_table" => {
+            let table = args.get("table").and_then(|s| s.as_str()).unwrap_or("").trim().to_string();
+            if table.is_empty() {
+                return json!({ "error": "missing table argument" });
+            }
+            match runner.run_readonly(&describe_table_sql(dialect, &table)).await {
+                Ok(rows) => json!({ "columns": rows }),
+                Err(e) => json!({ "error": e }),
+            }
+        }
+        "run_sql" => {
+            let sql = args.get("sql").and_then(|s| s.as_str()).unwrap_or("").trim().to_string();
+            if sql.is_empty() {
+                return json!({ "error": "empty sql" });
+            }
+            if !is_read_only(&sql) {
+                return json!({ "error": "This statement is not read-only. Use propose_write for any change." });
+            }
+            match runner.run_readonly(&sql).await {
+                Ok(rows) => {
+                    let total = rows.len();
+                    let truncated = total > MAX_ROWS_TO_MODEL;
+                    let shown: Vec<Value> = rows.into_iter().take(MAX_ROWS_TO_MODEL).collect();
+                    json!({ "rows": shown, "rowCount": total, "truncated": truncated })
+                }
+                Err(e) => json!({ "error": e }),
+            }
+        }
+        "propose_write" => {
+            let sql = args.get("sql").and_then(|s| s.as_str()).unwrap_or("").trim().to_string();
+            json!({ "status": "proposed to the user for review and manual execution", "sql": sql })
         }
         other => json!({ "error": format!("unknown tool: {other}") }),
     }

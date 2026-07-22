@@ -1,5 +1,6 @@
 mod ai;
 mod cascade;
+mod mcp;
 mod mutation;
 mod postgres;
 mod saved_connections;
@@ -39,6 +40,12 @@ impl DbConnection {
 struct AppState {
     // session_id -> live backend connection
     sessions: DashMap<String, Arc<DbConnection>>,
+    // session_id -> the config that opened it. Retained so the AI "local CLI
+    // agent" path can hand it to a spawned `justdb --mcp-serve` subprocess,
+    // which reopens a read-only connection to the same database. Holds the
+    // password in memory for the session's lifetime — same exposure class as
+    // the live connection, which already carries the credentials internally.
+    configs: DashMap<String, DbConfig>,
     // Where saved-connection metadata is persisted (the OS keychain holds the
     // secrets). Resolved once at startup from the app config dir.
     config_dir: std::path::PathBuf,
@@ -114,6 +121,7 @@ async fn db_connect(
     };
 
     let db_type = config.db_type.clone();
+    let retained = config.clone();
     let conn = match config.db_type {
         DbType::Postgresql => {
             let pg = PgConnection::connect(config)
@@ -131,6 +139,7 @@ async fn db_connect(
 
     let session_id = uuid::Uuid::new_v4().to_string();
     state.sessions.insert(session_id.clone(), Arc::new(conn));
+    state.configs.insert(session_id.clone(), retained);
 
     Ok(ConnectResponse {
         session_id,
@@ -158,6 +167,7 @@ async fn db_query(
 #[tauri::command]
 async fn db_disconnect(session_id: String, state: State<'_, AppState>) -> CommandResult<()> {
     state.sessions.remove(&session_id);
+    state.configs.remove(&session_id);
     Ok(())
 }
 
@@ -917,6 +927,7 @@ async fn db_saved_connect(
 
     let database = saved.config.database.clone();
     let db_type = saved.config.db_type.clone();
+    let retained = saved.config.clone();
     let conn = match saved.config.db_type {
         DbType::Postgresql => {
             let pg = PgConnection::connect(saved.config)
@@ -934,6 +945,7 @@ async fn db_saved_connect(
 
     let session_id = uuid::Uuid::new_v4().to_string();
     state.sessions.insert(session_id.clone(), Arc::new(conn));
+    state.configs.insert(session_id.clone(), retained);
 
     // Bump lastUsed timestamp; failures here don't abort the connect.
     saved_connections::mark_used(&state.config_dir, &id);
@@ -1779,6 +1791,11 @@ async fn ai_generate_sql(args: ai::GenerateArgs) -> CommandResult<ai::GenerateRe
     ai::generate_sql(args).await.map_err(CommandError::Query)
 }
 
+#[tauri::command]
+async fn ai_local_agents() -> CommandResult<Vec<ai::LocalAgentInfo>> {
+    Ok(ai::local_agents())
+}
+
 // Bridges the AI agent's read-only `run_sql` tool to whichever backend the
 // session is connected to. Lives here (not in ai.rs) so the ai module stays
 // free of DbConnection knowledge.
@@ -1812,9 +1829,9 @@ async fn ai_chat(
     state: State<'_, AppState>,
 ) -> CommandResult<ai::ChatResponse> {
     let conn = require_session(&state, &session_id)?;
-    let runner = SessionRunner(conn);
     // Stream each tool step and each answer-text chunk to the webview as they
-    // arrive, so the UI shows live progress and types the reply out.
+    // arrive, so the UI shows live progress and types the reply out. Both the
+    // key-based providers and the local CLI agent emit the same events.
     let step_window = window.clone();
     let on_step = move |step: &ai::ChatStep| {
         let _ = step_window.emit("ai-chat-step", step);
@@ -1822,6 +1839,24 @@ async fn ai_chat(
     let on_token = move |token: &str| {
         let _ = window.emit("ai-chat-token", token);
     };
+
+    // Local CLI agent path: hand the session's connection config to a spawned
+    // `justdb --mcp-serve` subprocess (via env, never on disk) and stream its
+    // output back through the same sinks.
+    if ai::is_local_agent().map_err(CommandError::Query)? {
+        let config = state
+            .configs
+            .get(&session_id)
+            .map(|c| c.clone())
+            .ok_or_else(|| CommandError::NoSession(session_id.clone()))?;
+        let config_json = serde_json::to_string(&config)
+            .map_err(|e| CommandError::Query(format!("serialize connection config: {e}")))?;
+        return ai::chat_claude_cli(config_json, messages, dialect, schema, model, &on_step, &on_token)
+            .await
+            .map_err(CommandError::Query);
+    }
+
+    let runner = SessionRunner(conn);
     ai::chat(&runner, messages, dialect, schema, model, &on_step, &on_token)
         .await
         .map_err(CommandError::Query)
@@ -1829,6 +1864,21 @@ async fn ai_chat(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Subprocess mode: when a local CLI agent spawns us as its MCP server
+    // (`justdb --mcp-serve`), skip the entire Tauri/window stack and just run
+    // the stdio JSON-RPC loop, then exit. Must be the first thing in run().
+    if std::env::args().any(|a| a == "--mcp-serve") {
+        let rt = tokio::runtime::Runtime::new().expect("failed to start Tokio runtime");
+        let code = match rt.block_on(mcp::serve_stdio()) {
+            Ok(()) => 0,
+            Err(e) => {
+                eprintln!("justdb --mcp-serve: {e}");
+                1
+            }
+        };
+        std::process::exit(code);
+    }
+
     // The Aptabase telemetry plugin (registered below in keyed builds) calls
     // tokio::spawn in its Tauri setup hook to start a background flush loop.
     // Tauri's setup does not run inside a Tokio runtime, so without an ambient
@@ -1949,6 +1999,7 @@ pub fn run() {
             ai_clear_key,
             ai_generate_sql,
             ai_chat,
+            ai_local_agents,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
