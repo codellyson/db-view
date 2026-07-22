@@ -4,6 +4,7 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.2.0] - 2026-07-22
+## [0.2.0] - 2026-07-22
 
 ### Added
 - **marketing:** Hero screenshot, device-detected download, OG image ([edfc2b2](https://github.com/codellyson/justdb/commit/edfc2b26896ae4e433bfe35a5cb8bc3f7180fc62))
