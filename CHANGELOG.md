@@ -3,6 +3,15 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.0] - 2026-07-22
+
+### Added
+- **marketing:** Hero screenshot, device-detected download, OG image ([edfc2b2](https://github.com/codellyson/justdb/commit/edfc2b26896ae4e433bfe35a5cb8bc3f7180fc62))
+- **marketing:** Autoplaying muted hero demo video ([6e128d6](https://github.com/codellyson/justdb/commit/6e128d6367b1e6d501790acbcd86281a734477ff))
+- **ai:** Drive a local authenticated CLI agent for AI mode ([85d3ed3](https://github.com/codellyson/justdb/commit/85d3ed3d89a5b0dcec8d2637cca9e5337dc070be))
+- **web:** Markdown chat replies, docked panels, native title bar ([38ffb7e](https://github.com/codellyson/justdb/commit/38ffb7e0760e64c6c4427dc75d4447b3081a5e2a))
+- **web:** Resizable AI dock + matching resizer styling ([5e57f69](https://github.com/codellyson/justdb/commit/5e57f69abbd8ed525b0b0cc0bca16ebb919e89a2))
+
 ## [0.1.25] - 2026-07-09
 ## [0.1.25] - 2026-07-09
 
