@@ -122,7 +122,7 @@ export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
             className={`w-1 cursor-col-resize flex-shrink-0 relative hidden md:flex transition-colors ${
-              isDragging ? 'bg-accent' : 'bg-border hover:bg-accent/30'
+              isDragging ? 'bg-accent' : 'bg-transparent hover:bg-accent/30'
             }`}
             style={{ cursor: 'col-resize' }}
             role="separator"

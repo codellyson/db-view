@@ -101,6 +101,11 @@ const StepRow: React.FC<{ step: ChatStep }> = ({ step }) => (
   </div>
 );
 
+const AI_DOCK_WIDTH_KEY = 'justdb:ai-dock-width';
+const AI_DOCK_MIN = 320;
+const AI_DOCK_MAX = 760;
+const AI_DOCK_DEFAULT = 420;
+
 export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
   const { databaseType, databaseName, isConnected } = useConnection();
   const { openEditorTab } = useDashboard();
@@ -121,6 +126,41 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
   const [showChats, setShowChats] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  // Resizable dock width — drag the left edge; persisted across sessions.
+  const [dockWidth, setDockWidth] = useState(() => {
+    try {
+      const n = parseInt(localStorage.getItem(AI_DOCK_WIDTH_KEY) || '', 10);
+      if (!isNaN(n)) return Math.min(AI_DOCK_MAX, Math.max(AI_DOCK_MIN, n));
+    } catch { /* ignore */ }
+    return AI_DOCK_DEFAULT;
+  });
+  const [resizing, setResizing] = useState(false);
+  const resizeRef = useRef<{ startX: number; startW: number } | null>(null);
+  useEffect(() => {
+    try { localStorage.setItem(AI_DOCK_WIDTH_KEY, String(dockWidth)); } catch { /* ignore */ }
+  }, [dockWidth]);
+  useEffect(() => {
+    if (!resizing) return;
+    const onMove = (e: MouseEvent) => {
+      const s = resizeRef.current;
+      if (!s) return;
+      // Docked on the right, so dragging left widens the panel.
+      const next = s.startW + (s.startX - e.clientX);
+      setDockWidth(Math.min(AI_DOCK_MAX, Math.max(AI_DOCK_MIN, next)));
+    };
+    const onUp = () => setResizing(false);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [resizing]);
   // Input-history cursor: null = not navigating, else index into sentPrompts.
   const [histIdx, setHistIdx] = useState<number | null>(null);
   const [chatModel, setChatModel] = useState('');
@@ -279,7 +319,25 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
   const disabled = isBusy || !isConnected || !status?.configured;
 
   return (
-    <div className="h-screen w-[420px] max-w-[85vw] flex-shrink-0 flex flex-col bg-bg border-l border-border">
+    <div
+      className="relative h-screen max-w-[85vw] flex-shrink-0 flex flex-col bg-bg border-l border-border"
+      style={{ width: dockWidth }}
+    >
+      {/* Left-edge resize handle — drag to resize, double-click to reset. */}
+      <div
+        onMouseDown={(e) => {
+          e.preventDefault();
+          resizeRef.current = { startX: e.clientX, startW: dockWidth };
+          setResizing(true);
+        }}
+        onDoubleClick={() => setDockWidth(AI_DOCK_DEFAULT)}
+        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-20 transition-colors ${
+          resizing ? 'bg-accent' : 'bg-transparent hover:bg-accent/30'
+        }`}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize AI panel"
+      />
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 text-sm font-medium text-primary min-w-0">
