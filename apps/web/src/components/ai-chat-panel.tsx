@@ -52,7 +52,7 @@ const ChatMarkdown: React.FC<{ children: string }> = ({ children }) => (
 
 const SparkleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-    <path d="M8 0l1.6 4.4L14 6l-4.4 1.6L8 12l-1.6-4.4L2 6l4.4-1.6L8 0zM13 10l.7 1.9L15.6 12.6l-1.9.7L13 15l-.7-1.9L10.4 12.6l1.9-.7L13 10z" />
+    <path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" />
   </svg>
 );
 

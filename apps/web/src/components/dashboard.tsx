@@ -517,7 +517,7 @@ export function Dashboard() {
               <>
                 <button
                   onClick={() => openEditorTab()}
-                  className="p-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded transition-colors"
+                  className="flex h-7 items-center justify-center px-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded transition-colors"
                   title="New SQL editor (Alt+Q)"
                   aria-label="New SQL editor tab"
                 >
@@ -527,7 +527,7 @@ export function Dashboard() {
                 </button>
                 <button
                   onClick={() => setIsAiOpen((v) => !v)}
-                  className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                  className={`flex h-7 items-center gap-1 px-1.5 rounded text-xs font-medium transition-colors ${
                     isAiOpen ? 'text-accent bg-accent/15' : 'text-muted hover:text-accent hover:bg-accent/10'
                   }`}
                   title="Toggle AI mode"
@@ -535,7 +535,7 @@ export function Dashboard() {
                   aria-pressed={isAiOpen}
                 >
                   <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                    <path d="M8 0l1.6 4.4L14 6l-4.4 1.6L8 12l-1.6-4.4L2 6l4.4-1.6L8 0zM13 10l.7 1.9L15.6 12.6l-1.9.7L13 15l-.7-1.9L10.4 12.6l1.9-.7L13 10z" />
+                    <path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" />
                   </svg>
                   AI
                 </button>

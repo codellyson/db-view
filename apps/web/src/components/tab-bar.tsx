@@ -141,13 +141,13 @@ export const TabBar: React.FC<TabBarProps> = ({
   return (
     <div className="flex items-center border-b border-border bg-bg-secondary/30 min-h-[36px]">
       {actions && (
-        <div className="flex items-center gap-0.5 px-1 border-r border-border flex-shrink-0">
+        <div className="flex items-center px-1 border-r border-border flex-shrink-0 self-stretch">
           {actions}
         </div>
       )}
       <div
         ref={scrollRef}
-        className="flex items-end overflow-x-auto scrollbar-none flex-1"
+        className="flex items-stretch overflow-x-auto scrollbar-none flex-1"
         role="tablist"
       >
         {ordered.map((tab) => {

@@ -634,7 +634,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 title="Generate SQL with AI"
                 aria-pressed={showAiGenerate}
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l1.6 4.4L14 6l-4.4 1.6L8 12l-1.6-4.4L2 6l4.4-1.6L8 0zM13 10l.7 1.9L15.6 12.6l-1.9.7L13 15l-.7-1.9L10.4 12.6l1.9-.7L13 10z" /></svg>
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" /></svg>
               </button>
               <div className="w-5 border-t border-border my-0.5" />
               <button
@@ -660,7 +660,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
                 title="Explain query plan"
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 14V2M2 14h12M5 11V7M8 11V4M11 11V8" strokeLinecap="round"/></svg>
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 14V2M2 14h12M5 14V7M8 14V4M11 14V8" strokeLinecap="round"/></svg>
               </button>
               <button
                 onClick={() => {
@@ -671,7 +671,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
                 title="Save query"
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M11 1H3a1 1 0 00-1 1v12l4-3 4 3V2a1 1 0 00-1-1z"/></svg>
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M12 1H4a2 2 0 00-2 2v11l6-3.5 6 3.5V3a2 2 0 00-2-2z"/></svg>
               </button>
               <button
                 onClick={handleClear}
@@ -714,7 +714,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                   title="Send the error and query to the AI for a fix"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                    <path d="M8 0l1.6 4.4L14 6l-4.4 1.6L8 12l-1.6-4.4L2 6l4.4-1.6L8 0zM13 10l.7 1.9L15.6 12.6l-1.9.7L13 15l-.7-1.9L10.4 12.6l1.9-.7L13 10z" />
+                    <path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" />
                   </svg>
                   {isFixing ? 'Fixing…' : 'Fix with AI'}
                 </button>
@@ -754,7 +754,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                     title="Have the AI read the plan and suggest improvements"
                   >
                     <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                      <path d="M8 0l1.6 4.4L14 6l-4.4 1.6L8 12l-1.6-4.4L2 6l4.4-1.6L8 0zM13 10l.7 1.9L15.6 12.6l-1.9.7L13 15l-.7-1.9L10.4 12.6l1.9-.7L13 10z" />
+                      <path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" />
                     </svg>
                     {isInterpreting ? 'Interpreting…' : 'Interpret with AI'}
                   </button>

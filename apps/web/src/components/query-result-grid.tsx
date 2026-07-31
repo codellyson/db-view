@@ -1486,9 +1486,9 @@ const HeaderCell = memo(function HeaderCell({
             aria-label={sortState === 'asc' ? 'ascending' : 'descending'}
           >
             {sortState === 'asc' ? (
-              <path d="M8 4l4 5H4l4-5z" />
+              <path d="M8 5l4 6H4z" />
             ) : (
-              <path d="M8 12l-4-5h8l-4 5z" />
+              <path d="M8 11l-4-6h8z" />
             )}
           </svg>
         )}
@@ -1853,7 +1853,7 @@ const Cell = memo(function Cell(props: CellProps) {
           title={`Open ${fk.schema}.${fk.table} where ${fk.column} = ${String(value)}`}
           aria-label="Follow foreign key"
         >
-          <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
+          <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
             <path d="M5.22 14.78a.75.75 0 0 0 1.06 0l7.22-7.22v3.69a.75.75 0 0 0 1.5 0v-5.5a.75.75 0 0 0-.75-.75h-5.5a.75.75 0 0 0 0 1.5h3.69L5.22 13.72a.75.75 0 0 0 0 1.06Z" />
           </svg>
         </button>

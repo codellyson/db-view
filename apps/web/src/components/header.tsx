@@ -61,10 +61,10 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
     )}
     <header
-      className="h-12 bg-bg border-b border-border flex items-center justify-between px-4 md:px-6"
+      className="h-12 bg-bg border-b border-border flex items-center justify-between pl-3 pr-4 md:pr-6"
     >
       <div
-        className="flex items-center gap-3 md:gap-6"
+        className="flex items-center gap-2 md:gap-3"
       >
         {isConnected && onMenuToggle && (
           <button

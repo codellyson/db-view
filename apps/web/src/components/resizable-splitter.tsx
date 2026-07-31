@@ -118,11 +118,15 @@ export const ResizableSplitter: React.FC<ResizableSplitterProps> = ({
           >
             {left}
           </div>
+          {/* Zero layout width: the sidebar already draws the seam with its own
+              border-r, so any width here is an empty gutter that also offsets the
+              right pane and breaks the header's border line. The grab zone is an
+              overlay straddling the seam instead. */}
           <div
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
-            className={`w-1 cursor-col-resize flex-shrink-0 relative hidden md:flex transition-colors ${
-              isDragging ? 'bg-accent' : 'bg-transparent hover:bg-accent/30'
+            className={`w-0 cursor-col-resize flex-shrink-0 relative z-20 hidden md:block after:absolute after:inset-y-0 after:-left-[3px] after:w-[6px] after:content-[''] after:transition-colors ${
+              isDragging ? 'after:bg-accent' : 'hover:after:bg-accent/30'
             }`}
             style={{ cursor: 'col-resize' }}
             role="separator"

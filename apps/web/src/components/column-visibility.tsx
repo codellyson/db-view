@@ -63,7 +63,7 @@ export const ColumnVisibility: React.FC<ColumnVisibilityProps> = ({
         Columns {hiddenCount > 0 && <span className="text-muted">({hiddenCount} hidden)</span>}
       </button>
       {isOpen && (
-        <div className={`absolute top-full left-0 mt-1 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[200px] max-h-[300px] overflow-y-auto transition-all duration-150 ease-out ${
+        <div className={`absolute top-full left-0 mt-1 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[200px] max-w-[300px] max-h-[300px] overflow-y-auto transition-all duration-150 ease-out ${
           isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
         }`}>
           <div className="flex border-b border-border">
