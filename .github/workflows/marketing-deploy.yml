@@ -52,7 +52,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: "pnpm"
 
       # Workspace install: pnpm reads pnpm-workspace.yaml and installs every
