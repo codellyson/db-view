@@ -5,6 +5,7 @@ import { useToast } from '../contexts/toast-context';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { ConfirmDialog } from './ui/confirm-dialog';
+import { describeConnection } from '@/lib/connection-url';
 
 export const SavedConnections: React.FC = () => {
   const {
@@ -61,8 +62,11 @@ export const SavedConnections: React.FC = () => {
                 <p className="text-sm font-medium truncate leading-tight">
                   {connection.name}
                 </p>
-                <p className="text-[11px] font-mono text-muted truncate leading-tight">
-                  {connection.config.host}:{connection.config.port}/{connection.config.database}
+                <p
+                  className="text-[11px] font-mono text-muted truncate leading-tight"
+                  title={describeConnection(connection.config)}
+                >
+                  {describeConnection(connection.config)}
                 </p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">

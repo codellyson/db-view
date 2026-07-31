@@ -102,20 +102,19 @@ async fn db_connect(
     state: State<'_, AppState>,
 ) -> CommandResult<ConnectResponse> {
     let database = if config.db_type == DbType::Sqlite {
-        // For SQLite the "database" label shown in the connection-status
-        // pill is the file basename (or libsql hostname). Fall back to the
-        // `database` field if the form sent one (it usually does — it's
-        // derived from the filepath on the JS side).
-        if !config.database.is_empty() {
-            config.database.clone()
-        } else if let Some(p) = config.filepath.as_deref() {
-            p.split('/')
-                .last()
-                .map(|s| s.trim_end_matches(".db").to_string())
-                .unwrap_or_else(|| p.to_string())
+        // For SQLite the "database" label shown in the connection-status pill
+        // is the file basename (or libsql hostname). Connections saved before
+        // this was normalized hold the whole path in `database`, so take the
+        // basename regardless of which field it came from — and split on `\`
+        // too, or a Windows path comes back whole.
+        let raw = if !config.database.is_empty() {
+            config.database.as_str()
         } else {
-            "sqlite".to_string()
-        }
+            config.filepath.as_deref().unwrap_or("sqlite")
+        };
+        let base = raw.rsplit(['/', '\\']).next().unwrap_or(raw);
+        let stem = base.rsplit_once('.').map_or(base, |(s, _)| s);
+        if stem.is_empty() { "sqlite".to_string() } else { stem.to_string() }
     } else {
         config.database.clone()
     };

@@ -4,7 +4,7 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { DBConfig } from '@/types';
-import { parseConnectionURL, isConnectionURL } from '@/lib/connection-url';
+import { parseConnectionURL, isConnectionURL, sqliteDisplayName } from '@/lib/connection-url';
 
 type InputMode = 'url' | 'fields';
 type DbType = 'postgresql' | 'mysql' | 'sqlite';
@@ -160,8 +160,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         resolvedPath = parsed.filepath || '';
         token = parsed.authToken || token;
       }
-      const dbName = resolvedPath.split('/').pop()?.replace(/\.[^.]+$/, '')
-        || resolvedPath.split('.')[0] || 'sqlite';
+      const dbName = sqliteDisplayName(resolvedPath);
       config = {
         host: 'localhost',
         port: 0,
@@ -333,7 +332,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 <p className="mt-1 text-xs text-danger">{errors.filepath}</p>
               )}
               {uploadedFileName && !errors.filepath && (
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-xs text-muted break-all">
                   Uploaded: {uploadedFileName}
                 </p>
               )}

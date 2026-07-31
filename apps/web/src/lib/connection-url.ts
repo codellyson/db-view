@@ -10,13 +10,46 @@ export interface ParsedConnectionURL {
   authToken?: string;
 }
 
+/**
+ * Last path segment, splitting on both separators — a Windows path
+ * (`C:\dir\foo.db`) has no `/` to split on, so a `/`-only split returns the
+ * whole path and it ends up displayed as the database name.
+ */
+export function basename(path: string): string {
+  return path.split(/[\\/]/).pop() || path;
+}
+
+/** Filename without its extension, used as a SQLite connection's display name. */
+export function sqliteDisplayName(filepath: string): string {
+  return basename(filepath).replace(/\.[^.]+$/, "") || "sqlite";
+}
+
+/**
+ * One-line summary for a saved connection. SQLite carries synthetic
+ * `localhost:0` host/port to satisfy the shared config shape, so the
+ * server-style `host:port/database` form is meaningless for it.
+ */
+export function describeConnection(config: {
+  host: string;
+  port: number;
+  database: string;
+  type?: string;
+  filepath?: string;
+}): string {
+  if (config.type === "sqlite") {
+    const target = config.filepath || config.database;
+    return /^libsql:\/\//i.test(target) ? target : basename(target);
+  }
+  return `${config.host}:${config.port}/${config.database}`;
+}
+
 export function parseConnectionURL(url: string): ParsedConnectionURL {
   const trimmed = url.trim();
 
   if (/^sqlite:\/\//i.test(trimmed)) {
     const filepath = trimmed.replace(/^sqlite:\/\//i, "");
     if (!filepath) throw new Error("SQLite file path is required");
-    const database = filepath.split("/").pop()?.replace(/\.[^.]+$/, "") || "sqlite";
+    const database = sqliteDisplayName(filepath);
     return {
       host: "localhost",
       port: 0,

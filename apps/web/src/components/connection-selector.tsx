@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useConnection } from '../contexts/connection-context';
 import { useToast } from '../contexts/toast-context';
 import { ConfirmDialog } from './ui/confirm-dialog';
+import { describeConnection } from '@/lib/connection-url';
 
 interface ConnectionSelectorProps {
   status: 'connected' | 'connecting' | 'disconnected';
@@ -112,7 +113,10 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
             onClick={() => !isConnecting && setIsOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute top-full right-0 mt-2 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[240px] overflow-hidden" role="menu" aria-label="Connection">
+          {/* An absolutely-positioned box shrink-wraps its content, so without a
+              max-width a long connection subtitle stretches the whole panel and
+              the inner `truncate` never has a width to clip against. */}
+          <div className="absolute top-full right-0 mt-2 z-20 bg-bg border border-border rounded-lg shadow-lg min-w-[240px] max-w-[min(24rem,calc(100vw-2rem))] overflow-hidden" role="menu" aria-label="Connection">
             {status !== 'disconnected' && (
               <div className="px-3 py-2.5 border-b border-border bg-bg-secondary">
                 <div className="flex items-center gap-1.5">
@@ -159,7 +163,7 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
                           <p className="text-xs font-mono text-muted truncate">
                             {isConnecting && switchingTo === connection.id
                               ? 'Connecting...'
-                              : `${connection.config.host}:${connection.config.port}/${connection.config.database}`}
+                              : describeConnection(connection.config)}
                           </p>
                         </div>
                         {isConnecting && switchingTo === connection.id ? (
