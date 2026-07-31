@@ -37,7 +37,23 @@ jobs:
       # section to CHANGELOG.md before pushing the tag, so this step only
       # runs as a safety net for tags pushed by hand. --prepend preserves
       # any manual polish on past release sections.
+      #
+      # It must be skipped when the section is already there: HEAD is the
+      # tag at this point, so --unreleased matches no commits (the
+      # chore(release) commit is skip = true in cliff.toml) and git-cliff
+      # prepends a bare heading with nothing under it — which is how every
+      # release up to v0.2.1 ended up with its heading written twice.
+      - name: Is this tag's section already in CHANGELOG.md?
+        id: section
+        run: |
+          if grep -q "^## \[${GITHUB_REF_NAME#v}\]" CHANGELOG.md; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Ensure $TAG section is in CHANGELOG.md
+        if: steps.section.outputs.present == 'false'
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml

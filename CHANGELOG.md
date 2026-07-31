@@ -3,7 +3,7 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [0.2.1] - 2026-07-31
+
 ## [0.2.1] - 2026-07-31
 
 ### Fixed
@@ -11,7 +11,6 @@ All notable changes to JustDB are documented here. Format follows
 - **connections:** Label SQLite by file name, not localhost:0/<path> ([501f841](https://github.com/codellyson/justdb/commit/501f841e6eed5c8a95fcc5a661f3dc0e2eb86ba1))
 - **ui:** Correct malformed icon paths and tighten chrome spacing ([5f65e12](https://github.com/codellyson/justdb/commit/5f65e12db9bcea1bf11d5cda9afb4684809f57f3))
 
-## [0.2.0] - 2026-07-22
 ## [0.2.0] - 2026-07-22
 
 ### Added
@@ -22,36 +21,30 @@ All notable changes to JustDB are documented here. Format follows
 - **web:** Resizable AI dock + matching resizer styling ([5e57f69](https://github.com/codellyson/justdb/commit/5e57f69abbd8ed525b0b0cc0bca16ebb919e89a2))
 
 ## [0.1.25] - 2026-07-09
-## [0.1.25] - 2026-07-09
 
 ### Fixed
 - **telemetry:** Actually deliver events on Tauri v2 ([5473be3](https://github.com/codellyson/justdb/commit/5473be309ac8508807a210d48ffc485ea37d5fc0))
 
-## [0.1.24] - 2026-07-08
 ## [0.1.24] - 2026-07-08
 
 ### Fixed
 - **telemetry:** Boot crash in keyed builds + subtler first-run notice ([e51f90e](https://github.com/codellyson/justdb/commit/e51f90e5e18e280de5b48ca03a34e9169369f4dd))
 
 ## [0.1.23] - 2026-07-08
-## [0.1.23] - 2026-07-08
 
 ### Added
 - **telemetry:** Anonymous usage analytics via Aptabase ([b43acfd](https://github.com/codellyson/justdb/commit/b43acfd48585de01bca79fcd11b121d1f50c30ec))
 
-## [0.1.22] - 2026-07-08
 ## [0.1.22] - 2026-07-08
 
 ### Fixed
 - **saved-connections:** Store secrets per-connection to bypass Windows keychain limit ([729c552](https://github.com/codellyson/justdb/commit/729c5525332220fbd036852aa590de17b6547229))
 
 ## [0.1.21] - 2026-06-30
-## [0.1.21] - 2026-06-30
 
 ### Changed
 - **ui:** Shared Select component for consistent select sizing ([86ada8b](https://github.com/codellyson/justdb/commit/86ada8b22f3934ab757508a482fe95e7a169a284))
 
-## [0.1.20] - 2026-06-30
 ## [0.1.20] - 2026-06-30
 
 ### Added
@@ -76,7 +69,6 @@ All notable changes to JustDB are documented here. Format follows
 - **settings:** Trim verbose divider comment ([ea005bc](https://github.com/codellyson/justdb/commit/ea005bcb9b2d0e881e4ce4674c985d451061ec2b))
 
 ## [0.1.19] - 2026-06-21
-## [0.1.19] - 2026-06-21
 
 ### Added
 - Decode postgres arrays and refine header/result-grid UI ([cbdc905](https://github.com/codellyson/justdb/commit/cbdc9050d9b6a1d8b93fb14d32e86e523e165909))
@@ -85,7 +77,6 @@ All notable changes to JustDB are documented here. Format follows
 ### Maintenance
 - Allow esbuild/sharp build scripts in pnpm workspace ([c1fe1a9](https://github.com/codellyson/justdb/commit/c1fe1a9484ef94289f8106a4562287d7bf6c9d37))
 
-## [0.1.18] - 2026-06-19
 ## [0.1.18] - 2026-06-19
 
 ### Added
@@ -111,12 +102,10 @@ All notable changes to JustDB are documented here. Format follows
 - **editor:** Restore 12px editor content padding ([d21dc94](https://github.com/codellyson/justdb/commit/d21dc945ed384a8c3a1d3c3a943481a4e4fef8ba))
 
 ## [0.1.17] - 2026-06-18
-## [0.1.17] - 2026-06-18
 
 ### Added
 - **ai:** Agent recovery tools + anti-repeat guard (phase 1) ([45fd108](https://github.com/codellyson/justdb/commit/45fd108f21ba8daa1e79ed3de9bfed12646342d0))
 
-## [0.1.16] - 2026-06-18
 ## [0.1.16] - 2026-06-18
 
 ### Fixed
@@ -136,24 +125,20 @@ All notable changes to JustDB are documented here. Format follows
 - **tauri:** Use the native window title bar on Windows ([12aee14](https://github.com/codellyson/justdb/commit/12aee14cb25e057e0628a72919ae20a36ac7d419))
 
 ## [0.1.14] - 2026-06-12
-## [0.1.14] - 2026-06-12
 
 ### Fixed
 - **tauri:** Bump libsql 0.6 → 0.9 to unblock Windows build ([6c6d2bc](https://github.com/codellyson/justdb/commit/6c6d2bc9ce4ade373dbc3ca05d6587b56b2b6211))
 
-## [0.1.13] - 2026-06-12
 ## [0.1.13] - 2026-06-12
 
 ### Fixed
 - **web:** Drop unused React import in smart-cell-display ([290c804](https://github.com/codellyson/justdb/commit/290c804bd01bf30f312603672b14aa240743fb00))
 
 ## [0.1.12] - 2026-06-12
-## [0.1.12] - 2026-06-12
 
 ### Changed
 - **web:** Collapse /connections route into Home ([fc3a765](https://github.com/codellyson/justdb/commit/fc3a7650e9ef1978a696f6f8b973b9f58bb11e86))
 
-## [0.1.11] - 2026-06-12
 ## [0.1.11] - 2026-06-12
 
 ### Added
@@ -179,7 +164,6 @@ All notable changes to JustDB are documented here. Format follows
 - **web:** Cut paint/layout work in DataTable, cap result rows at 200 ([441a5e3](https://github.com/codellyson/justdb/commit/441a5e3c42853541708c0d217586e9457de49f9e))
 - **web:** Replace DataTable with QueryResultGrid; compact Connections ([bb8ae56](https://github.com/codellyson/justdb/commit/bb8ae5681a824607a2997647b2c8e5eb25aef8df))
 
-## [0.1.10] - 2026-06-07
 ## [0.1.10] - 2026-06-07
 
 ### Fixed

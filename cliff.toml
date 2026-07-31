@@ -8,6 +8,7 @@ header = """
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 """
 # Render an entry per release. `version` resolves to the git tag (e.g.
 # v0.1.6) when generating for a tagged release, or `Unreleased` when running
