@@ -3,6 +3,13 @@
 All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.1] - 2026-07-31
+
+### Fixed
+- **ai:** Resolve the Claude CLI from PATH and allow re-detection ([b8c55f5](https://github.com/codellyson/justdb/commit/b8c55f5e8e5a508b93ae1e9a159e593ff2626e8d))
+- **connections:** Label SQLite by file name, not localhost:0/<path> ([501f841](https://github.com/codellyson/justdb/commit/501f841e6eed5c8a95fcc5a661f3dc0e2eb86ba1))
+- **ui:** Correct malformed icon paths and tighten chrome spacing ([5f65e12](https://github.com/codellyson/justdb/commit/5f65e12db9bcea1bf11d5cda9afb4684809f57f3))
+
 ## [0.2.0] - 2026-07-22
 ## [0.2.0] - 2026-07-22
 
