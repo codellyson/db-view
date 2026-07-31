@@ -73,11 +73,15 @@ const AiSection: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [agents, setAgents] = useState<LocalAgentInfo[] | null>(null);
+  const [checking, setChecking] = useState(false);
 
   const meta = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0];
   const isLocal = meta.local === true;
   const localAgent = agents?.find((a) => a.id === provider);
-  const canSave = isLocal ? !!localAgent?.present : !!apiKey.trim();
+  // Detection is a best-effort path probe, so it must never be the only gate —
+  // a false negative would otherwise lock the provider out entirely. Saving
+  // undetected is allowed; the chat path re-resolves and errors clearly.
+  const canSave = isLocal ? true : !!apiKey.trim();
 
   const refresh = useCallback(() => {
     ai.status().then((s) => {
@@ -90,10 +94,17 @@ const AiSection: React.FC = () => {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Detect installed local CLI agents once (drives the local-provider panel).
-  useEffect(() => {
-    ai.localAgents().then(setAgents).catch(() => setAgents([]));
+  // Drives the local-provider panel. Re-runnable so installing the CLI while
+  // the app is open doesn't strand the user on a stale "not found".
+  const detect = useCallback(() => {
+    setChecking(true);
+    ai.localAgents()
+      .then(setAgents)
+      .catch(() => setAgents([]))
+      .finally(() => setChecking(false));
   }, []);
+
+  useEffect(() => { detect(); }, [detect]);
 
   const save = useCallback(async () => {
     if (!canSave) return;
@@ -158,20 +169,34 @@ const AiSection: React.FC = () => {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs rounded-md border border-border px-2.5 py-1.5">
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
+              className={`w-1.5 h-1.5 flex-shrink-0 rounded-full ${
                 localAgent === undefined ? 'bg-muted' : localAgent.present ? 'bg-green-500' : 'bg-danger'
               }`}
             />
-            {localAgent === undefined
-              ? 'Checking for a local agent…'
-              : localAgent.present
-                ? <span className="text-primary">Found <span className="font-medium">{localAgent.name}</span>{localAgent.path && <span className="font-mono text-muted"> · {localAgent.path}</span>}</span>
-                : <span className="text-secondary">Claude Code not found — install it and run <span className="font-mono">claude</span> once to sign in.</span>}
+            <span className="min-w-0 flex-1">
+              {localAgent === undefined
+                ? 'Checking for a local agent…'
+                : localAgent.present
+                  ? <span className="text-primary">Found <span className="font-medium">{localAgent.name}</span>{localAgent.path && <span className="font-mono text-muted"> · {localAgent.path}</span>}</span>
+                  : <span className="text-secondary">Claude Code not found — install it and run <span className="font-mono">claude</span> once to sign in, then check again.</span>}
+            </span>
+            <button
+              onClick={detect}
+              disabled={checking}
+              className="flex-shrink-0 rounded px-1.5 py-0.5 text-accent hover:bg-accent/10 disabled:opacity-40 transition-colors"
+            >
+              {checking ? 'Checking…' : 'Check again'}
+            </button>
           </div>
           <p className="text-xs text-muted">
             Uses your own installed, authenticated Claude Code — no API key, and queries run through
             the agent you already have. Subject to your agreement with Anthropic.
           </p>
+          {localAgent && !localAgent.present && (
+            <p className="text-xs text-muted">
+              You can still save this provider — justdb looks for the CLI again on every request.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-1.5">

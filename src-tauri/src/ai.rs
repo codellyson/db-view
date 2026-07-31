@@ -754,26 +754,49 @@ const MCP_CONFIG_ENV: &str = "JUSTDB_MCP_CONFIG";
 
 /// Locate the `claude` binary. GUI apps launched from Finder/Dock inherit a
 /// stripped PATH, so probe known install locations rather than trusting PATH.
+/// npm installs the CLI as a `.cmd` shim on Windows, so probing the bare name
+/// alone misses it.
+#[cfg(target_os = "windows")]
+const CLAUDE_BINS: &[&str] = &["claude.exe", "claude.cmd", "claude.bat", "claude"];
+#[cfg(not(target_os = "windows"))]
+const CLAUDE_BINS: &[&str] = &["claude"];
+
+/// Well-known install dirs first (unchanged priority), then everything on
+/// `PATH` so an install anywhere else is still found.
+fn claude_search_dirs() -> Vec<PathBuf> {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_default();
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    if !home.is_empty() {
+        let h = PathBuf::from(home);
+        dirs.push(h.join(".local").join("bin"));
+        dirs.push(h.join(".npm-global").join("bin"));
+        dirs.push(h.join(".bun").join("bin"));
+    }
+    dirs.push("/opt/homebrew/bin".into());
+    dirs.push("/usr/local/bin".into());
+    dirs.push("/usr/bin".into());
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        dirs.push(PathBuf::from(appdata).join("npm"));
+    }
+    if let Some(path) = std::env::var_os("PATH") {
+        dirs.extend(std::env::split_paths(&path));
+    }
+    dirs
+}
+
 pub(crate) fn resolve_claude_bin() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("JUSTDB_CLAUDE_BIN") {
         let pb = PathBuf::from(p.trim());
-        if !pb.as_os_str().is_empty() && pb.exists() {
+        if !pb.as_os_str().is_empty() && pb.is_file() {
             return Some(pb);
         }
     }
-    let home = std::env::var("HOME").unwrap_or_default();
-    #[allow(unused_mut)]
-    let mut candidates: Vec<PathBuf> = vec![
-        format!("{home}/.local/bin/claude").into(),
-        "/opt/homebrew/bin/claude".into(),
-        "/usr/local/bin/claude".into(),
-        format!("{home}/.npm-global/bin/claude").into(),
-    ];
-    #[cfg(target_os = "windows")]
-    if let Ok(up) = std::env::var("USERPROFILE") {
-        candidates.push(format!("{up}\\.local\\bin\\claude.exe").into());
-    }
-    candidates.into_iter().find(|p| p.exists())
+    claude_search_dirs()
+        .into_iter()
+        .flat_map(|d| CLAUDE_BINS.iter().map(move |n| d.join(n)))
+        .find(|p| p.is_file())
 }
 
 /// Render the conversation into a single prompt for a stateless `claude -p`
