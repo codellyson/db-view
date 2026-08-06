@@ -14,9 +14,9 @@ use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 
 const SERVICE: &str = "com.kreativekorna.justdb";
@@ -640,6 +640,75 @@ mod tests {
         assert_eq!(prows[0], vec![json!(1), json!("a")]);
     }
 
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn shim_text_yields_the_wrapped_cli_script() {
+        use super::shim_script_from_text;
+        let dir = std::env::temp_dir().join(format!("justdb-shim-{}", uuid::Uuid::new_v4()));
+        let pkg = dir.join("node_modules").join("@anthropic-ai").join("claude-code");
+        std::fs::create_dir_all(&pkg).unwrap();
+        std::fs::write(pkg.join("cli.js"), "").unwrap();
+        let shim = "@ECHO off\r\nSET dp0=%~dp0\r\n\
+             IF EXIST \"%dp0%\\node.exe\" (SET \"_prog=%dp0%\\node.exe\") ELSE (SET \"_prog=node\")\r\n\
+             \"%_prog%\" \"%dp0%\\node_modules\\@anthropic-ai\\claude-code\\cli.js\" %*\r\n";
+        assert_eq!(shim_script_from_text(shim, &dir).unwrap(), pkg.join("cli.js"));
+        // A shim we don't recognize must fall back rather than guess.
+        assert!(shim_script_from_text("@echo off\r\nclaude %*\r\n", &dir).is_none());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The bug this guards: Rust rejects a multi-line argument to a `.cmd`
+    /// with "batch file arguments are invalid", which is what every AI-mode
+    /// turn hit on an npm-installed CLI (the system prompt embeds the schema).
+    #[cfg(target_os = "windows")]
+    #[tokio::test]
+    async fn launch_routes_a_shim_through_node_so_multiline_args_survive() {
+        use super::claude_launch;
+        use std::process::Stdio;
+
+        let dir = std::env::temp_dir().join(format!("justdb-launch-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("cli.js"),
+            "process.stdout.write(JSON.stringify(process.argv.slice(2)))",
+        )
+        .unwrap();
+        let shim = dir.join("probe.cmd");
+        std::fs::write(&shim, "@ECHO off\r\n\"node\" \"%~dp0\\cli.js\" %*\r\n").unwrap();
+
+        let multiline = "line one\nline two";
+        assert!(
+            tokio::process::Command::new(&shim)
+                .arg(multiline)
+                .stdout(Stdio::null())
+                .spawn()
+                .is_err(),
+            "spawning the shim directly is expected to fail — otherwise this test proves nothing"
+        );
+
+        let out = claude_launch(&shim)
+            .command()
+            .arg(multiline)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("shim resolved to node")
+            .wait_with_output()
+            .await
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&out.stdout), format!("[\"{}\"]", "line one\\nline two"));
+        std::fs::remove_dir_all(&dir).ok();
+
+        // Sanity: an unrecognized shim stays on the batch path, where the
+        // caller keeps newlines out of argv instead.
+        let dir = std::env::temp_dir().join(format!("justdb-launch-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let opaque = dir.join("opaque.cmd");
+        std::fs::write(&opaque, "@echo off\r\nclaude %*\r\n").unwrap();
+        assert!(claude_launch(&opaque).via_batch);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn preview_table_handles_empty() {
         let (cols, prows) = preview_table(&[], 10);
@@ -786,6 +855,17 @@ fn claude_search_dirs() -> Vec<PathBuf> {
     dirs
 }
 
+#[cfg(target_os = "windows")]
+fn is_batch_shim(p: &Path) -> bool {
+    p.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("cmd") || e.eq_ignore_ascii_case("bat"))
+}
+#[cfg(not(target_os = "windows"))]
+fn is_batch_shim(_p: &Path) -> bool {
+    false
+}
+
 pub(crate) fn resolve_claude_bin() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("JUSTDB_CLAUDE_BIN") {
         let pb = PathBuf::from(p.trim());
@@ -793,10 +873,97 @@ pub(crate) fn resolve_claude_bin() -> Option<PathBuf> {
             return Some(pb);
         }
     }
-    claude_search_dirs()
-        .into_iter()
-        .flat_map(|d| CLAUDE_BINS.iter().map(move |n| d.join(n)))
-        .find(|p| p.is_file())
+    let candidates =
+        || claude_search_dirs().into_iter().flat_map(|d| CLAUDE_BINS.iter().map(move |n| d.join(n)));
+    // A real executable anywhere on the search path beats a batch shim — see
+    // [`claude_launch`] for why the shim is the awkward case.
+    candidates()
+        .find(|p| !is_batch_shim(p) && p.is_file())
+        .or_else(|| candidates().find(|p| p.is_file()))
+}
+
+/// How to actually start the CLI.
+///
+/// npm and pnpm install `claude` on Windows as a `.cmd` shim, and Rust refuses
+/// to hand a batch file any argument containing a newline — it fails the spawn
+/// with "batch file arguments are invalid" (the CVE-2024-24576 mitigation), and
+/// cmd.exe caps the whole command line at 8 KB besides. The system prompt we
+/// append carries the multi-line schema, so every turn hit that. The shims all
+/// boil down to `node "<...>\cli.js" %*`, so pull the script back out and run
+/// node directly; `via_batch` marks the last-resort case where we couldn't and
+/// must keep newlines out of argv entirely.
+struct ClaudeLaunch {
+    program: PathBuf,
+    script: Option<PathBuf>,
+    via_batch: bool,
+}
+
+impl ClaudeLaunch {
+    fn direct(program: PathBuf) -> Self {
+        Self { program, script: None, via_batch: false }
+    }
+
+    fn command(&self) -> Command {
+        let mut cmd = Command::new(&self.program);
+        if let Some(script) = &self.script {
+            cmd.arg(script);
+        }
+        cmd
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn claude_launch(bin: &Path) -> ClaudeLaunch {
+    if !is_batch_shim(bin) {
+        return ClaudeLaunch::direct(bin.to_path_buf());
+    }
+    match shim_node_script(bin) {
+        Some((node, script)) => {
+            ClaudeLaunch { program: node, script: Some(script), via_batch: false }
+        }
+        None => ClaudeLaunch { program: bin.to_path_buf(), script: None, via_batch: true },
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn claude_launch(bin: &Path) -> ClaudeLaunch {
+    ClaudeLaunch::direct(bin.to_path_buf())
+}
+
+/// The `node.exe` + entry script a `.cmd` shim wraps, or `None` if the file
+/// isn't a shape we recognize.
+#[cfg(target_os = "windows")]
+fn shim_node_script(shim: &Path) -> Option<(PathBuf, PathBuf)> {
+    let dir = shim.parent()?;
+    let text = std::fs::read_to_string(shim).ok()?;
+    let script = shim_script_from_text(&text, dir)?;
+    let bundled = dir.join("node.exe");
+    let node = if bundled.is_file() { Some(bundled) } else { find_on_path("node.exe") }?;
+    Some((node, script))
+}
+
+#[cfg(target_os = "windows")]
+fn shim_script_from_text(text: &str, dir: &Path) -> Option<PathBuf> {
+    text.split('"').skip(1).step_by(2).find_map(|seg| shim_script_path(seg, dir))
+}
+
+/// Resolve one quoted segment of a shim against the shim's own directory,
+/// which is what `%dp0%`/`%~dp0` expand to at runtime.
+#[cfg(target_os = "windows")]
+fn shim_script_path(seg: &str, dir: &Path) -> Option<PathBuf> {
+    let lower = seg.to_ascii_lowercase();
+    if !(lower.ends_with(".js") || lower.ends_with(".cjs") || lower.ends_with(".mjs")) {
+        return None;
+    }
+    let rel = seg.replace("%~dp0", "").replace("%dp0%", "");
+    let path = dir.join(rel.trim_start_matches(['\\', '/']));
+    path.is_file().then_some(path)
+}
+
+#[cfg(target_os = "windows")]
+fn find_on_path(name: &str) -> Option<PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path).map(|d| d.join(name)).find(|p| p.is_file())
 }
 
 /// Render the conversation into a single prompt for a stateless `claude -p`
@@ -918,25 +1085,47 @@ pub async fn chat_claude_cli(
     std::fs::write(&cfg_path, mcp_config.to_string()).map_err(|e| format!("write mcp-config: {e}"))?;
 
     let system = chat_system_prompt(&dialect, &schema);
-    let prompt = render_conversation(&messages);
+    let mut prompt = render_conversation(&messages);
     const ALLOWED: &str = "mcp__justdb__run_sql,mcp__justdb__list_tables,mcp__justdb__describe_table,mcp__justdb__propose_write";
 
-    let mut child = Command::new(&bin)
-        .arg("-p").arg(&prompt)
+    let launch = claude_launch(&bin);
+    // Going through cmd.exe, the system prompt can't be an argument at all
+    // (newlines), so it rides along with the prompt on stdin instead.
+    if launch.via_batch {
+        prompt = format!("{system}\n\n---\n\n{prompt}");
+    }
+
+    let mut cmd = launch.command();
+    cmd.arg("-p")
         .arg("--output-format").arg("stream-json")
         .arg("--include-partial-messages")
         .arg("--verbose")
         .arg("--model").arg(&model)
-        .arg("--append-system-prompt").arg(&system)
         .arg("--mcp-config").arg(&cfg_path)
         .arg("--allowedTools").arg(ALLOWED)
-        .arg("--permission-mode").arg("default")
+        .arg("--permission-mode").arg("default");
+    if !launch.via_batch {
+        cmd.arg("--append-system-prompt").arg(&system);
+    }
+
+    let mut child = cmd
         .env(MCP_CONFIG_ENV, &config_json)
-        .stdin(Stdio::null())
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("spawn claude: {e}"))?;
+
+    // Prompt over stdin, not argv: Windows caps a command line at 32 KB (8 KB
+    // through cmd.exe) and a long conversation blows past that. Written from a
+    // task so a prompt bigger than the pipe buffer can't deadlock against the
+    // child's stdout.
+    if let Some(mut stdin) = child.stdin.take() {
+        tokio::spawn(async move {
+            let _ = stdin.write_all(prompt.as_bytes()).await;
+            let _ = stdin.shutdown().await;
+        });
+    }
 
     // Drain stderr concurrently so a chatty CLI can't deadlock on a full pipe.
     let stderr = child.stderr.take();
