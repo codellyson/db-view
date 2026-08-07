@@ -21,19 +21,15 @@ function revive(raw: unknown): Prefs {
   };
 }
 
-/**
- * Prefs are per database and shared by every caller for that database — the
- * dashboard and `useUrlState` both hold this hook at the same time, and with a
- * copy each, whichever recorded a table open last overwrote the other's pins.
- */
+/** Per database, shared by every caller — the dashboard and `useUrlState`
+ * both hold this hook at once. */
 export function useTableListPrefs(databaseName: string | undefined) {
   const store = useMemo(
     () => persistentStore<Prefs>(`dbview-tablelist-${databaseName ?? ''}`, EMPTY, revive),
     [databaseName]
   );
   const prefs = usePersistentStore(store);
-  // Without a database there's nothing to pin, and writing would file the
-  // prefs under an empty key.
+  // Writing without a database would file prefs under an empty key.
   const disabled = !databaseName;
 
   const togglePin = useCallback(

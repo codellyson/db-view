@@ -62,6 +62,7 @@ export function Dashboard() {
     indexes,
     isLoadingTables,
     isLoading,
+    isRefreshing,
     isLoadingSchema,
     currentPage,
     totalItems,
@@ -655,7 +656,7 @@ export function Dashboard() {
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+                        className={`h-4 w-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -710,6 +711,7 @@ export function Dashboard() {
                   columns={columns}
                   data={tableData}
                   isLoading={isLoading}
+                  isRefreshing={isRefreshing}
                   onSort={handleSort}
                   sortColumn={sortColumn || undefined}
                   sortDirection={sortDirection ?? undefined}
@@ -750,7 +752,7 @@ export function Dashboard() {
                     countIsEstimate={countIsEstimate}
                     filterCount={tableFilters.length}
                     unfilteredTotal={selectedTable ? tableRowCounts[selectedTable] : undefined}
-                    isLoading={isLoading}
+                    isLoading={isLoading || isRefreshing}
                     onItemsPerPageChange={(size) => {
                       setItemsPerPage(size);
                       setCurrentPage(1);

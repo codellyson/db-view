@@ -6,9 +6,8 @@ import { persistentStore, usePersistentStore } from "@/lib/persistent-store";
 const STORAGE_KEY = "dbview-query-history";
 const MAX_ENTRIES = 100;
 
-// Shared across every mounted editor tab — the dashboard keeps them all
-// mounted, and a per-hook copy meant each tab persisted the whole array from
-// the snapshot it loaded at mount, dropping the others' runs.
+// Shared: the dashboard keeps every editor tab mounted, and a per-hook copy
+// meant each tab overwrote the others' runs.
 const store = persistentStore<QueryHistoryEntry[]>(STORAGE_KEY, [], (raw) =>
   Array.isArray(raw) ? (raw as QueryHistoryEntry[]) : []
 );

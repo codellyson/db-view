@@ -27,10 +27,8 @@ export interface TablePending {
 }
 
 /**
- * `db` stamps which database the staged rows belong to. Without it, switching
- * connections left the previous database's staged writes in play and the
- * persist effect filed them under the new database's key — one "Review & Run"
- * away from applying rows to the wrong database.
+ * `db` stamps which database the staged rows belong to, so a connection switch
+ * can't file the previous one's writes under the new key.
  */
 export interface State {
   db: string | null;
@@ -240,11 +238,9 @@ export const HISTORY_LIMIT = 50;
 export const INITIAL_HISTORY: HistoryState = { present: INITIAL_STATE, past: [], future: [] };
 
 /**
- * Undo/redo lives in the reducer rather than a ref so each recorded step is
- * the state the action actually applied to. When history was captured from a
- * closure, several dispatches in one tick (staging a bulk delete row by row)
- * all recorded the same pre-batch state: the first undo reverted the whole
- * batch and the rest were silent no-ops that also corrupted redo.
+ * History lives in the reducer, not a ref, so each step is the state its
+ * action applied to — several dispatches in one tick (a bulk delete staged
+ * row by row) used to record the same pre-batch state.
  */
 export function historyReducer(h: HistoryState, action: HistoryAction): HistoryState {
   switch (action.type) {
@@ -266,9 +262,8 @@ export function historyReducer(h: HistoryState, action: HistoryAction): HistoryS
     }
     default: {
       const present = reducer(h.present, action);
-      // Hydrating a different database and committing a table both start a
-      // new timeline — undoing across either would re-stage rows the user has
-      // already saved, or rows belonging to a database they've left.
+      // Both start a new timeline: undoing across either would re-stage rows
+      // the user has saved, or rows from a database they've left.
       if (action.type === 'HYDRATE' || action.type === 'CLEAR_AFTER_SAVE') {
         if (present === h.present && h.past.length === 0 && h.future.length === 0) return h;
         return { present, past: [], future: [] };
@@ -346,9 +341,8 @@ export function buildMutationRequests(
 const storageKey = (db: string) => `dbview-pending-${db}`;
 
 /**
- * Read the staged rows belonging to `db`. Always returns state stamped with
- * that database, so a miss produces an empty slate rather than leaving the
- * previous database's rows in place.
+ * Always returns state stamped with `db`, so a miss is an empty slate rather
+ * than the previous database's rows left in place.
  */
 export function readPersisted(db: string): State {
   try {

@@ -22,11 +22,8 @@ import { type TableStatsData } from '../components/table-stats';
 import { type Tab } from '../components/tab-bar';
 import { nextActiveAfterClose, reorderTabs as reorderTabList } from '@/lib/tabs';
 
-/**
- * Everything that changes as the user works. Separated from the actions below
- * so a component that only dispatches (the AI panel opening an editor tab, the
- * review modal refreshing) doesn't re-render every time a row loads.
- */
+/** Workspace data. Split from the actions so dispatch-only consumers don't
+ * re-render when a row loads. */
 interface DashboardState {
   openTabs: Tab[];
   activeTabId: string | undefined;
@@ -44,6 +41,8 @@ interface DashboardState {
   indexes: any[];
   isLoadingTables: boolean;
   isLoading: boolean;
+  /** Refetch over rows already on screen — sort, filter, page, reload. */
+  isRefreshing: boolean;
   isLoadingSchema: boolean;
   currentPage: number;
   totalItems: number;
@@ -66,11 +65,8 @@ interface DashboardState {
   savedQueries: SavedQuery[];
 }
 
-/**
- * Every identity here is stable for the provider's lifetime — actions read
- * whatever they need from a ref rather than closing over state, so this
- * context's value never changes after mount.
- */
+/** Stable for the provider's lifetime: actions read state from a ref rather
+ * than closing over it, so this context's value never changes. */
 interface DashboardActions {
   openTab: (name: string, type?: Tab['type']) => void;
   closeTab: (tabId: string) => void;
@@ -122,8 +118,7 @@ interface TabUIState {
   tableFilters: Filter[];
 }
 
-// Stable empty fallbacks: `?? []` would hand consumers a fresh array on every
-// render, defeating the memoized state value below.
+// `?? []` would hand consumers a fresh array every render, defeating the memo.
 const EMPTY_STRINGS: string[] = [];
 const EMPTY_ROWS: any[] = [];
 const EMPTY_COLUMNS: ColumnInfo[] = [];
@@ -173,15 +168,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [activeTabId, setActiveTabId] = useState<string | undefined>();
   const [queryTabResults, setQueryTabResults] = useState<Record<string, { rows: any[]; columns: string[]; executionTime: number }>>({});
 
-  // Query keys are namespaced by database. Without it, two connections whose
-  // schemas share a name (the common `public` case) map to the same cache
-  // entries, and correctness rests entirely on the clears below firing first.
+  // Namespaces the query cache: two connections whose schemas share a name
+  // (the common `public` case) would otherwise share cache entries.
   const dbKey = databaseName ?? '';
 
-  // Actions read mutable state from here instead of closing over it, which is
-  // what keeps their identities — and therefore the actions context value —
-  // stable. Written in a layout effect so it is current before any event can
-  // fire against the committed UI.
+  // Written in a layout effect so it is current before any event can fire
+  // against the committed UI.
   const latest = useRef({
     selectedSchema,
     selectedTable,
@@ -213,10 +205,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Per-tab UI state cache
   const tabUIStateRef = useRef<Record<string, TabUIState>>({});
-  // Tabs whose visible-column set has been seeded from the loaded columns.
-  // Tracking it explicitly is what lets "hide all columns" stick: an empty
-  // `visibleColumns` used to double as "not initialized yet", so the seeding
-  // effect re-showed every column the moment the user hid them all.
+  // Tracked explicitly so "hide all columns" sticks — an empty
+  // `visibleColumns` used to double as "not seeded yet".
   const columnsSeededRef = useRef<Set<string>>(new Set());
 
   const saveCurrentTabUIState = useCallback(() => {
@@ -279,7 +269,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [restoreTabUIState, resetTabUIState]
   );
 
-  /** Drop everything a set of tabs owns: cached view state and editor drafts. */
+  /** Drop what a set of tabs owns: cached view state and editor drafts. */
   const discardTabs = useCallback(
     (tabs: Tab[]) => {
       for (const tab of tabs) {
@@ -430,6 +420,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       };
     },
     enabled: isConnected && !!selectedTable,
+    // Sort/filter/page re-query the same table: keep the rows on screen rather
+    // than swapping in a skeleton. Switching tables still clears.
+    placeholderData: (previous, previousQuery) => {
+      const key = previousQuery?.queryKey as unknown[] | undefined;
+      if (!key) return undefined;
+      const sameTable =
+        key[1] === dbKey && key[2] === selectedTable && key[3] === selectedSchema;
+      return sameTable ? previous : undefined;
+    },
   });
 
   const tableSchemaQuery = useQuery({
@@ -485,17 +484,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const tableStats = tableStatsQuery.data ?? null;
 
   const isLoadingTables = tablesQuery.isLoading;
-  // `isFetching` covers reload-button refetches (when there's already
-  // cached data); `isLoading` alone would only spin on first load.
-  const isLoading = tableDataQuery.isLoading || tableDataQuery.isFetching;
+  // Only "nothing to show yet" earns a skeleton; a refetch over existing rows
+  // is `isRefreshing`, which the grid renders as a progress bar.
+  const isLoading = tableDataQuery.isLoading;
+  const isRefreshing = tableDataQuery.isFetching && !tableDataQuery.isLoading;
   const isLoadingSchema = tableSchemaQuery.isLoading;
   const isLoadingStats = tableStatsQuery.isLoading;
 
   const error = tableDataQuery.error?.message ?? tablesQuery.error?.message ?? null;
 
-  // Seed the visible columns the first time a tab's data arrives. Gated on
-  // the tab, not on `visibleColumns` being empty, so hiding every column is
-  // a state the user can actually stay in.
+  // Gated on the tab, not on `visibleColumns` being empty, so hiding every
+  // column is a state the user can stay in.
   useEffect(() => {
     if (columns.length === 0) return;
     const tab = activeTabId ?? '';
@@ -703,6 +702,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     indexes,
     isLoadingTables,
     isLoading,
+    isRefreshing,
     isLoadingSchema,
     currentPage,
     totalItems,
@@ -726,7 +726,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }), [
     openTabs, activeTabId, tables, schemas, selectedSchema, selectedTable, tableData,
     columns, schema, views, materializedViews, dbFunctions, relationships, indexes,
-    isLoadingTables, isLoading, isLoadingSchema, currentPage, totalItems, countIsEstimate,
+    isLoadingTables, isLoading, isRefreshing, isLoadingSchema, currentPage, totalItems, countIsEstimate,
     sortColumn, sortDirection, visibleColumns, tableSearch, tableFilters, error,
     itemsPerPage, primaryKeys, tableStats, isLoadingStats, schemaMap, tableRowCounts,
     queryTabResults, savedQueries,
@@ -781,7 +781,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Subscribe to workspace data. Re-renders whenever any of it changes. */
 export function useDashboardState(): DashboardState {
   const context = useContext(DashboardStateContext);
   if (context === undefined) {
@@ -790,10 +789,7 @@ export function useDashboardState(): DashboardState {
   return context;
 }
 
-/**
- * Subscribe to the actions only. The value never changes, so a component that
- * uses this and nothing else re-renders only when its own props or state do.
- */
+/** Never changes identity, so a consumer of actions alone never re-renders. */
 export function useDashboardActions(): DashboardActions {
   const context = useContext(DashboardActionsContext);
   if (context === undefined) {
@@ -802,7 +798,6 @@ export function useDashboardActions(): DashboardActions {
   return context;
 }
 
-/** Data + actions together, for components that genuinely need both. */
 export function useDashboard(): DashboardContextType {
   const state = useDashboardState();
   const actions = useDashboardActions();

@@ -13,8 +13,7 @@ const STORAGE_KEY = "dbview-plugins";
 
 const EMPTY_CONFIG: PluginConfig = { templates: [], formatters: [], disabledBuiltIns: [] };
 
-// The dashboard, the settings modal, and the template browser all read this;
-// with a copy each, a formatter added in settings never reached the grid.
+// Read by the dashboard, settings modal, and template browser at once.
 const store = persistentStore<PluginConfig>(STORAGE_KEY, EMPTY_CONFIG, (raw) => {
   const c = raw as Partial<PluginConfig> | null;
   if (!c || typeof c !== "object") return EMPTY_CONFIG;

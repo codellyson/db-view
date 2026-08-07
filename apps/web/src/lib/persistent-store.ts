@@ -1,16 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * A single, shared source of truth for one localStorage key.
- *
- * Hand-rolled `useState` + persist-on-write hooks give every component that
- * calls them an independent copy of the same key. Two SQL editor tabs, or the
- * dashboard and the settings modal, each load a snapshot at mount and then
- * write the whole value back — so the last writer silently discards whatever
- * the others recorded, and edits made in one never reach the other.
- *
- * Stores are module-lifetime singletons keyed by their storage key, so every
- * subscriber reads and writes the same value and re-renders together.
+ * Shared source of truth for one localStorage key, so components can't each
+ * hold a mount-time copy and overwrite one another on write.
  */
 export interface PersistentStore<T> {
   subscribe(listener: () => void): () => void;
@@ -31,7 +23,6 @@ function createStore<T>(key: string, fallback: T, revive: (raw: unknown) => T): 
       const raw = localStorage.getItem(key);
       return raw === null ? fallback : revive(JSON.parse(raw));
     } catch {
-      // missing, corrupt, or storage disabled — start from the fallback
       return fallback;
     }
   };
@@ -58,14 +49,14 @@ function createStore<T>(key: string, fallback: T, revive: (raw: unknown) => T): 
       try {
         localStorage.setItem(key, JSON.stringify(next));
       } catch {
-        // quota exceeded or storage disabled — keep the in-memory value
+        // keep the in-memory value
       }
       emit();
     },
   };
 
-  // `storage` only fires in *other* documents, so this is how a second app
-  // window learns about the first one's writes.
+  // `storage` fires only in other documents — this is how a second app window
+  // learns about the first one's writes.
   if (typeof window !== 'undefined') {
     window.addEventListener('storage', (e) => {
       if (e.key !== key) return;
@@ -78,10 +69,7 @@ function createStore<T>(key: string, fallback: T, revive: (raw: unknown) => T): 
   return store;
 }
 
-/**
- * The store for `key`, created on first use. The first caller's `fallback` and
- * `revive` win — a key is expected to have one owner.
- */
+/** The first caller's `fallback` and `revive` win — a key has one owner. */
 export function persistentStore<T>(
   key: string,
   fallback: T,

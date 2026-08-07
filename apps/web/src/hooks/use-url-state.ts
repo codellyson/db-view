@@ -23,9 +23,8 @@ export function useUrlState() {
   const prefs = useTableListPrefs(databaseName);
   const initializedRef = useRef(false);
 
-  // The popstate listener is registered once, so reading through a ref is
-  // what keeps back/forward from applying the URL against the dashboard as
-  // it looked on first render.
+  // The popstate listener registers once; a ref keeps it from applying the
+  // URL against the dashboard as it looked on first render.
   const latest = useRef({ dash, prefs });
   useLayoutEffect(() => {
     latest.current = { dash, prefs };

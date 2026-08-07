@@ -82,6 +82,7 @@ export interface QueryResultGridProps {
   columns: string[];
   data: any[];
   isLoading?: boolean;
+  isRefreshing?: boolean;
   columnTypes?: Record<string, string>;
   searchQuery?: string;
   schema?: string;
@@ -349,6 +350,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     columns,
     data,
     isLoading,
+    isRefreshing,
     columnTypes = {},
     searchQuery,
     schema,
@@ -1159,6 +1161,11 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
 
   return (
     <StoresContext.Provider value={stores}>
+      <div className="h-0.5 overflow-hidden">
+        {isRefreshing && (
+          <div className="h-full w-1/3 rounded-full bg-accent animate-indeterminate" />
+        )}
+      </div>
       {(canEdit || !!onBulkExport) && (
         <BulkActionBar
           onClear={clearSelection}

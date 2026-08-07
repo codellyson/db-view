@@ -15,9 +15,8 @@ interface ToastControls {
   removeToast: (id: string) => void;
 }
 
-// Split from the toast list: this provider sits outermost, so a value carrying
-// `toasts` re-rendered the entire app — every provider below it included —
-// each time a toast appeared or expired. These controls never change identity.
+// Split from the list: this provider is outermost, so a value carrying
+// `toasts` re-rendered the whole app on every toast.
 const ToastControlsContext = createContext<ToastControls | undefined>(undefined);
 const ToastListContext = createContext<Toast[]>([]);
 
@@ -82,7 +81,6 @@ export function useToast(): ToastControls {
   return context;
 }
 
-/** The current toasts — for the container that renders them. */
 export function useToasts(): Toast[] {
   return useContext(ToastListContext);
 }
