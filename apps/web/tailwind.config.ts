@@ -24,6 +24,18 @@ const config: Config = {
         sans: ["'Geist Variable'", '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
         mono: ["'Geist Mono Variable'", 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
+      // Pinned in px. `html` is 15px, so the rem-based defaults rendered ~7%
+      // small everywhere — text-sm was 13.1px, text-xs 11.3px. Spacing still
+      // scales off the 15px root, so only type changes.
+      fontSize: {
+        xs: ['12px', '16px'],
+        sm: ['14px', '20px'],
+        base: ['16px', '24px'],
+        lg: ['18px', '28px'],
+        xl: ['20px', '28px'],
+        '2xl': ['24px', '32px'],
+        '3xl': ['30px', '36px'],
+      },
       borderRadius: { sm: '4px', md: '6px', lg: '8px', xl: '12px' },
       keyframes: {
         indeterminate: {

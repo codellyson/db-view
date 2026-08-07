@@ -4,7 +4,7 @@ import type { Filter } from '@/lib/filters';
 
 export type TableView = 'data' | 'structure';
 
-const Icon = ({ d, className = 'h-3.5 w-3.5' }: { d: string; className?: string }) => (
+const Icon = ({ d, className = 'h-4 w-4' }: { d: string; className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -116,7 +116,7 @@ export function TableToolbar({
   const hiddenCount = columns.length - visibleColumns.length;
 
   return (
-    <div className="flex items-center gap-1 h-10 shrink-0 border-b border-border pb-1.5 mb-1.5 overflow-x-auto">
+    <div className="flex items-center gap-1 h-11 shrink-0 border-b border-border pb-1.5 mb-1.5 overflow-x-auto">
       <ToolbarButton
         icon={<Icon d={PATH.data} />}
         active={view === 'data'}
@@ -211,14 +211,14 @@ export function TableToolbar({
               <button
                 type="button"
                 onClick={onShowAllColumns}
-                className="flex-1 px-2 py-1 text-[11px] rounded text-secondary hover:text-primary hover:bg-bg-secondary"
+                className="flex-1 px-2 py-1 text-xs rounded text-secondary hover:text-primary hover:bg-bg-secondary"
               >
                 Show all
               </button>
               <button
                 type="button"
                 onClick={onHideAllColumns}
-                className="flex-1 px-2 py-1 text-[11px] rounded text-secondary hover:text-primary hover:bg-bg-secondary"
+                className="flex-1 px-2 py-1 text-xs rounded text-secondary hover:text-primary hover:bg-bg-secondary"
               >
                 Hide all
               </button>
@@ -250,7 +250,7 @@ export function TableToolbar({
 
       <div className="relative shrink-0 ml-1">
         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
-          <Icon d={PATH.search} className="h-3 w-3" />
+          <Icon d={PATH.search} className="h-3.5 w-3.5" />
         </span>
         <input
           ref={searchInputRef}
@@ -260,14 +260,14 @@ export function TableToolbar({
           placeholder="Search rows"
           disabled={view !== 'data'}
           aria-label="Search table rows"
-          className="w-40 h-7 pl-7 pr-2 text-xs rounded-md border border-border bg-bg text-primary placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-40"
+          className="w-44 h-8 pl-8 pr-2 text-sm rounded-md border border-border bg-bg text-primary placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-40"
         />
       </div>
 
       <div className="flex-1 min-w-2" />
 
       {view === 'data' && (
-        <span className="w-12 text-right text-[11px] text-muted tabular-nums px-1 shrink-0">
+        <span className="w-14 text-right text-xs text-muted tabular-nums px-1 shrink-0">
           {durationMs == null
             ? ''
             : durationMs < 1000
@@ -323,7 +323,7 @@ export function TableToolbar({
       )}
 
       <ToolbarButton
-        icon={<Icon d={PATH.refresh} className={`h-3.5 w-3.5 ${isBusy ? 'animate-spin' : ''}`} />}
+        icon={<Icon d={PATH.refresh} className={`h-4 w-4 ${isBusy ? 'animate-spin' : ''}`} />}
         aria-label="Refresh rows"
         title="Refresh rows (Alt+R)"
         onClick={onRefresh}

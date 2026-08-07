@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 
 const base =
-  'inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-xs font-medium whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+  'inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 
 export function ToolbarDivider() {
   return <div className="w-px h-5 bg-border mx-1 shrink-0" aria-hidden />;
@@ -44,7 +44,7 @@ export const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonPr
         {icon}
         {children}
         {badge != null && badge > 0 && (
-          <span className="ml-0.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-accent text-white text-[10px] leading-none">
+          <span className="ml-0.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-accent text-white text-[11px] leading-none">
             {badge}
           </span>
         )}
@@ -168,7 +168,7 @@ export function MenuItem({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
         danger ? 'text-danger hover:bg-danger/10' : 'text-primary hover:bg-bg-secondary'
       }`}
     >
@@ -178,5 +178,5 @@ export function MenuItem({
 }
 
 export function MenuLabel({ children }: { children: React.ReactNode }) {
-  return <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted">{children}</div>;
+  return <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted">{children}</div>;
 }
