@@ -207,7 +207,7 @@ export function TableToolbar({
       >
         {() => (
           <>
-            <div className="flex gap-1 px-1 pb-1 border-b border-border mb-1">
+            <div className="sticky top-0 z-10 flex gap-1 px-1 pb-1 border-b border-border mb-1 bg-bg">
               <button
                 type="button"
                 onClick={onShowAllColumns}

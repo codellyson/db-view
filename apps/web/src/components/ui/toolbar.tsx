@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const base =
   'inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-xs font-medium whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
@@ -76,27 +77,57 @@ export function ToolbarMenu({
   children,
 }: ToolbarMenuProps) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, maxHeight: 320 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Portalled and fixed: the toolbar scrolls horizontally and the grid's
+  // sticky header sits at z-30, so an in-flow panel gets clipped or covered.
+  const place = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const raw = align === 'right' ? rect.right - width : rect.left;
+    setPos({
+      top: rect.bottom + 4,
+      left: Math.max(8, Math.min(raw, window.innerWidth - width - 8)),
+      maxHeight: Math.max(120, Math.min(320, window.innerHeight - rect.bottom - 16)),
+    });
+  }, [align, width]);
+
+  useLayoutEffect(() => {
+    if (open) place();
+  }, [open, place]);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    const onReflow = (e: Event) => {
+      if (panelRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onReflow);
+    window.addEventListener('scroll', onReflow, true);
     return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onReflow);
+      window.removeEventListener('scroll', onReflow, true);
     };
   }, [open]);
 
   return (
-    <div className="relative shrink-0" ref={ref}>
+    <div className="shrink-0">
       <ToolbarButton
+        ref={triggerRef}
         icon={icon}
         badge={badge}
         active={active || open}
@@ -106,16 +137,17 @@ export function ToolbarMenu({
       >
         {label}
       </ToolbarButton>
-      {open && (
-        <div
-          style={{ width }}
-          className={`absolute z-40 mt-1 max-h-80 overflow-auto rounded-md border border-border bg-bg shadow-lg p-1 ${
-            align === 'right' ? 'right-0' : 'left-0'
-          }`}
-        >
-          {children(() => setOpen(false))}
-        </div>
-      )}
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{ width, top: pos.top, left: pos.left, maxHeight: pos.maxHeight }}
+            className="fixed z-50 overflow-auto rounded-md border border-border bg-bg shadow-xl p-1"
+          >
+            {children(() => setOpen(false))}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
