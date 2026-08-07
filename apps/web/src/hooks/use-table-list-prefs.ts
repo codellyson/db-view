@@ -1,5 +1,5 @@
-
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { persistentStore, usePersistentStore } from '@/lib/persistent-store';
 
 const RECENT_LIMIT = 10;
 
@@ -11,68 +11,61 @@ interface Prefs {
 
 const EMPTY: Prefs = { pinned: [], recent: [], groupByPrefix: false };
 
-function key(databaseName: string | undefined): string | null {
-  if (!databaseName) return null;
-  return `dbview-tablelist-${databaseName}`;
+function revive(raw: unknown): Prefs {
+  const p = raw as Partial<Prefs> | null;
+  if (!p || typeof p !== 'object') return EMPTY;
+  return {
+    pinned: Array.isArray(p.pinned) ? p.pinned : [],
+    recent: Array.isArray(p.recent) ? p.recent : [],
+    groupByPrefix: !!p.groupByPrefix,
+  };
 }
 
-function load(databaseName: string | undefined): Prefs {
-  const k = key(databaseName);
-  if (!k || typeof window === 'undefined') return EMPTY;
-  try {
-    const raw = localStorage.getItem(k);
-    if (!raw) return EMPTY;
-    const parsed = JSON.parse(raw);
-    return {
-      pinned: Array.isArray(parsed.pinned) ? parsed.pinned : [],
-      recent: Array.isArray(parsed.recent) ? parsed.recent : [],
-      groupByPrefix: !!parsed.groupByPrefix,
-    };
-  } catch {
-    return EMPTY;
-  }
-}
-
-function save(databaseName: string | undefined, prefs: Prefs) {
-  const k = key(databaseName);
-  if (!k || typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(k, JSON.stringify(prefs));
-  } catch {
-    // quota — ignore
-  }
-}
-
+/**
+ * Prefs are per database and shared by every caller for that database — the
+ * dashboard and `useUrlState` both hold this hook at the same time, and with a
+ * copy each, whichever recorded a table open last overwrote the other's pins.
+ */
 export function useTableListPrefs(databaseName: string | undefined) {
-  const [prefs, setPrefs] = useState<Prefs>(EMPTY);
+  const store = useMemo(
+    () => persistentStore<Prefs>(`dbview-tablelist-${databaseName ?? ''}`, EMPTY, revive),
+    [databaseName]
+  );
+  const prefs = usePersistentStore(store);
+  // Without a database there's nothing to pin, and writing would file the
+  // prefs under an empty key.
+  const disabled = !databaseName;
 
-  // Reload when the database changes.
-  useEffect(() => {
-    setPrefs(load(databaseName));
-  }, [databaseName]);
+  const togglePin = useCallback(
+    (table: string) => {
+      if (disabled) return;
+      store.set((p) =>
+        p.pinned.includes(table)
+          ? { ...p, pinned: p.pinned.filter((t) => t !== table) }
+          : { ...p, pinned: [...p.pinned, table] }
+      );
+    },
+    [store, disabled]
+  );
 
-  useEffect(() => {
-    save(databaseName, prefs);
-  }, [databaseName, prefs]);
+  const recordOpen = useCallback(
+    (table: string) => {
+      if (disabled) return;
+      store.set((p) => {
+        const without = p.recent.filter((t) => t !== table);
+        return { ...p, recent: [table, ...without].slice(0, RECENT_LIMIT) };
+      });
+    },
+    [store, disabled]
+  );
 
-  const togglePin = useCallback((table: string) => {
-    setPrefs((p) =>
-      p.pinned.includes(table)
-        ? { ...p, pinned: p.pinned.filter((t) => t !== table) }
-        : { ...p, pinned: [...p.pinned, table] }
-    );
-  }, []);
-
-  const recordOpen = useCallback((table: string) => {
-    setPrefs((p) => {
-      const without = p.recent.filter((t) => t !== table);
-      return { ...p, recent: [table, ...without].slice(0, RECENT_LIMIT) };
-    });
-  }, []);
-
-  const setGroupByPrefix = useCallback((on: boolean) => {
-    setPrefs((p) => ({ ...p, groupByPrefix: on }));
-  }, []);
+  const setGroupByPrefix = useCallback(
+    (on: boolean) => {
+      if (disabled) return;
+      store.set((p) => ({ ...p, groupByPrefix: on }));
+    },
+    [store, disabled]
+  );
 
   return {
     pinned: prefs.pinned,

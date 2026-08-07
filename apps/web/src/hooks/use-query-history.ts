@@ -1,35 +1,20 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { QueryHistoryEntry } from "@/types";
+import { persistentStore, usePersistentStore } from "@/lib/persistent-store";
 
 const STORAGE_KEY = "dbview-query-history";
 const MAX_ENTRIES = 100;
 
-function loadHistory(): QueryHistoryEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(entries: QueryHistoryEntry[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  } catch {
-    // localStorage full or unavailable
-  }
-}
+// Shared across every mounted editor tab — the dashboard keeps them all
+// mounted, and a per-hook copy meant each tab persisted the whole array from
+// the snapshot it loaded at mount, dropping the others' runs.
+const store = persistentStore<QueryHistoryEntry[]>(STORAGE_KEY, [], (raw) =>
+  Array.isArray(raw) ? (raw as QueryHistoryEntry[]) : []
+);
 
 export function useQueryHistory() {
-  const [history, setHistory] = useState<QueryHistoryEntry[]>([]);
-
-  useEffect(() => {
-    setHistory(loadHistory());
-  }, []);
+  const history = usePersistentStore(store);
 
   const addQuery = useCallback(
     (query: string, executionTime: number, rowCount: number) => {
@@ -41,44 +26,28 @@ export function useQueryHistory() {
         timestamp: Date.now(),
         isFavorite: false,
       };
-
-      setHistory((prev) => {
-        const next = [entry, ...prev].slice(0, MAX_ENTRIES);
-        saveHistory(next);
-        return next;
-      });
+      store.set((prev) => [entry, ...prev].slice(0, MAX_ENTRIES));
     },
     []
   );
 
   const favoriteQuery = useCallback((id: string) => {
-    setHistory((prev) => {
-      const next = prev.map((e) =>
-        e.id === id ? { ...e, isFavorite: !e.isFavorite } : e
-      );
-      saveHistory(next);
-      return next;
-    });
+    store.set((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, isFavorite: !e.isFavorite } : e))
+    );
   }, []);
 
   const deleteQuery = useCallback((id: string) => {
-    setHistory((prev) => {
-      const next = prev.filter((e) => e.id !== id);
-      saveHistory(next);
-      return next;
-    });
+    store.set((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
-  const clearHistory = useCallback(() => {
-    setHistory([]);
-    saveHistory([]);
-  }, []);
+  const clearHistory = useCallback(() => store.set([]), []);
 
-  const getHistory = useCallback(() => {
-    const favorites = history.filter((e) => e.isFavorite);
-    const rest = history.filter((e) => !e.isFavorite);
-    return [...favorites, ...rest];
-  }, [history]);
+  const sorted = useMemo(
+    () => [...history.filter((e) => e.isFavorite), ...history.filter((e) => !e.isFavorite)],
+    [history]
+  );
+  const getHistory = useCallback(() => sorted, [sorted]);
 
   return {
     history,

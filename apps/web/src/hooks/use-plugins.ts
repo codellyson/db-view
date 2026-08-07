@@ -1,5 +1,4 @@
-
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type {
   QueryTemplate,
   ColumnFormatter,
@@ -8,34 +7,29 @@ import type {
   FormatterMatcher,
 } from "@/lib/plugin-types";
 import { DEFAULT_TEMPLATES, DEFAULT_FORMATTERS } from "@/lib/default-plugins";
+import { persistentStore, usePersistentStore } from "@/lib/persistent-store";
 
 const STORAGE_KEY = "dbview-plugins";
 
-function loadConfig(): PluginConfig {
-  if (typeof window === "undefined") {
-    return { templates: [], formatters: [], disabledBuiltIns: [] };
-  }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { templates: [], formatters: [], disabledBuiltIns: [] };
-}
+const EMPTY_CONFIG: PluginConfig = { templates: [], formatters: [], disabledBuiltIns: [] };
 
-function saveConfig(config: PluginConfig) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-}
+// The dashboard, the settings modal, and the template browser all read this;
+// with a copy each, a formatter added in settings never reached the grid.
+const store = persistentStore<PluginConfig>(STORAGE_KEY, EMPTY_CONFIG, (raw) => {
+  const c = raw as Partial<PluginConfig> | null;
+  if (!c || typeof c !== "object") return EMPTY_CONFIG;
+  return {
+    templates: Array.isArray(c.templates) ? c.templates : [],
+    formatters: Array.isArray(c.formatters) ? c.formatters : [],
+    disabledBuiltIns: Array.isArray(c.disabledBuiltIns) ? c.disabledBuiltIns : [],
+  };
+});
 
 export function usePlugins() {
-  const [config, setConfig] = useState<PluginConfig>(loadConfig);
+  const config = usePersistentStore(store);
 
   const updateConfig = useCallback((updater: (prev: PluginConfig) => PluginConfig) => {
-    setConfig((prev) => {
-      const next = updater(prev);
-      saveConfig(next);
-      return next;
-    });
+    store.set(updater);
   }, []);
 
   const getTemplates = useCallback(
