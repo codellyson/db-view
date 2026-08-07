@@ -1,9 +1,19 @@
 import type { Config } from 'tailwindcss';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+
+// pnpm links packages into the store, and Tailwind's globber won't traverse
+// that symlink — resolve the real directory so JustUI's compiled classes are
+// actually scanned. Without it, its components render unstyled.
+const justuiDist = join(
+  dirname(createRequire(import.meta.url).resolve('@codellyson/justui/package.json')),
+  'dist'
+);
 
 // Mirrors apps/next/tailwind.config.ts so the design tokens stay aligned
 // across the migration. Once apps/next is deleted, this becomes the only one.
 const config: Config = {
-  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  content: ['./index.html', './src/**/*.{ts,tsx}', `${justuiDist}/**/*.js`],
   darkMode: 'class',
   theme: {
     extend: {

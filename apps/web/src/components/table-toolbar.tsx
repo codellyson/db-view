@@ -1,5 +1,13 @@
 import React from 'react';
-import { MenuItem, MenuLabel, ToolbarButton, ToolbarDivider, ToolbarMenu } from './ui/toolbar';
+import { Input } from '@codellyson/justui/react';
+import {
+  MenuItem,
+  MenuLabel,
+  MenuSeparator,
+  ToolbarButton,
+  ToolbarDivider,
+  ToolbarMenu,
+} from './ui/toolbar';
 import type { Filter } from '@/lib/filters';
 
 export type TableView = 'data' | 'structure';
@@ -141,8 +149,7 @@ export function TableToolbar({
         disabled={view !== 'data'}
         width={280}
       >
-        {() => (
-          <>
+        <>
             {filters.length === 0 ? (
               <div className="px-2 py-2 text-xs text-muted">
                 No filters. Add one from a column header menu.
@@ -160,15 +167,13 @@ export function TableToolbar({
                     <span className="text-muted">✕</span>
                   </MenuItem>
                 ))}
-                <div className="-mx-1 px-1 border-t border-border mt-1 pt-1">
-                  <MenuItem onClick={onClearFilters} danger>
-                    Clear all filters
-                  </MenuItem>
-                </div>
+                <MenuSeparator />
+                <MenuItem onClick={onClearFilters} danger>
+                  Clear all filters
+                </MenuItem>
               </>
             )}
-          </>
-        )}
+        </>
       </ToolbarMenu>
 
       <ToolbarMenu
@@ -178,8 +183,7 @@ export function TableToolbar({
         disabled={view !== 'data' || columns.length === 0}
         width={240}
       >
-        {() => (
-          <>
+        <>
             <MenuLabel>Sort by</MenuLabel>
             {columns.map((col) => (
               <MenuItem key={col} onClick={() => onSort(col)}>
@@ -190,12 +194,12 @@ export function TableToolbar({
               </MenuItem>
             ))}
             {sortColumn && (
-              <div className="-mx-1 px-1 border-t border-border mt-1 pt-1">
+              <>
+                <MenuSeparator />
                 <MenuItem onClick={onClearSort}>Clear sort</MenuItem>
-              </div>
+              </>
             )}
-          </>
-        )}
+        </>
       </ToolbarMenu>
 
       <ToolbarMenu
@@ -205,9 +209,8 @@ export function TableToolbar({
         disabled={view !== 'data' || columns.length === 0}
         width={240}
       >
-        {() => (
-          <>
-            <div className="sticky top-0 z-10 flex gap-1 -mx-1 -mt-1 px-2 pt-1 pb-1 mb-1 border-b border-border bg-bg">
+        <>
+            <div className="flex gap-1 px-1 pb-1">
               <button
                 type="button"
                 onClick={onShowAllColumns}
@@ -223,8 +226,13 @@ export function TableToolbar({
                 Hide all
               </button>
             </div>
+            <MenuSeparator />
             {columns.map((col) => (
-              <MenuItem key={col} onClick={() => onToggleColumn(col)}>
+              <MenuItem
+                key={col}
+                onClick={() => onToggleColumn(col)}
+                onSelect={(e) => e.preventDefault()}
+              >
                 <input
                   type="checkbox"
                   readOnly
@@ -234,8 +242,7 @@ export function TableToolbar({
                 <span className="flex-1 truncate">{col}</span>
               </MenuItem>
             ))}
-          </>
-        )}
+        </>
       </ToolbarMenu>
 
       <ToolbarButton
@@ -252,7 +259,7 @@ export function TableToolbar({
         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
           <Icon d={PATH.search} className="h-3.5 w-3.5" />
         </span>
-        <input
+        <Input
           ref={searchInputRef}
           type="text"
           value={search}
@@ -260,7 +267,7 @@ export function TableToolbar({
           placeholder="Search rows"
           disabled={view !== 'data'}
           aria-label="Search table rows"
-          className="w-44 h-8 pl-8 pr-2 text-sm rounded-md border border-border bg-bg text-primary placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-40"
+          className="w-44 h-8 pl-8 pr-2 text-sm"
         />
       </div>
 
@@ -294,23 +301,15 @@ export function TableToolbar({
             align="right"
             width={160}
           >
-            {(close) => (
-              <>
-                <MenuLabel>Rows per page</MenuLabel>
-                {PAGE_SIZES.map((size) => (
-                  <MenuItem
-                    key={size}
-                    onClick={() => {
-                      onItemsPerPageChange(size);
-                      close();
-                    }}
-                  >
-                    <span className="flex-1">{size}</span>
-                    {size === itemsPerPage && <span className="text-accent">✓</span>}
-                  </MenuItem>
-                ))}
-              </>
-            )}
+            <>
+              <MenuLabel>Rows per page</MenuLabel>
+              {PAGE_SIZES.map((size) => (
+                <MenuItem key={size} onClick={() => onItemsPerPageChange(size)}>
+                  <span className="flex-1">{size}</span>
+                  {size === itemsPerPage && <span className="text-accent">✓</span>}
+                </MenuItem>
+              ))}
+            </>
           </ToolbarMenu>
           <ToolbarButton
             icon={<Icon d={PATH.chevronRight} />}
@@ -330,34 +329,11 @@ export function TableToolbar({
       />
 
       <ToolbarMenu icon={<Icon d={PATH.more} />} align="right" title="More actions" width={200}>
-        {(close) => (
-          <>
-            <MenuItem
-              onClick={() => {
-                onRefreshSchema();
-                close();
-              }}
-            >
-              Refresh schema
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                onImportCsv();
-                close();
-              }}
-            >
-              Import CSV
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                onExport();
-                close();
-              }}
-            >
-              Export
-            </MenuItem>
-          </>
-        )}
+        <>
+          <MenuItem onClick={onRefreshSchema}>Refresh schema</MenuItem>
+          <MenuItem onClick={onImportCsv}>Import CSV</MenuItem>
+          <MenuItem onClick={onExport}>Export</MenuItem>
+        </>
       </ToolbarMenu>
     </div>
   );
