@@ -4,6 +4,18 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-08-07
+
+### CI
+- **changelog:** Stop writing each release heading twice ([bf18c2d](https://github.com/codellyson/justdb/commit/bf18c2d1ea6cb177277397847a4f02f8c94174c7))
+- Move actions off the deprecated Node 20 runtime ([9fba23f](https://github.com/codellyson/justdb/commit/9fba23f57d8c492f8a2331110e9d9a8dec18ab68))
+- Bump wrangler-action off Node 20 ([d4b84e6](https://github.com/codellyson/justdb/commit/d4b84e6aef5152756f5c2cf0019be4a310ed5a4e))
+- Build on Node 22 ([ccd490d](https://github.com/codellyson/justdb/commit/ccd490d80e2631319e655e911fbc073bb85e197b))
+
+
+### Fixed
+- **ai:** Drive the Windows CLI shim through node ([19b56f5](https://github.com/codellyson/justdb/commit/19b56f5025c533d0e8d4b8f9d827387afd7b57c4))
+
 ## [0.2.1] - 2026-07-31
 
 ### Fixed
