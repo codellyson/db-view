@@ -1161,18 +1161,12 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
 
   return (
     <StoresContext.Provider value={stores}>
-      <div className="h-0.5 overflow-hidden">
+      <div className="h-0.5 overflow-hidden shrink-0">
         {isRefreshing && (
           <div className="h-full w-1/3 rounded-full bg-accent animate-indeterminate" />
         )}
       </div>
-      {(canEdit || !!onBulkExport) && (
-        <BulkActionBar
-          onClear={clearSelection}
-          onDelete={canEdit && onRowDelete ? deleteSelected : undefined}
-          onExport={onBulkExport ? exportSelected : undefined}
-        />
-      )}
+      <div className={`relative flex flex-col min-h-0${fillParent ? ' flex-1' : ''}`}>
       <div
         ref={scrollContainerRef}
         className={`border border-border rounded-md overflow-auto relative bg-bg${
@@ -1314,6 +1308,16 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
               : 'No matches for the current filter.'}
           </div>
         )}
+      </div>
+      {(canEdit || !!onBulkExport) && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none [&>*]:pointer-events-auto">
+          <BulkActionBar
+            onClear={clearSelection}
+            onDelete={canEdit && onRowDelete ? deleteSelected : undefined}
+            onExport={onBulkExport ? exportSelected : undefined}
+          />
+        </div>
+      )}
       </div>
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />}
       {filterPopover && onAddFilter && (
@@ -2045,7 +2049,7 @@ const BulkActionBar = memo(function BulkActionBar({
   const count = useSyncExternalStore(selectedRows.subscribe, () => selectedRows.get().size);
   if (count === 0) return null;
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2 mb-2 bg-accent/10 border border-accent/30 rounded-md text-sm">
+    <div className="flex items-center justify-between gap-3 px-3 py-2 bg-bg border border-accent/40 rounded-md shadow-lg text-sm">
       <span className="text-primary">
         <span className="font-semibold">{count}</span> row{count === 1 ? '' : 's'} selected
       </span>

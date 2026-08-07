@@ -10,13 +10,11 @@ import {
   type ForeignKeyTarget as QrgForeignKeyTarget,
 } from "./query-result-grid";
 import { TableSchema } from "./table-schema";
-import { Pagination } from "./pagination";
 import { EmptyState } from "./empty-state";
 import { ErrorState } from "./error-state";
 import { ResizableSplitter } from "./resizable-splitter";
 import { MobileMenu } from "./mobile-menu";
 import { TableList } from "./table-list";
-import { ColumnVisibility } from "./column-visibility";
 import { ExportModal } from "./export-modal";
 import { Breadcrumb } from "./breadcrumb";
 import { RelationshipDisplay } from "./relationship-display";
@@ -25,7 +23,6 @@ import { ReviewSqlModal } from "./review-sql-modal";
 import { TablePicker } from "./table-picker";
 import { CommandPalette, type CommandAction } from "./command-palette";
 import { FKSidePanel, type FKQuery } from "./fk-side-panel";
-import { FilterChips } from "./filter-chips";
 type ForeignKeyTarget = QrgForeignKeyTarget;
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { TableStats } from "./table-stats";
@@ -34,6 +31,7 @@ import { TableCreationWizard } from "./table-creation-wizard";
 import { BatchExportModal } from "./batch-export-modal";
 import { TabBar } from "./tab-bar";
 import { QueryEditor } from "./query-editor";
+import { TableToolbar, type TableView } from "./table-toolbar";
 import { AiChatPanel } from "./ai-chat-panel";
 import { Button } from "./ui/button";
 import { useConnection } from "../contexts/connection-context";
@@ -67,6 +65,7 @@ export function Dashboard() {
     currentPage,
     totalItems,
     countIsEstimate,
+    queryDurationMs,
     sortColumn,
     sortDirection,
     visibleColumns,
@@ -79,6 +78,9 @@ export function Dashboard() {
     itemsPerPage,
     setSelectedTable,
     setCurrentPage,
+    setSortColumn,
+    setSortDirection,
+    loadTableSchema,
     setVisibleColumns,
     setTableSearch,
     loadTables,
@@ -147,7 +149,7 @@ export function Dashboard() {
   const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
   const [isCreateTableOpen, setIsCreateTableOpen] = useState(false);
   const [isBatchExportOpen, setIsBatchExportOpen] = useState(false);
-  const [detailsTab, setDetailsTab] = useState<'schema' | 'stats' | null>(null);
+  const [tableView, setTableView] = useState<TableView>('data');
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -615,190 +617,100 @@ export function Dashboard() {
               })()
             ) : selectedTable ? (
               <>
-                <Breadcrumb
-                  items={[
-                    { label: databaseName || 'Database', onClick: () => setSelectedTable(undefined) },
-                    ...(selectedSchema !== 'public' ? [{ label: selectedSchema, onClick: () => setSelectedTable(undefined) }] : []),
-                    { label: selectedTable },
-                  ]}
-                />
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2 sm:gap-4">
-                  <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-primary truncate min-w-0">
-                    {selectedTable}
-                  </h1>
-                  <div className="flex gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap">
-                    {/* "+ Add row" button was removed — the always-present
-                        empty row at the bottom of the data grid (rendered
-                        by data-table.tsx when canInsert) handles inserts
-                        directly. Kept Alt+N hotkey via dataTableRef. */}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setIsCSVImportOpen(true)}
-                      disabled={isLoading || schema.length === 0}
-                    >
-                      Import CSV
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsExportOpen(true)}
-                      disabled={!selectedTable || tableData.length === 0 || isLoading}
-                    >
-                      Export
-                    </Button>
-                    <button
-                      onClick={() => refreshTableData()}
-                      disabled={!selectedTable || isLoading}
-                      className="inline-flex items-center justify-center w-8 h-8 text-secondary hover:text-primary hover:bg-bg-secondary rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Refresh table data (Alt+R)"
-                      aria-label="Refresh table data"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className={`h-4 w-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                {columns.length > 0 && !isLoading && (
-                  <div className="flex flex-wrap items-center gap-2 mb-3">
-                    <ColumnVisibility
-                      columns={columns}
-                      visibleColumns={visibleColumns}
-                      onToggle={(col) =>
-                        setVisibleColumns((prev) =>
-                          prev.includes(col)
-                            ? prev.filter((c) => c !== col)
-                            : [...prev, col]
-                        )
-                      }
-                      onShowAll={() => setVisibleColumns(columns)}
-                      onHideAll={() => setVisibleColumns([])}
-                    />
-                    <input
-                      ref={searchInputRef}
-                      type="text"
-                      value={tableSearch}
-                      onChange={(e) => setTableSearch(e.target.value)}
-                      placeholder="Search rows..."
-                      className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent flex-1 min-w-0 placeholder:text-muted"
-                      aria-label="Search table rows"
-                    />
-                  </div>
-                )}
-                <FilterChips
-                  filters={tableFilters}
-                  onRemove={removeTableFilter}
-                  onClearAll={clearTableFilters}
-                  onEdit={(column) => {
-                    // Edit re-opens the popover via the DataTable's header
-                    // context menu — let the user use right-click on the
-                    // header. For chip click, we don't have a direct hook
-                    // into the popover state without lifting more state.
-                    // For v1 the chip click is also a remove shortcut.
-                    void column;
-                  }}
-                />
-                <QueryResultGrid
-                  ref={dataTableRef}
+              <div className="flex-1 flex flex-col min-h-0">
+                <TableToolbar
+                  view={tableView}
+                  onViewChange={setTableView}
                   columns={columns}
-                  data={tableData}
-                  isLoading={isLoading}
-                  isRefreshing={isRefreshing}
-                  onSort={handleSort}
-                  sortColumn={sortColumn || undefined}
-                  sortDirection={sortDirection ?? undefined}
-                  visibleColumns={visibleColumns.length > 0 ? visibleColumns : undefined}
-                  searchQuery={tableSearch}
-                  primaryKeys={primaryKeys}
-                  columnSchema={schema}
-                  schema={selectedSchema}
-                  table={selectedTable}
-                  layoutKey={`${databaseName ?? 'default'}.${selectedSchema}.${selectedTable}`}
-                  onCellUpdate={handleCellUpdate}
-                  onRowDelete={handleRowDelete}
-                  foreignKeys={foreignKeys}
-                  onForeignKeyClick={(args) =>
-                    setFkQuery({
-                      sourceColumn: args.sourceColumn,
-                      fk: args.fk,
-                      value: args.value,
-                    })
+                  visibleColumns={visibleColumns}
+                  onToggleColumn={(col) =>
+                    setVisibleColumns((prev) =>
+                      prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
+                    )
                   }
+                  onShowAllColumns={() => setVisibleColumns(columns)}
+                  onHideAllColumns={() => setVisibleColumns([])}
                   filters={tableFilters}
-                  onAddFilter={addTableFilter}
                   onRemoveFilter={removeTableFilter}
-                  onBulkExport={(rows) => {
-                    setBulkExportRows(rows);
-                    setIsExportOpen(true);
+                  onClearFilters={clearTableFilters}
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  onClearSort={() => {
+                    setSortColumn(null);
+                    setSortDirection(null);
                   }}
-                  columnTypes={columnTypes}
-                  activeFormatters={allFormatters}
+                  search={tableSearch}
+                  onSearchChange={setTableSearch}
+                  searchInputRef={searchInputRef}
+                  currentPage={currentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={totalItems}
+                  countIsEstimate={countIsEstimate}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(size) => {
+                    setItemsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                  durationMs={queryDurationMs}
+                  isBusy={isLoading || isRefreshing}
+                  onRefresh={() => refreshTableData()}
+                  onRefreshSchema={() => selectedTable && loadTableSchema(selectedTable)}
+                  canAddRecord={schema.length > 0}
+                  onAddRecord={() => dataTableRef.current?.scrollToEmptyRow()}
+                  onImportCsv={() => setIsCSVImportOpen(true)}
+                  onExport={() => setIsExportOpen(true)}
                 />
-                {(totalItems > 0 || tableFilters.length > 0) && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={Math.ceil(totalItems / itemsPerPage)}
-                    onPageChange={setCurrentPage}
-                    totalItems={totalItems}
-                    itemsPerPage={itemsPerPage}
-                    countIsEstimate={countIsEstimate}
-                    filterCount={tableFilters.length}
-                    unfilteredTotal={selectedTable ? tableRowCounts[selectedTable] : undefined}
-                    isLoading={isLoading || isRefreshing}
-                    onItemsPerPageChange={(size) => {
-                      setItemsPerPage(size);
-                      setCurrentPage(1);
+                {tableView === 'data' ? (
+                  <QueryResultGrid
+                    ref={dataTableRef}
+                    fillParent
+                    columns={columns}
+                    data={tableData}
+                    isLoading={isLoading}
+                    isRefreshing={isRefreshing}
+                    onSort={handleSort}
+                    sortColumn={sortColumn || undefined}
+                    sortDirection={sortDirection ?? undefined}
+                    visibleColumns={visibleColumns.length > 0 ? visibleColumns : undefined}
+                    searchQuery={tableSearch}
+                    primaryKeys={primaryKeys}
+                    columnSchema={schema}
+                    schema={selectedSchema}
+                    table={selectedTable}
+                    layoutKey={`${databaseName ?? 'default'}.${selectedSchema}.${selectedTable}`}
+                    onCellUpdate={handleCellUpdate}
+                    onRowDelete={handleRowDelete}
+                    foreignKeys={foreignKeys}
+                    onForeignKeyClick={(args) =>
+                      setFkQuery({
+                        sourceColumn: args.sourceColumn,
+                        fk: args.fk,
+                        value: args.value,
+                      })
+                    }
+                    filters={tableFilters}
+                    onAddFilter={addTableFilter}
+                    onRemoveFilter={removeTableFilter}
+                    onBulkExport={(rows) => {
+                      setBulkExportRows(rows);
+                      setIsExportOpen(true);
                     }}
+                    columnTypes={columnTypes}
+                    activeFormatters={allFormatters}
                   />
-                )}
-                {/* Details tabs — schema, relationships, stats */}
-                <div className="mt-4 border-t border-border pt-3">
-                  <div className="flex gap-1 mb-3">
-                    <button
-                      onClick={() => setDetailsTab(detailsTab === 'schema' ? null : 'schema')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                        detailsTab === 'schema'
-                          ? 'bg-accent/10 text-accent'
-                          : 'text-muted hover:text-primary hover:bg-bg-secondary'
-                      }`}
-                    >
-                      Schema{schema.length > 0 ? ` (${schema.length})` : ''}
-                    </button>
-                    <button
-                      onClick={() => setDetailsTab(detailsTab === 'stats' ? null : 'stats')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                        detailsTab === 'stats'
-                          ? 'bg-accent/10 text-accent'
-                          : 'text-muted hover:text-primary hover:bg-bg-secondary'
-                      }`}
-                    >
-                      Stats
-                    </button>
-                  </div>
-                  {detailsTab === 'schema' && (
-                    <div className="space-y-4">
-                      {!isLoadingSchema && schema.length > 0 && (
-                        <TableSchema columns={schema} />
-                      )}
-                      <RelationshipDisplay
-                        relationships={relationships}
-                        indexes={indexes}
-                        onNavigateToTable={onTableSelect}
-                      />
-                    </div>
-                  )}
-                  {detailsTab === 'stats' && (
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-auto space-y-4">
+                    {!isLoadingSchema && schema.length > 0 && <TableSchema columns={schema} />}
+                    <RelationshipDisplay
+                      relationships={relationships}
+                      indexes={indexes}
+                      onNavigateToTable={onTableSelect}
+                    />
                     <TableStats stats={tableStats} isLoading={isLoadingStats} />
-                  )}
-                </div>
+                  </div>
+                )}
+              </div>
               </>
             ) : (
               <EmptyState

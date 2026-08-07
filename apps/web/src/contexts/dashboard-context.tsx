@@ -47,6 +47,8 @@ interface DashboardState {
   currentPage: number;
   totalItems: number;
   countIsEstimate: boolean;
+  /** Wall-clock time of the last row fetch, for the toolbar readout. */
+  queryDurationMs: number | null;
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc' | null;
   visibleColumns: string[];
@@ -401,6 +403,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     queryKey: ['tableData', dbKey, selectedTable, selectedSchema, currentPage, sortColumn, sortDirection, itemsPerPage, tableFilters],
     queryFn: async () => {
       const offset = (currentPage - 1) * itemsPerPage;
+      const startedAt = performance.now();
       const data = await db.tableRows({
         table: selectedTable!,
         schema: selectedSchema,
@@ -417,6 +420,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         columns: cols,
         total: data.total || 0,
         countIsEstimate: data.countIsEstimate || false,
+        durationMs: performance.now() - startedAt,
       };
     },
     enabled: isConnected && !!selectedTable,
@@ -472,6 +476,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     return (tableSchemaQuery.data ?? []).map((c) => c.name);
   }, [tableDataQuery.data?.columns, tableSchemaQuery.data]);
   const totalItems = tableDataQuery.data?.total ?? 0;
+  const queryDurationMs = tableDataQuery.data?.durationMs ?? null;
   const countIsEstimate = tableDataQuery.data?.countIsEstimate ?? false;
   const schema = useMemo(() => tableSchemaQuery.data ?? EMPTY_COLUMNS, [tableSchemaQuery.data]);
   const views = viewsQuery.data?.views ?? EMPTY_STRINGS;
@@ -707,6 +712,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     currentPage,
     totalItems,
     countIsEstimate,
+    queryDurationMs,
     sortColumn,
     sortDirection,
     visibleColumns,
@@ -726,7 +732,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }), [
     openTabs, activeTabId, tables, schemas, selectedSchema, selectedTable, tableData,
     columns, schema, views, materializedViews, dbFunctions, relationships, indexes,
-    isLoadingTables, isLoading, isRefreshing, isLoadingSchema, currentPage, totalItems, countIsEstimate,
+    isLoadingTables, isLoading, isRefreshing, isLoadingSchema, currentPage, totalItems, countIsEstimate, queryDurationMs,
     sortColumn, sortDirection, visibleColumns, tableSearch, tableFilters, error,
     itemsPerPage, primaryKeys, tableStats, isLoadingStats, schemaMap, tableRowCounts,
     queryTabResults, savedQueries,
