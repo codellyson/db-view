@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ai, PROVIDERS, type ChatStep, type AiStatus } from '@/lib/ai';
 import { useConnection } from '../contexts/connection-context';
-import { useDashboard } from '../contexts/dashboard-context';
+import { useDashboardActions } from '../contexts/dashboard-context';
 import { useToast } from '../contexts/toast-context';
 import { useAiSchemaText } from '../hooks/use-ai-schema';
 import { useChatHistory, type UiMessage } from '../hooks/use-chat-history';
@@ -108,7 +108,7 @@ const AI_DOCK_DEFAULT = 420;
 
 export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
   const { databaseType, databaseName, isConnected } = useConnection();
-  const { openEditorTab } = useDashboard();
+  const { openEditorTab } = useDashboardActions();
   const { addToast } = useToast();
   const schemaText = useAiSchemaText({ allowCompact: true });
 

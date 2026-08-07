@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import { Select } from "./ui/select";
 import { SqlEditor } from "./sql-editor";
 import { useConnection } from "../contexts/connection-context";
-import { useDashboard } from "../contexts/dashboard-context";
+import { useDashboardState } from "../contexts/dashboard-context";
 import { buildCreateTableSQL, COLUMN_TYPES } from "@/lib/ddl-builder";
 import { db } from "@/lib/db";
 import { ColumnDefinition } from "@/types";
@@ -33,7 +33,7 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
   onComplete,
 }) => {
   const { databaseType } = useConnection();
-  const { schemas, selectedSchema } = useDashboard();
+  const { schemas, selectedSchema } = useDashboardState();
   const dialect = databaseType || "postgresql";
   const types = COLUMN_TYPES[dialect];
 

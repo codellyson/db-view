@@ -15,7 +15,7 @@ import { ai } from '@/lib/ai';
 import { getResultRowCap } from '@/lib/app-settings';
 import { track, bucketDuration } from '@/lib/telemetry';
 import { useConnection } from '../contexts/connection-context';
-import { useDashboard } from '../contexts/dashboard-context';
+import { useDashboardActions, useDashboardState } from '../contexts/dashboard-context';
 import { useToast } from '../contexts/toast-context';
 import { usePendingChanges } from '../contexts/pending-changes-context';
 import { useQueries, useQuery } from '@tanstack/react-query';
@@ -81,7 +81,8 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
   onEditableTargetChange,
 }) => {
   const { databaseType } = useConnection();
-  const { schemaMap, tables, selectedSchema, saveQuery } = useDashboard();
+  const { schemaMap, tables, selectedSchema } = useDashboardState();
+  const { saveQuery } = useDashboardActions();
   const { addToast } = useToast();
   const pending = usePendingChanges();
   const [query, setQuery] = useState<string>(() => {

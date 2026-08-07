@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { useConnection } from '../contexts/connection-context';
 import { useToast } from '../contexts/toast-context';
 import { usePendingChanges } from '../contexts/pending-changes-context';
-import { useDashboard } from '../contexts/dashboard-context';
+import { useDashboardActions } from '../contexts/dashboard-context';
 import { buildDisplaySQL, type MutationRequest } from '@/lib/mutation';
 import { db } from '@/lib/db';
 import { CascadeImpactPanel } from './cascade-impact-panel';
@@ -39,7 +39,7 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
   const { databaseType } = useConnection();
   const { addToast } = useToast();
   const pending = usePendingChanges();
-  const { refreshTableData } = useDashboard();
+  const { refreshTableData } = useDashboardActions();
   const [isSaving, setIsSaving] = useState(false);
 
   const [cascadeLoading, setCascadeLoading] = useState(false);
