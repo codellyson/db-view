@@ -16,22 +16,19 @@ export function ToolbarDivider() {
   return <Separator orientation="vertical" className="h-5 mx-1 shrink-0" />;
 }
 
-interface ToolbarButtonProps {
-  children?: React.ReactNode;
+// Must forward the ref and spread the rest: `DropdownMenuTrigger asChild`
+// clones this with its own handlers and aria/data attributes, and dropping
+// them leaves a trigger that never opens.
+interface ToolbarButtonProps extends React.ComponentPropsWithoutRef<'button'> {
   icon?: React.ReactNode;
-  onClick?: () => void;
   active?: boolean;
-  disabled?: boolean;
-  title?: string;
   variant?: 'default' | 'accent';
   badge?: number;
-  className?: string;
-  'aria-label'?: string;
 }
 
 export const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
   function ToolbarButton(
-    { children, icon, onClick, active, disabled, title, variant = 'default', badge, className, ...rest },
+    { children, icon, active, variant = 'default', badge, className, ...rest },
     ref
   ) {
     return (
@@ -39,15 +36,12 @@ export const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonPr
         ref={ref}
         variant={variant === 'accent' ? 'primary' : 'ghost'}
         size="sm"
-        onClick={onClick}
-        disabled={disabled}
-        title={title}
-        aria-label={rest['aria-label']}
         className={cn(
           'gap-1.5 px-2.5 text-sm',
           active && variant !== 'accent' && 'bg-bg-secondary text-primary',
           className
         )}
+        {...rest}
       >
         {icon}
         {children}
