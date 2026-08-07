@@ -62,6 +62,7 @@ interface ToolbarMenuProps {
   title?: string;
   align?: 'left' | 'right';
   width?: number;
+  triggerClassName?: string;
   children: React.ReactNode;
 }
 
@@ -74,6 +75,7 @@ export function ToolbarMenu({
   title,
   align = 'left',
   width = 240,
+  triggerClassName,
   children,
 }: ToolbarMenuProps) {
   return (
@@ -85,7 +87,7 @@ export function ToolbarMenu({
           active={active}
           disabled={disabled}
           title={title}
-          className="shrink-0"
+          className={cn('shrink-0', triggerClassName)}
         >
           {label}
         </ToolbarButton>
@@ -93,12 +95,73 @@ export function ToolbarMenu({
       <DropdownMenuContent
         align={align === 'right' ? 'end' : 'start'}
         style={{ width }}
-        className="max-h-80 overflow-auto"
+        className="max-h-80 overflow-auto origin-top animate-menu-in"
         collisionPadding={8}
       >
         {children}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** A related run of controls: tight internal spacing, one shared outline. */
+export function ToolbarGroup({
+  children,
+  bordered,
+  className,
+}: {
+  children: React.ReactNode;
+  bordered?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center shrink-0',
+        bordered ? 'gap-0 rounded-md border border-border h-8 px-0.5' : 'gap-0.5',
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+interface SegmentedControlProps<T extends string> {
+  value: T;
+  onChange: (value: T) => void;
+  options: Array<{ value: T; label: string; icon?: React.ReactNode }>;
+}
+
+/** Track-and-thumb switch, so the view choice doesn't read as two buttons. */
+export function SegmentedControl<T extends string>({
+  value,
+  onChange,
+  options,
+}: SegmentedControlProps<T>) {
+  return (
+    <div className="flex items-center gap-0.5 h-8 p-0.5 rounded-md bg-bg-secondary shrink-0">
+      {options.map((opt) => {
+        const selected = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={selected}
+            className={cn(
+              'inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-sm font-medium transition-all',
+              selected
+                ? 'bg-bg text-primary shadow-sm'
+                : 'text-secondary hover:text-primary'
+            )}
+          >
+            {opt.icon}
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

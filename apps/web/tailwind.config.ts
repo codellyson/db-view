@@ -52,8 +52,15 @@ const config: Config = {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(400%)' },
         },
+        'menu-in': {
+          from: { opacity: '0', transform: 'translateY(-4px) scale(0.98)' },
+          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
       },
-      animation: { indeterminate: 'indeterminate 1.1s ease-in-out infinite' },
+      animation: {
+        indeterminate: 'indeterminate 1.1s ease-in-out infinite',
+        'menu-in': 'menu-in 120ms cubic-bezier(0.16, 1, 0.3, 1)',
+      },
     },
   },
   plugins: [],

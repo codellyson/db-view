@@ -617,7 +617,7 @@ export function Dashboard() {
               })()
             ) : selectedTable ? (
               <>
-              <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 flex flex-col min-h-0 gap-2">
                 <TableToolbar
                   view={tableView}
                   onViewChange={setTableView}

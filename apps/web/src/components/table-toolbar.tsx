@@ -1,45 +1,30 @@
 import React from 'react';
+import {
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Columns3,
+  ListFilter,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  Search,
+  Table,
+  Table2,
+} from 'lucide-react';
 import { Input } from '@codellyson/justui/react';
 import {
   MenuItem,
   MenuLabel,
   MenuSeparator,
+  SegmentedControl,
   ToolbarButton,
-  ToolbarDivider,
+  ToolbarGroup,
   ToolbarMenu,
 } from './ui/toolbar';
 import type { Filter } from '@/lib/filters';
 
 export type TableView = 'data' | 'structure';
-
-const Icon = ({ d, className = 'h-4 w-4' }: { d: string; className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <path d={d} />
-  </svg>
-);
-
-const PATH = {
-  data: 'M3 5h18M3 12h18M3 19h18',
-  structure: 'M4 6h16M4 6v12M20 6v12M4 18h16M10 6v12',
-  filter: 'M3 5h18l-7 8v6l-4-2v-4z',
-  sort: 'M7 4v16m0 0l-3-3m3 3l3-3M17 20V4m0 0l-3 3m3-3l3 3',
-  columns: 'M4 5h16v14H4zM10 5v14M16 5v14',
-  plus: 'M12 5v14M5 12h14',
-  refresh: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
-  chevronLeft: 'M15 19l-7-7 7-7',
-  chevronRight: 'M9 5l7 7-7 7',
-  more: 'M5 12h.01M12 12h.01M19 12h.01',
-  search: 'M21 21l-4.35-4.35M11 19a8 8 0 110-16 8 8 0 010 16z',
-};
 
 const PAGE_SIZES = [50, 100, 250, 500];
 
@@ -122,34 +107,28 @@ export function TableToolbar({
   const last = Math.min(currentPage * itemsPerPage, totalItems);
   const total = countIsEstimate ? `~${totalItems.toLocaleString()}` : totalItems.toLocaleString();
   const hiddenCount = columns.length - visibleColumns.length;
+  const notData = view !== 'data';
 
   return (
-    <div className="flex items-center gap-1 h-11 shrink-0 border-b border-border pb-1.5 mb-1.5 overflow-x-auto">
-      <ToolbarButton
-        icon={<Icon d={PATH.data} />}
-        active={view === 'data'}
-        onClick={() => onViewChange('data')}
-      >
-        Data
-      </ToolbarButton>
-      <ToolbarButton
-        icon={<Icon d={PATH.structure} />}
-        active={view === 'structure'}
-        onClick={() => onViewChange('structure')}
-      >
-        Structure
-      </ToolbarButton>
+    <div className="flex items-center gap-2 h-12 shrink-0 border-b border-border">
+      <SegmentedControl
+        value={view}
+        onChange={onViewChange}
+        options={[
+          { value: 'data', label: 'Data', icon: <Table2 className="h-4 w-4" /> },
+          { value: 'structure', label: 'Structure', icon: <Table className="h-4 w-4" /> },
+        ]}
+      />
 
-      <ToolbarDivider />
-
-      <ToolbarMenu
-        label="Filters"
-        icon={<Icon d={PATH.filter} />}
-        badge={filters.length}
-        disabled={view !== 'data'}
-        width={280}
-      >
-        <>
+      <ToolbarGroup>
+        <ToolbarMenu
+          label="Filters"
+          icon={<ListFilter className="h-4 w-4" />}
+          badge={filters.length}
+          disabled={notData}
+          width={280}
+        >
+          <>
             {filters.length === 0 ? (
               <div className="px-2 py-2 text-xs text-muted">
                 No filters. Add one from a column header menu.
@@ -173,17 +152,17 @@ export function TableToolbar({
                 </MenuItem>
               </>
             )}
-        </>
-      </ToolbarMenu>
+          </>
+        </ToolbarMenu>
 
-      <ToolbarMenu
-        label="Sort"
-        icon={<Icon d={PATH.sort} />}
-        active={!!sortColumn}
-        disabled={view !== 'data' || columns.length === 0}
-        width={240}
-      >
-        <>
+        <ToolbarMenu
+          label="Sort"
+          icon={<ArrowUpDown className="h-4 w-4" />}
+          active={!!sortColumn}
+          disabled={notData || columns.length === 0}
+          width={240}
+        >
+          <>
             <MenuLabel>Sort by</MenuLabel>
             {columns.map((col) => (
               <MenuItem key={col} onClick={() => onSort(col)}>
@@ -199,17 +178,17 @@ export function TableToolbar({
                 <MenuItem onClick={onClearSort}>Clear sort</MenuItem>
               </>
             )}
-        </>
-      </ToolbarMenu>
+          </>
+        </ToolbarMenu>
 
-      <ToolbarMenu
-        label="Columns"
-        icon={<Icon d={PATH.columns} />}
-        badge={hiddenCount > 0 ? hiddenCount : undefined}
-        disabled={view !== 'data' || columns.length === 0}
-        width={240}
-      >
-        <>
+        <ToolbarMenu
+          label="Columns"
+          icon={<Columns3 className="h-4 w-4" />}
+          badge={hiddenCount > 0 ? hiddenCount : undefined}
+          disabled={notData || columns.length === 0}
+          width={240}
+        >
+          <>
             <div className="flex gap-1 px-1 pb-1">
               <button
                 type="button"
@@ -242,99 +221,107 @@ export function TableToolbar({
                 <span className="flex-1 truncate">{col}</span>
               </MenuItem>
             ))}
-        </>
-      </ToolbarMenu>
+          </>
+        </ToolbarMenu>
+      </ToolbarGroup>
 
       <ToolbarButton
-        icon={<Icon d={PATH.plus} />}
+        icon={<Plus className="h-4 w-4" />}
         variant="accent"
-        disabled={!canAddRecord || view !== 'data'}
+        disabled={!canAddRecord || notData}
         onClick={onAddRecord}
         title="Add record (Alt+N)"
       >
-        Add record
+        <span className="hidden lg:inline">Add record</span>
       </ToolbarButton>
 
-      <div className="relative shrink-0 ml-1">
-        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
-          <Icon d={PATH.search} className="h-3.5 w-3.5" />
-        </span>
+      <div className="relative shrink-0">
+        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted pointer-events-none" />
         <Input
           ref={searchInputRef}
           type="text"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search rows"
-          disabled={view !== 'data'}
+          disabled={notData}
           aria-label="Search table rows"
-          className="w-44 h-8 pl-8 pr-2 text-sm"
+          className="w-36 xl:w-48 h-8 pl-8 pr-2 text-sm"
         />
       </div>
 
-      <div className="flex-1 min-w-2" />
+      <div className="flex-1 min-w-0" />
 
       {view === 'data' && (
-        <span className="w-14 text-right text-xs text-muted tabular-nums px-1 shrink-0">
-          {durationMs == null
-            ? ''
-            : durationMs < 1000
-              ? `${Math.round(durationMs)}ms`
-              : `${(durationMs / 1000).toFixed(1)}s`}
-        </span>
-      )}
-
-      {view === 'data' && (
-        <div className="flex items-center gap-0.5 shrink-0">
-          <ToolbarButton
-            icon={<Icon d={PATH.chevronLeft} />}
-            aria-label="Previous page"
-            title="Previous page"
-            disabled={currentPage <= 1 || isBusy}
-            onClick={() => onPageChange(currentPage - 1)}
-          />
-          <ToolbarMenu
-            label={
-              <span className="tabular-nums">
-                {first}–{last} of {total}
-              </span>
-            }
-            align="right"
-            width={160}
-          >
-            <>
-              <MenuLabel>Rows per page</MenuLabel>
-              {PAGE_SIZES.map((size) => (
-                <MenuItem key={size} onClick={() => onItemsPerPageChange(size)}>
-                  <span className="flex-1">{size}</span>
-                  {size === itemsPerPage && <span className="text-accent">✓</span>}
-                </MenuItem>
-              ))}
-            </>
-          </ToolbarMenu>
-          <ToolbarButton
-            icon={<Icon d={PATH.chevronRight} />}
-            aria-label="Next page"
-            title="Next page"
-            disabled={currentPage >= totalPages || isBusy}
-            onClick={() => onPageChange(currentPage + 1)}
-          />
-        </div>
-      )}
-
-      <ToolbarButton
-        icon={<Icon d={PATH.refresh} className={`h-4 w-4 ${isBusy ? 'animate-spin' : ''}`} />}
-        aria-label="Refresh rows"
-        title="Refresh rows (Alt+R)"
-        onClick={onRefresh}
-      />
-
-      <ToolbarMenu icon={<Icon d={PATH.more} />} align="right" title="More actions" width={200}>
         <>
-          <MenuItem onClick={onRefreshSchema}>Refresh schema</MenuItem>
-          <MenuItem onClick={onImportCsv}>Import CSV</MenuItem>
-          <MenuItem onClick={onExport}>Export</MenuItem>
+          <span className="w-14 text-right text-xs text-muted tabular-nums shrink-0">
+            {durationMs == null
+              ? ''
+              : durationMs < 1000
+                ? `${Math.round(durationMs)}ms`
+                : `${(durationMs / 1000).toFixed(1)}s`}
+          </span>
+
+          <ToolbarGroup bordered>
+            <ToolbarButton
+              icon={<ChevronLeft className="h-4 w-4" />}
+              aria-label="Previous page"
+              title="Previous page"
+              disabled={currentPage <= 1 || isBusy}
+              onClick={() => onPageChange(currentPage - 1)}
+              className="h-7 px-1.5"
+            />
+            <ToolbarMenu
+              label={
+                <span className="tabular-nums text-xs text-secondary">
+                  {first}–{last} of {total}
+                </span>
+              }
+              align="right"
+              width={160}
+              triggerClassName="h-7 px-2"
+            >
+              <>
+                <MenuLabel>Rows per page</MenuLabel>
+                {PAGE_SIZES.map((size) => (
+                  <MenuItem key={size} onClick={() => onItemsPerPageChange(size)}>
+                    <span className="flex-1">{size}</span>
+                    {size === itemsPerPage && <span className="text-accent">✓</span>}
+                  </MenuItem>
+                ))}
+              </>
+            </ToolbarMenu>
+            <ToolbarButton
+              icon={<ChevronRight className="h-4 w-4" />}
+              aria-label="Next page"
+              title="Next page"
+              disabled={currentPage >= totalPages || isBusy}
+              onClick={() => onPageChange(currentPage + 1)}
+              className="h-7 px-1.5"
+            />
+          </ToolbarGroup>
         </>
-      </ToolbarMenu>
+      )}
+
+      <ToolbarGroup>
+        <ToolbarButton
+          icon={<RefreshCw className={`h-4 w-4 ${isBusy ? 'animate-spin' : ''}`} />}
+          aria-label="Refresh rows"
+          title="Refresh rows (Alt+R)"
+          onClick={onRefresh}
+        />
+        <ToolbarMenu
+          icon={<MoreHorizontal className="h-4 w-4" />}
+          align="right"
+          title="More actions"
+          width={200}
+        >
+          <>
+            <MenuItem onClick={onRefreshSchema}>Refresh schema</MenuItem>
+            <MenuItem onClick={onImportCsv}>Import CSV</MenuItem>
+            <MenuItem onClick={onExport}>Export</MenuItem>
+          </>
+        </ToolbarMenu>
+      </ToolbarGroup>
     </div>
   );
 }
