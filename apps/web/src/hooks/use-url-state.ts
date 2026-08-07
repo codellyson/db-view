@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useDashboard } from '../contexts/dashboard-context';
 import { useTableListPrefs } from './use-table-list-prefs';
 import { useConnection } from '../contexts/connection-context';
@@ -23,16 +23,57 @@ export function useUrlState() {
   const prefs = useTableListPrefs(databaseName);
   const initializedRef = useRef(false);
 
+  // The popstate listener is registered once, so reading through a ref is
+  // what keeps back/forward from applying the URL against the dashboard as
+  // it looked on first render.
+  const latest = useRef({ dash, prefs });
+  useLayoutEffect(() => {
+    latest.current = { dash, prefs };
+  });
+
+  const applyUrl = useCallback((search: string) => {
+    const { dash, prefs } = latest.current;
+    const params = new URLSearchParams(search);
+    const table = params.get('table');
+    const schema = params.get('schema');
+    const sort = params.get('sort');
+    const dir = params.get('dir');
+    const filtersRaw = params.get('filters');
+    const page = params.get('page');
+
+    if (schema && schema !== dash.selectedSchema) {
+      dash.handleSchemaChange(schema);
+    }
+    if (table) {
+      prefs.recordOpen(table);
+      dash.handleTableSelect(table);
+    }
+    if (sort && (dir === 'asc' || dir === 'desc')) {
+      dash.setSortColumn(sort);
+      dash.setSortDirection(dir);
+    }
+    if (filtersRaw) {
+      try {
+        const parsed = JSON.parse(filtersRaw) as Filter[];
+        if (Array.isArray(parsed)) dash.setTableFilters(parsed);
+      } catch {
+        // ignore
+      }
+    }
+    // Applied last: opening the table above resets the view to page 1.
+    if (page) {
+      const n = parseInt(page, 10);
+      if (!isNaN(n) && n >= 1) dash.setCurrentPage(n);
+    }
+  }, []);
+
   // Hydrate dashboard from URL once after connection is up.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!databaseName || initializedRef.current) return;
     initializedRef.current = true;
     applyUrl(window.location.search);
-    // We deliberately don't include the dashboard / prefs callbacks in deps —
-    // we only want to hydrate once per connection.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [databaseName]);
+  }, [databaseName, applyUrl]);
 
   // Listen for back/forward navigation and re-apply.
   useEffect(() => {
@@ -40,8 +81,7 @@ export function useUrlState() {
     const onPop = () => applyUrl(window.location.search);
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [applyUrl]);
 
   // Push state to URL.
   useEffect(() => {
@@ -76,38 +116,4 @@ export function useUrlState() {
     dash.isQueryTab,
     dash.isEditorTab,
   ]);
-
-  function applyUrl(search: string) {
-    const params = new URLSearchParams(search);
-    const table = params.get('table');
-    const schema = params.get('schema');
-    const sort = params.get('sort');
-    const dir = params.get('dir');
-    const filtersRaw = params.get('filters');
-    const page = params.get('page');
-
-    if (schema && schema !== dash.selectedSchema) {
-      dash.handleSchemaChange(schema);
-    }
-    if (table) {
-      prefs.recordOpen(table);
-      dash.handleTableSelect(table);
-    }
-    if (sort && (dir === 'asc' || dir === 'desc')) {
-      dash.setSortColumn(sort);
-      dash.setSortDirection(dir);
-    }
-    if (filtersRaw) {
-      try {
-        const parsed = JSON.parse(filtersRaw) as Filter[];
-        if (Array.isArray(parsed)) dash.setTableFilters(parsed);
-      } catch {
-        // ignore
-      }
-    }
-    if (page) {
-      const n = parseInt(page, 10);
-      if (!isNaN(n) && n >= 1) dash.setCurrentPage(n);
-    }
-  }
 }
