@@ -1,4 +1,5 @@
-import React from "react";
+import React from 'react';
+import { Skeleton as JustSkeleton, cn } from '@codellyson/justui/react';
 
 interface SkeletonProps {
   width?: string;
@@ -7,31 +8,22 @@ interface SkeletonProps {
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({
-  width = "100%",
-  height = "1rem",
-  className = "",
-}) => {
-  return (
-    <div
-      className={`bg-border/50 animate-pulse rounded-md ${className}`}
-      style={{ width, height }}
-    />
-  );
-};
+  width = '100%',
+  height = '1rem',
+  className,
+}) => <JustSkeleton className={cn('bg-border/50', className)} style={{ width, height }} />;
 
-export const SkeletonRow: React.FC<{ className?: string }> = ({
-  className = "",
-}) => {
-  return <Skeleton height="1rem" className={className} />;
-};
+export const SkeletonRow: React.FC<{ className?: string }> = ({ className }) => (
+  <Skeleton height="1rem" className={className} />
+);
 
-export const SkeletonText: React.FC<{
-  lines?: number;
-  className?: string;
-}> = ({ lines = 3, className = "" }) => {
-  const widths = ["100%", "85%", "70%", "90%", "60%"];
+export const SkeletonText: React.FC<{ lines?: number; className?: string }> = ({
+  lines = 3,
+  className,
+}) => {
+  const widths = ['100%', '85%', '70%', '90%', '60%'];
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={cn('space-y-2', className)}>
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton key={i} width={widths[i % widths.length]} height="0.75rem" />
       ))}
