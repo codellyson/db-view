@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { useToast, type ToastType } from "../../contexts/toast-context";
+import { useToast, useToasts, type ToastType } from "../../contexts/toast-context";
 
 const typeStyles: Record<ToastType, { bg: string; icon: string }> = {
   success: { bg: "border-l-success", icon: "\u2713" },
@@ -61,7 +61,8 @@ function ToastItem({
 }
 
 export function ToastContainer() {
-  const { toasts, removeToast } = useToast();
+  const toasts = useToasts();
+  const { removeToast } = useToast();
 
   if (toasts.length === 0) return null;
 

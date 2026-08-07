@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useCallback, useRef } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -10,19 +10,23 @@ export interface Toast {
   duration: number;
 }
 
-interface ToastContextType {
-  toasts: Toast[];
+interface ToastControls {
   addToast: (message: string, type?: ToastType, duration?: number) => void;
   removeToast: (id: string) => void;
 }
 
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
+// Split from the toast list: this provider sits outermost, so a value carrying
+// `toasts` re-rendered the entire app — every provider below it included —
+// each time a toast appeared or expired. These controls never change identity.
+const ToastControlsContext = createContext<ToastControls | undefined>(undefined);
+const ToastListContext = createContext<Toast[]>([]);
 
 const MAX_TOASTS = 3;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const counterRef = useRef(0);
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -42,25 +46,43 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (duration > 0) {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
+          timersRef.current.delete(timer);
           removeToast(id);
         }, duration);
+        timersRef.current.add(timer);
       }
     },
     [removeToast]
   );
 
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
+
+  const controls = useMemo(() => ({ addToast, removeToast }), [addToast, removeToast]);
+
   return (
-    <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
-      {children}
-    </ToastContext.Provider>
+    <ToastControlsContext.Provider value={controls}>
+      <ToastListContext.Provider value={toasts}>{children}</ToastListContext.Provider>
+    </ToastControlsContext.Provider>
   );
 }
 
-export function useToast() {
-  const context = useContext(ToastContext);
+/** Raise and dismiss toasts. Never re-renders the caller. */
+export function useToast(): ToastControls {
+  const context = useContext(ToastControlsContext);
   if (!context) {
     throw new Error("useToast must be used within a ToastProvider");
   }
   return context;
+}
+
+/** The current toasts — for the container that renders them. */
+export function useToasts(): Toast[] {
+  return useContext(ToastListContext);
 }
