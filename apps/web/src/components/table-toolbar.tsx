@@ -160,7 +160,7 @@ export function TableToolbar({
                     <span className="text-muted">✕</span>
                   </MenuItem>
                 ))}
-                <div className="border-t border-border mt-1 pt-1">
+                <div className="-mx-1 px-1 border-t border-border mt-1 pt-1">
                   <MenuItem onClick={onClearFilters} danger>
                     Clear all filters
                   </MenuItem>
@@ -190,7 +190,7 @@ export function TableToolbar({
               </MenuItem>
             ))}
             {sortColumn && (
-              <div className="border-t border-border mt-1 pt-1">
+              <div className="-mx-1 px-1 border-t border-border mt-1 pt-1">
                 <MenuItem onClick={onClearSort}>Clear sort</MenuItem>
               </div>
             )}
@@ -207,7 +207,7 @@ export function TableToolbar({
       >
         {() => (
           <>
-            <div className="sticky top-0 z-10 flex gap-1 px-1 pb-1 border-b border-border mb-1 bg-bg">
+            <div className="sticky top-0 z-10 flex gap-1 -mx-1 -mt-1 px-2 pt-1 pb-1 mb-1 border-b border-border bg-bg">
               <button
                 type="button"
                 onClick={onShowAllColumns}
