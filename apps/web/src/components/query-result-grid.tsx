@@ -51,7 +51,6 @@ const HEADER_HEIGHT = 40;
 const DEFAULT_COL_WIDTH = 180;
 const MIN_COL_WIDTH = 60;
 const MAX_COL_WIDTH = 800;
-const ROW_NUM_WIDTH = 40;
 const CHECKBOX_WIDTH = 28;
 
 function defaultWidthForType(type?: string): number {
@@ -522,7 +521,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
   );
 
   // Frozen column's effective left offset (after row-number + checkbox).
-  const frozenLeft = ROW_NUM_WIDTH + (canEdit ? CHECKBOX_WIDTH : 0);
+  const frozenLeft = canEdit ? CHECKBOX_WIDTH : 0;
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   // Expanded rows are dynamically sized; default rows stay at ROW_HEIGHT.
@@ -1215,7 +1214,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     return <TableSkeleton />;
   }
 
-  const totalWidth = ROW_NUM_WIDTH + (canEdit ? CHECKBOX_WIDTH : 0) + totalDataWidth;
+  const totalWidth = (canEdit ? CHECKBOX_WIDTH : 0) + totalDataWidth;
 
   const emptyHint =
     data.length > 0
@@ -1448,7 +1447,6 @@ const HeaderRow = memo(function HeaderRow(props: HeaderRowProps) {
       className="bg-bg-secondary sticky top-0 z-30 flex border-b border-border"
       style={{ height: HEADER_HEIGHT }}
     >
-      <div className="flex-shrink-0 border-r border-border" style={{ width: ROW_NUM_WIDTH }} />
       {canEdit && (
         <SelectAllCheckbox
           allRowKeys={allRowKeys}
@@ -1664,13 +1662,6 @@ const Row = memo(function Row(props: RowProps) {
         style={{ height: ROW_HEIGHT }}
         onContextMenu={(e) => onRowContext(e, rowIndex)}
       >
-        {/* Row-number column */}
-        <div
-          className="flex-shrink-0 flex items-center justify-center border-r border-border text-[10px] font-mono text-muted"
-          style={{ width: ROW_NUM_WIDTH }}
-        >
-          {rowIndex + 1}
-        </div>
         {/* Checkbox column (only when editable) */}
         {canEdit && rowKey && (
           <div
@@ -2199,17 +2190,18 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
         style={{ height: ROW_HEIGHT }}
         onContextMenu={onContextMenu}
       >
-        <button
-          type="button"
-          onClick={() => onDiscard(ins.tempId)}
-          className="flex-shrink-0 flex items-center justify-center text-muted hover:text-danger transition-colors"
-          style={{ width: ROW_NUM_WIDTH }}
-          aria-label="Discard this new record"
-          title="Discard this new record"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-        {canEdit && <div className="flex-shrink-0 border-r border-border" style={{ width: CHECKBOX_WIDTH }} />}
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => onDiscard(ins.tempId)}
+            className="flex-shrink-0 flex items-center justify-center border-r border-border text-muted hover:text-danger transition-colors"
+            style={{ width: CHECKBOX_WIDTH }}
+            aria-label="Discard this new record"
+            title="Discard this new record"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
         {displayColumns.map((col, idx) => (
           <Cell
             key={col}
