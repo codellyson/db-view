@@ -669,6 +669,8 @@ export function Dashboard() {
                     data={tableData}
                     isLoading={isLoading}
                     isRefreshing={isRefreshing}
+                    limit={itemsPerPage}
+                    offset={(currentPage - 1) * itemsPerPage}
                     onSort={handleSort}
                     sortColumn={sortColumn || undefined}
                     sortDirection={sortDirection ?? undefined}

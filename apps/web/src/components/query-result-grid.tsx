@@ -83,6 +83,9 @@ export interface QueryResultGridProps {
   data: any[];
   isLoading?: boolean;
   isRefreshing?: boolean;
+  /** Paging context for the empty state, mirroring the query that ran. */
+  limit?: number;
+  offset?: number;
   columnTypes?: Record<string, string>;
   searchQuery?: string;
   schema?: string;
@@ -351,6 +354,8 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     data,
     isLoading,
     isRefreshing,
+    limit,
+    offset,
     columnTypes = {},
     searchQuery,
     schema,
@@ -1159,6 +1164,13 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
 
   const totalWidth = ROW_NUM_WIDTH + (canEdit ? CHECKBOX_WIDTH : 0) + totalDataWidth;
 
+  const emptyHint =
+    data.length > 0
+      ? 'no match for the current filter'
+      : limit != null
+        ? `limit ${limit} offset ${offset ?? 0}`
+        : null;
+
   return (
     <StoresContext.Provider value={stores}>
       <div className="h-0.5 overflow-hidden shrink-0">
@@ -1301,14 +1313,16 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
             })}
           </div>
         </div>
-        {filteredData.length === 0 && (
-          <div className="text-center py-8 text-sm text-muted">
-            {data.length === 0
-              ? 'Query executed successfully. No rows returned.'
-              : 'No matches for the current filter.'}
-          </div>
-        )}
       </div>
+      {filteredData.length === 0 && (
+        <div
+          className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-center gap-1 pointer-events-none select-none"
+          style={{ top: HEADER_HEIGHT + (canInsert ? ROW_HEIGHT : 0) }}
+        >
+          <span className="font-mono text-xs text-secondary">No rows</span>
+          {emptyHint && <span className="font-mono text-[11px] text-muted">{emptyHint}</span>}
+        </div>
+      )}
       {(canEdit || !!onBulkExport) && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none [&>*]:pointer-events-auto">
           <BulkActionBar
