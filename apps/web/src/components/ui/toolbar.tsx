@@ -34,7 +34,7 @@ export const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonPr
     return (
       <Button
         ref={ref}
-        variant={variant === 'accent' ? 'primary' : 'ghost'}
+        variant={variant === 'accent' ? 'primary' : 'outline'}
         size="sm"
         className={cn(
           'gap-1.5 px-2.5 text-sm',
@@ -140,7 +140,7 @@ export function SegmentedControl<T extends string>({
   options,
 }: SegmentedControlProps<T>) {
   return (
-    <div className="flex items-center gap-0.5 h-8 p-0.5 rounded-md bg-bg-secondary shrink-0">
+    <div className="flex items-center gap-0.5 h-8 p-0.5 rounded-md border border-border bg-bg-secondary shrink-0">
       {options.map((opt) => {
         const selected = opt.value === value;
         return (

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   ArrowUpDown,
   ChevronLeft,
@@ -8,11 +7,9 @@ import {
   MoreHorizontal,
   Plus,
   RefreshCw,
-  Search,
   Table,
   Table2,
 } from 'lucide-react';
-import { Input } from '@codellyson/justui/react';
 import {
   MenuItem,
   MenuLabel,
@@ -46,10 +43,6 @@ interface TableToolbarProps {
   sortDirection: 'asc' | 'desc' | null;
   onSort: (column: string) => void;
   onClearSort: () => void;
-
-  search: string;
-  onSearchChange: (value: string) => void;
-  searchInputRef?: React.RefObject<HTMLInputElement | null>;
 
   currentPage: number;
   itemsPerPage: number;
@@ -87,9 +80,6 @@ export function TableToolbar({
   sortDirection,
   onSort,
   onClearSort,
-  search,
-  onSearchChange,
-  searchInputRef,
   currentPage,
   itemsPerPage,
   totalItems,
@@ -260,20 +250,6 @@ export function TableToolbar({
         </>
       )}
 
-      <div className="relative shrink-0">
-        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted pointer-events-none" />
-        <Input
-          ref={searchInputRef}
-          type="text"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search rows"
-          disabled={notData}
-          aria-label="Search table rows"
-          className="w-36 xl:w-48 h-8 pl-8 pr-2 text-sm"
-        />
-      </div>
-
       <div className="flex-1 min-w-0" />
 
       {view === 'data' && (
@@ -293,7 +269,7 @@ export function TableToolbar({
               title="Previous page"
               disabled={currentPage <= 1 || isBusy}
               onClick={() => onPageChange(currentPage - 1)}
-              className="h-7 px-1.5"
+              className="h-7 px-1.5 border-0"
             />
             <ToolbarMenu
               label={
@@ -303,7 +279,7 @@ export function TableToolbar({
               }
               align="right"
               width={160}
-              triggerClassName="h-7 px-2"
+              triggerClassName="h-7 px-2 border-0"
             >
               <>
                 <MenuLabel>Rows per page</MenuLabel>
@@ -321,7 +297,7 @@ export function TableToolbar({
               title="Next page"
               disabled={currentPage >= totalPages || isBusy}
               onClick={() => onPageChange(currentPage + 1)}
-              className="h-7 px-1.5"
+              className="h-7 px-1.5 border-0"
             />
           </ToolbarGroup>
         </>

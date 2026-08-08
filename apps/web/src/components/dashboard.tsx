@@ -82,7 +82,6 @@ export function Dashboard() {
     setSortDirection,
     loadTableSchema,
     setVisibleColumns,
-    setTableSearch,
     loadTables,
     loadTableData,
     handleSchemaChange,
@@ -116,7 +115,6 @@ export function Dashboard() {
   const tableListPrefs = useTableListPrefs(databaseName);
   useUrlState();
   const { allFormatters } = usePlugins();
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const dataTableRef = useRef<QueryResultGridHandle>(null);
@@ -178,11 +176,6 @@ export function Dashboard() {
 
 
   const shortcuts: Shortcut[] = useMemo(() => [
-    {
-      key: 'k', alt: true, description: 'Focus table search',
-      category: 'Navigation',
-      action: () => searchInputRef.current?.focus(),
-    },
     {
       key: 'j', alt: true, description: 'Toggle sidebar',
       category: 'Navigation',
@@ -272,17 +265,6 @@ export function Dashboard() {
       category: 'Navigation',
       action: () => {
         if (activeTabId) closeTab(activeTabId);
-      },
-    },
-    {
-      key: 'f', meta: true, description: 'Find in result set',
-      category: 'Navigation',
-      action: () => {
-        // Editor/query tabs register their own Cmd+F; only handle the
-        // table-view case here.
-        if (isEditorTab || isQueryTab) return;
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
       },
     },
     {
@@ -640,9 +622,6 @@ export function Dashboard() {
                     setSortColumn(null);
                     setSortDirection(null);
                   }}
-                  search={tableSearch}
-                  onSearchChange={setTableSearch}
-                  searchInputRef={searchInputRef}
                   currentPage={currentPage}
                   itemsPerPage={itemsPerPage}
                   totalItems={totalItems}
