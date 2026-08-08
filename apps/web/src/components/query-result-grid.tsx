@@ -44,7 +44,7 @@ import {
   type TablePending,
 } from '@/contexts/pending-changes-context';
 import type { ColumnInfo } from '@/types';
-import { ArrowUpRight, Check, ChevronRight, ChevronUp, Copy, Eye, Maximize2, PencilLine, X } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronUp, Copy, Eye, Maximize2, PencilLine, X } from 'lucide-react';
 
 const ROW_HEIGHT = 36;
 const HEADER_HEIGHT = 40;
@@ -1666,17 +1666,10 @@ const Row = memo(function Row(props: RowProps) {
       >
         {/* Row-number column */}
         <div
-          className="flex-shrink-0 flex items-center justify-center border-r border-border text-[10px] font-mono text-muted hover:text-primary cursor-pointer group/rownum"
+          className="flex-shrink-0 flex items-center justify-center border-r border-border text-[10px] font-mono text-muted"
           style={{ width: ROW_NUM_WIDTH }}
-          onClick={() => onToggleExpand(rowIndex)}
-          title="Expand row"
         >
-          <span className={`group-hover/rownum:hidden ${isExpanded ? 'hidden' : ''}`}>
-            {rowIndex + 1}
-          </span>
-          <ChevronRight className={`h-3.5 w-3.5 hidden group-hover/rownum:block ${
-              isExpanded ? 'rotate-90 !block' : ''
-            }`} />
+          {rowIndex + 1}
         </div>
         {/* Checkbox column (only when editable) */}
         {canEdit && rowKey && (
