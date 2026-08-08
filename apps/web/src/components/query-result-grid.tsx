@@ -266,6 +266,8 @@ class LayoutStore {
 interface Stores {
   selection: CellAddrStore;
   editing: CellAddrStore;
+  /** Which cell the pointer is over, so only that one renders its actions. */
+  hovered: CellAddrStore;
   expanded: RowIndexStore;
   selectedRows: RowKeySetStore;
   layout: LayoutStore;
@@ -388,6 +390,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     storesRef.current = {
       selection: new CellAddrStore(),
       editing: new CellAddrStore(),
+      hovered: new CellAddrStore(),
       expanded: new RowIndexStore(),
       selectedRows: new RowKeySetStore(),
       layout: new LayoutStore(),
@@ -1000,6 +1003,15 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
   // During a drag, the layout store's width is updated on every mousemove.
   // Container re-renders → CSS vars update → cells use unchanged
   // `width: var(--cw-N)` strings, so cells don't re-render either. Fast.
+  const [viewer, setViewer] = useState<
+    { col: string; columnType?: string; value: any; anchor: DOMRect } | null
+  >(null);
+  const showValue = useCallback(
+    (col: string, columnType: string | undefined, value: any, anchor: DOMRect) =>
+      setViewer({ col, columnType, value, anchor }),
+    [],
+  );
+
   const [resizingCol, setResizingCol] = useState<string | null>(null);
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
@@ -1223,6 +1235,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
       <div
         ref={scrollContainerRef}
         onContextMenu={onCanvasContext}
+        onMouseLeave={() => stores.hovered.set(null)}
         className={`border border-border rounded-md overflow-auto relative bg-bg${
           fillParent ? ' flex-1 min-h-0' : ''
         }`}
@@ -1290,6 +1303,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
                     startEdit={startEdit}
                     cancelEdit={cancelEdit}
                     ins={ins}
+                    onViewValue={showValue}
                     onSaveStaged={handleStagedInsertSave}
                     onDiscard={handleDiscardInsert}
                   />
@@ -1316,6 +1330,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
                     cancelEdit={cancelEdit}
                     onCellSave={handleCellSave}
                     onToggleExpand={toggleRowExpanded}
+                    onViewValue={showValue}
                     onToggleSelect={toggleRowSelected}
                     onRowContext={onRowContext}
                     onCellContext={onCellContext}
@@ -1351,6 +1366,15 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
         </div>
       )}
       </div>
+      {viewer && (
+        <CellValueViewer
+          column={viewer.col}
+          columnType={viewer.columnType}
+          value={viewer.value}
+          anchor={viewer.anchor}
+          onClose={() => setViewer(null)}
+        />
+      )}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />}
       {filterPopover && onAddFilter && (
         <ColumnFilterPopover
@@ -1567,6 +1591,7 @@ interface RowProps {
   cancelEdit: () => void;
   onCellSave: (rowIndex: number, col: string, original: any, next: any, intent?: SaveIntent) => void;
   onToggleExpand: (rowIndex: number) => void;
+  onViewValue: CellProps['onViewValue'];
   onToggleSelect: (rowIndex: number, rowKey: string, shift: boolean) => void;
   onRowContext: (e: React.MouseEvent, rowIndex: number) => void;
   onCellContext: (e: React.MouseEvent, rowIndex: number, col: string, value: any) => void;
@@ -1595,6 +1620,7 @@ const Row = memo(function Row(props: RowProps) {
     cancelEdit,
     onCellSave,
     onToggleExpand,
+    onViewValue,
     onToggleSelect,
     onRowContext,
     onCellContext,
@@ -1701,6 +1727,7 @@ const Row = memo(function Row(props: RowProps) {
               onCellSave={onCellSave}
               onCellContext={onCellContext}
               onToggleExpand={onToggleExpand}
+              onViewValue={onViewValue}
             />
           );
         })}
@@ -1794,6 +1821,7 @@ interface CellProps {
   onCellSave: (rowIndex: number, col: string, original: any, next: any, intent?: SaveIntent) => void;
   onCellContext: (e: React.MouseEvent, rowIndex: number, col: string, value: any) => void;
   onToggleExpand?: (rowIndex: number) => void;
+  onViewValue: (col: string, columnType: string | undefined, value: any, anchor: DOMRect) => void;
 }
 
 
@@ -1938,13 +1966,13 @@ const Cell = memo(function Cell(props: CellProps) {
     onCellSave,
     onCellContext,
     onToggleExpand,
+    onViewValue,
   } = props;
 
-  const { selection, editing } = useStores();
+  const { selection, editing, hovered } = useStores();
   const isSelected = useIsHere(selection, rowIndex, col);
   const isEditing = useIsHere(editing, rowIndex, col);
-
-  const [viewerAnchor, setViewerAnchor] = useState<DOMRect | null>(null);
+  const isHovered = useIsHere(hovered, rowIndex, col);
 
   const handleClick = useCallback(
     (_e: React.MouseEvent) => {
@@ -1988,7 +2016,7 @@ const Cell = memo(function Cell(props: CellProps) {
   return (
     <div
       data-cell-col={col}
-      className={`group/cell flex-shrink-0 px-3 flex items-center text-sm text-primary font-mono border-r border-border ${
+      className={`flex-shrink-0 px-3 flex items-center text-sm text-primary font-mono border-r border-border ${
         isFrozen ? 'sticky z-10 bg-inherit' : ''
       } ${stagedCellChanged ? 'bg-warning/30 border-l-2 border-l-warning' : ''} ${
         isSelected ? 'ring-2 ring-inset ring-accent/60 bg-accent/5' : ''
@@ -1999,6 +2027,7 @@ const Cell = memo(function Cell(props: CellProps) {
       }}
       onClick={handleClick}
       onContextMenu={handleContext}
+      onMouseEnter={() => hovered.set({ rowIndex, col })}
     >
       <div data-cell-content className="truncate flex-1 min-w-0">
         {editable ? (
@@ -2018,7 +2047,8 @@ const Cell = memo(function Cell(props: CellProps) {
           <SmartCellDisplay value={value} column={col} columnType={columnType} />
         )}
       </div>
-      <div className="flex-shrink-0 items-center gap-0.5 ml-1 hidden group-hover/cell:flex">
+      {isHovered && (
+      <div className="flex-shrink-0 flex items-center gap-0.5 ml-1">
         {onToggleExpand && (
           <CellAction label="Expand row" onClick={() => onToggleExpand(rowIndex)}>
             <Maximize2 className="h-3 w-3" />
@@ -2027,7 +2057,10 @@ const Cell = memo(function Cell(props: CellProps) {
         <CellAction
           label="Show full value"
           onClick={(e) =>
-            setViewerAnchor(
+            onViewValue(
+              col,
+              columnType,
+              value,
               (e.currentTarget.closest('[data-cell-col]') ?? e.currentTarget).getBoundingClientRect(),
             )
           }
@@ -2040,14 +2073,6 @@ const Cell = memo(function Cell(props: CellProps) {
           </CellAction>
         )}
       </div>
-      {viewerAnchor && (
-        <CellValueViewer
-          column={col}
-          columnType={columnType}
-          value={value}
-          anchor={viewerAnchor}
-          onClose={() => setViewerAnchor(null)}
-        />
       )}
       {fk && value !== null && value !== undefined && (
         <button
@@ -2124,6 +2149,7 @@ interface InsertRowProps {
   selectCell: (rowIndex: number, col: string) => void;
   startEdit: (rowIndex: number, col: string) => void;
   cancelEdit: () => void;
+  onViewValue: CellProps['onViewValue'];
   ins: { tempId: string; values: Record<string, any> };
   onSaveStaged: (tempId: string, col: string, value: any, intent?: SaveIntent) => void;
   onDiscard: (tempId: string) => void;
@@ -2143,6 +2169,7 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
     startEdit,
     cancelEdit,
     ins,
+    onViewValue,
     onSaveStaged,
     onDiscard,
   } = props;
@@ -2210,6 +2237,7 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
             cancelEdit={cancelEdit}
             onCellSave={onCellSave}
             onCellContext={() => {}}
+            onViewValue={onViewValue}
           />
         ))}
       </div>
