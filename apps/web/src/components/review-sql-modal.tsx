@@ -214,7 +214,7 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
               className="mt-0.5 cursor-pointer accent-accent"
             />
             <span className="text-xs text-secondary">
-              I&apos;ve reviewed the impact above and want to proceed.
+              I’ve reviewed the impact above and want to proceed.
             </span>
           </label>
         )}

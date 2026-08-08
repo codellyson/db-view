@@ -1,12 +1,13 @@
 
 import { useEffect, useState } from "react";
 import { useToast, useToasts, type ToastType } from "../../contexts/toast-context";
+import { CircleAlert, CircleCheck, Info, TriangleAlert, X, type LucideIcon } from 'lucide-react';
 
-const typeStyles: Record<ToastType, { bg: string; icon: string }> = {
-  success: { bg: "border-l-success", icon: "\u2713" },
-  error: { bg: "border-l-danger", icon: "!" },
-  warning: { bg: "border-l-warning", icon: "\u26A0" },
-  info: { bg: "border-l-accent", icon: "i" },
+const typeStyles: Record<ToastType, { bg: string; tone: string; Icon: LucideIcon }> = {
+  success: { bg: "border-l-success", tone: "text-success", Icon: CircleCheck },
+  error: { bg: "border-l-danger", tone: "text-danger", Icon: CircleAlert },
+  warning: { bg: "border-l-warning", tone: "text-warning", Icon: TriangleAlert },
+  info: { bg: "border-l-accent", tone: "text-accent", Icon: Info },
 };
 
 function ToastItem({
@@ -45,16 +46,14 @@ function ToastItem({
         ${isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}
       `}
     >
-      <span className="flex-shrink-0 text-sm font-medium">{style.icon}</span>
+      <style.Icon className={`h-4 w-4 flex-shrink-0 ${style.tone}`} />
       <span className="flex-1 truncate">{message}</span>
       <button
         onClick={handleRemove}
         className="flex-shrink-0 text-muted hover:text-primary transition-colors focus:outline-none"
         aria-label="Dismiss notification"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-        </svg>
+        <X className="h-4 w-4" />
       </button>
     </div>
   );

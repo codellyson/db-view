@@ -20,6 +20,7 @@ import {
   ToolbarMenu,
 } from './ui/toolbar';
 import type { Filter } from '@/lib/filters';
+import { Check, X } from 'lucide-react';
 
 export type TableView = 'data' | 'structure';
 
@@ -139,7 +140,7 @@ export function TableToolbar({
                         {f.operator} {String(f.value ?? '')}
                       </span>
                     </span>
-                    <span className="text-muted">✕</span>
+                    <X className="h-3.5 w-3.5 text-muted" />
                   </MenuItem>
                 ))}
                 <MenuSeparator />
@@ -286,7 +287,7 @@ export function TableToolbar({
                 {PAGE_SIZES.map((size) => (
                   <MenuItem key={size} onClick={() => onItemsPerPageChange(size)}>
                     <span className="flex-1">{size}</span>
-                    {size === itemsPerPage && <span className="text-accent">✓</span>}
+                    {size === itemsPerPage && <Check className="h-3.5 w-3.5 text-accent" />}
                   </MenuItem>
                 ))}
               </>

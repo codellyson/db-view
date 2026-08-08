@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ai, type AiStatus } from '@/lib/ai';
+import { Loader2, Sun } from 'lucide-react';
 
 interface AiSqlBarProps {
   /** "postgresql" | "sqlite" | "mysql" — steers dialect-specific SQL. */
@@ -88,10 +89,7 @@ export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated
           aria-label="AI settings"
           className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary disabled:opacity-40 transition-colors flex-shrink-0"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <circle cx="8" cy="8" r="2.25" />
-            <path strokeLinecap="round" d="M8 1.5v1.5M8 13v1.5M1.5 8h1.5M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1" />
-          </svg>
+          <Sun className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={generate}
@@ -99,10 +97,7 @@ export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated
           className="px-3 py-1.5 text-sm rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-40 transition-colors flex-shrink-0 flex items-center gap-1.5"
         >
           {isBusy ? (
-            <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
+            <Loader2 className="animate-spin h-3.5 w-3.5" />
           ) : null}
           {isBusy ? 'Generating…' : 'Generate'}
         </button>

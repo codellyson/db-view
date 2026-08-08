@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { describeFilters, type Filter, type FilterOperator } from '@/lib/filters';
+import { X } from 'lucide-react';
 
 interface FilterChipsProps {
   filters: Filter[];
@@ -60,7 +61,7 @@ export const FilterChips: React.FC<FilterChipsProps> = ({ filters, onRemove, onC
               }}
               className="ml-0.5 px-1 py-0.5 text-muted hover:text-danger hover:bg-danger/10 rounded transition-colors"
             >
-              ×
+              <X className="h-3 w-3" />
             </span>
           </button>
         ))}

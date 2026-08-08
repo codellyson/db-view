@@ -10,6 +10,7 @@ import {
   getEditorLineNumbers, setEditorLineNumbers, EDITOR_SETTINGS_EVENT,
   getTelemetryEnabled, setTelemetryEnabled,
 } from '@/lib/app-settings';
+import { Check } from 'lucide-react';
 
 type Tab = 'ai' | 'appearance' | 'formatting' | 'data' | 'privacy';
 
@@ -230,7 +231,12 @@ const AiSection: React.FC = () => {
             {isLocal ? 'Disconnect' : 'Remove key'}
           </button>
         )}
-        {saved && <span className="text-xs text-green-500">Saved ✓</span>}
+        {saved && (
+          <span className="inline-flex items-center gap-1 text-xs text-success">
+            <Check className="h-3.5 w-3.5" />
+            Saved
+          </span>
+        )}
       </div>
       {error && <p className="text-xs text-danger" role="alert">{error}</p>}
     </div>

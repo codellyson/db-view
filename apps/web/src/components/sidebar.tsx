@@ -4,6 +4,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { TableList } from './table-list';
 import { SidebarSkeleton } from './skeletons/sidebar-skeleton';
 import type { SavedQuery } from '@/types';
+import { ArrowRight, ChevronDown, ChevronRight, Code2, Database, Download, Plus, X } from 'lucide-react';
 
 interface FunctionInfo {
   name: string;
@@ -90,16 +91,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Header band — matches the main Header height so the top border line
           runs flush across both panes and the sidebar no longer looks headless. */}
       <div className="h-12 flex-shrink-0 flex items-center gap-2 px-3 border-b border-border">
-        <svg className="h-4 w-4 text-muted flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <ellipse cx="12" cy="5" rx="8" ry="3" />
-          <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
-          <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" />
-        </svg>
+        <Database className="h-4 w-4 text-muted flex-shrink-0" />
         <span className="text-sm font-medium text-primary truncate" title={databaseName}>
           {databaseName || 'Database'}
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-3 pl-0">
         {schemas && schemas.length > 1 && onSchemaChange && (
           <div className="mb-3">
             <label className="block text-[10px] uppercase tracking-wider font-semibold text-muted mb-1.5 px-1">
@@ -118,9 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </option>
                 ))}
               </select>
-              <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted pointer-events-none" />
             </div>
           </div>
         )}
@@ -145,9 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     title="Batch export tables"
                     aria-label="Batch export tables"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-                    </svg>
+                    <Download className="h-3.5 w-3.5" />
                   </button>
                 ) : undefined
               }
@@ -222,9 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           title="Delete saved query"
                           aria-label="Delete saved query"
                         >
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          <X className="h-3 w-3" />
                         </button>
                       )}
                     </li>
@@ -247,13 +238,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       key={i}
                       className="group px-2.5 py-1.5 text-[13px] rounded-md hover:bg-bg-secondary flex items-start gap-2 transition-colors cursor-default"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-muted group-hover:text-secondary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                      </svg>
+                      <Code2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-muted group-hover:text-secondary transition-colors" />
                       <div className="min-w-0">
                         <div className="font-medium text-secondary group-hover:text-primary truncate transition-colors">{fn.name}</div>
                         <div className="text-[11px] text-muted font-mono truncate">
-                          ({fn.arguments}) &rarr; {fn.return_type}
+                          ({fn.arguments}) <ArrowRight className="inline h-3 w-3 align-middle" /> {fn.return_type}
                         </div>
                       </div>
                     </div>
@@ -291,16 +280,7 @@ const SidebarSection: React.FC<{
         className="flex-1 flex items-center gap-1 py-1.5 px-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted hover:text-secondary transition-colors"
         aria-expanded={isExpanded}
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className={`h-3 w-3 text-muted/60 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
+        <ChevronRight className={`h-3 w-3 text-muted/60 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
         <span>{title}</span>
         <span className="text-muted/50 font-normal">{count}</span>
       </button>
@@ -312,9 +292,7 @@ const SidebarSection: React.FC<{
           title={actionLabel || "Add"}
           aria-label={actionLabel || "Add"}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
+          <Plus className="h-3.5 w-3.5" />
         </button>
       )}
     </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { track } from '@/lib/telemetry';
 import { getTelemetryNoticeSeen, setTelemetryNoticeSeen } from '@/lib/app-settings';
+import { X } from 'lucide-react';
 
 // Module-level guard so `app_opened` fires exactly once per launch, even
 // under React StrictMode's double-invoked effects in dev.
@@ -48,9 +49,7 @@ export const TelemetryNotice: React.FC = () => {
         aria-label="Dismiss"
         className="-mr-0.5 text-muted hover:text-primary transition-colors"
       >
-        <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
-          <path strokeLinecap="round" d="M3 3l10 10M13 3L3 13" />
-        </svg>
+        <X className="w-3 h-3" />
       </button>
     </div>
   );

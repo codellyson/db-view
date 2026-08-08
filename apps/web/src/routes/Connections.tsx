@@ -3,6 +3,7 @@ import { useConnection } from '../contexts/connection-context';
 import { ConnectionForm } from '../components/connection-form';
 import { SavedConnections } from '../components/saved-connections';
 import type { DBConfig } from '../types';
+import { Settings } from 'lucide-react';
 
 // The disconnected landing — saved connections + new-connection form.
 // Rendered inline by `Home` when there's no active session. There's no
@@ -37,10 +38,7 @@ export function Connections() {
         title="Settings"
         aria-label="Settings"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
-          <circle cx="12" cy="12" r="3" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
-        </svg>
+        <Settings className="h-5 w-5" />
       </button>
       <div className="flex-1 flex">
         {/* Vertically centered so the form doesn't sit at the top of a

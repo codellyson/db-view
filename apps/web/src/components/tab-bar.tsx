@@ -1,6 +1,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ContextMenu, useContextMenu, type ContextMenuEntry } from './ui/context-menu';
+import { Pin, X } from 'lucide-react';
 
 export interface Tab {
   id: string;
@@ -179,7 +180,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               title={tab.label}
             >
               {isPinned && (
-                <span className="text-warning text-[10px] flex-shrink-0" aria-label="Pinned">★</span>
+                <Pin className="h-3 w-3 text-warning flex-shrink-0" aria-label="Pinned" />
               )}
               <span
                 className={`flex-shrink-0 font-mono text-[9px] px-1 py-px rounded ${
@@ -199,9 +200,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                   }`}
                   aria-label={`Close ${tab.label}`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="h-3 w-3" />
                 </span>
               )}
             </button>
@@ -259,9 +258,7 @@ export const TabBar: React.FC<TabBarProps> = ({
           title="Close all tabs"
           aria-label="Close all tabs"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X className="h-3.5 w-3.5" />
         </button>
       )}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={close} />}

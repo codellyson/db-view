@@ -30,6 +30,7 @@ import { ExportModal } from './export-modal';
 import { AiSqlBar } from './ai-sql-bar';
 import { ExplainPlan } from './explain-plan';
 import { useAiSchemaText } from '../hooks/use-ai-schema';
+import { AlignLeft, BarChart3, Bookmark, Clock, Download, Play, RefreshCw, Sparkles, X } from 'lucide-react';
 
 interface PendingQueryConfirmation {
   sql: string;
@@ -635,7 +636,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 title="Generate SQL with AI"
                 aria-pressed={showAiGenerate}
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" /></svg>
+                <Sparkles className="w-4 h-4" />
               </button>
               <div className="w-5 border-t border-border my-0.5" />
               <button
@@ -644,7 +645,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 className="w-7 h-7 flex items-center justify-center rounded text-green-500 hover:bg-green-500/15 disabled:opacity-30 transition-colors"
                 title={hasSelection ? 'Run Selection (Ctrl+Enter)' : 'Execute (Ctrl+Enter)'}
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg>
+                <Play className="w-4 h-4" />
               </button>
               <div className="w-5 border-t border-border my-0.5" />
               <button
@@ -653,7 +654,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary disabled:opacity-30 transition-colors"
                 title="Format SQL"
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="10" height="2" rx="1"/><rect x="1" y="12" width="12" height="2" rx="1"/></svg>
+                <AlignLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={handleExplain}
@@ -661,7 +662,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
                 title="Explain query plan"
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 14V2M2 14h12M5 14V7M8 14V4M11 14V8" strokeLinecap="round"/></svg>
+                <BarChart3 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => {
@@ -672,7 +673,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
                 title="Save query"
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M12 1H4a2 2 0 00-2 2v11l6-3.5 6 3.5V3a2 2 0 00-2-2z"/></svg>
+                <Bookmark className="w-4 h-4" />
               </button>
               <button
                 onClick={handleClear}
@@ -680,14 +681,14 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-danger hover:bg-danger/10 disabled:opacity-30 transition-colors"
                 title="Clear"
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+                <X className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setShowHistory(!showHistory)}
                 className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${showHistory ? 'text-accent bg-accent/15' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
                 title="History"
               >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2.5 2.5"/></svg>
+                <Clock className="w-4 h-4" />
               </button>
             </div>
             <div className="flex-1 min-w-0 h-full">
@@ -714,9 +715,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
                   title="Send the error and query to the AI for a fix"
                 >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                    <path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" />
-                  </svg>
+                  <Sparkles className="w-3.5 h-3.5" />
                   {isFixing ? 'Fixing…' : 'Fix with AI'}
                 </button>
               ) : undefined}
@@ -754,9 +753,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
                     title="Have the AI read the plan and suggest improvements"
                   >
-                    <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                      <path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" />
-                    </svg>
+                    <Sparkles className="w-3 h-3" />
                     {isInterpreting ? 'Interpreting…' : 'Interpret with AI'}
                   </button>
                 )}
@@ -766,7 +763,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                   title="Close plan"
                   aria-label="Close plan"
                 >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -866,9 +863,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 title="Export result"
                 aria-label="Export result"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3" />
-                </svg>
+                <Download className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={refreshResults}
@@ -877,9 +872,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 title="Refresh results (re-run this tab's query)"
                 aria-label="Refresh results"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-3.5 w-3.5 ${isExecuting ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
+                <RefreshCw className={`h-3.5 w-3.5 ${isExecuting ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>

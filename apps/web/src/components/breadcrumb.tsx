@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronRight } from 'lucide-react';
 
 interface BreadcrumbItem {
   label: string;
@@ -20,9 +21,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items }) => {
           return (
             <li key={index} className="flex items-center gap-1.5 min-w-0">
               {index > 0 && (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 flex-shrink-0 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted" />
               )}
               {isLast || !item.onClick ? (
                 <span

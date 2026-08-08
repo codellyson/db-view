@@ -139,7 +139,7 @@ const TruncatedBanner: React.FC<{
   return (
     <div className="border border-border rounded-md p-3 bg-bg-secondary/30 space-y-2 text-[11px] text-muted">
       <div>
-        We didn&apos;t finish mapping the cascade. The breakdown above is partial.
+        We didn’t finish mapping the cascade. The breakdown above is partial.
       </div>
       {onRunFullPreview && (
         <button

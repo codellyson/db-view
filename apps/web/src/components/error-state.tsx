@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "./ui/button";
+import { X } from 'lucide-react';
 
 interface ErrorStateProps {
   message: string;
@@ -7,7 +8,7 @@ interface ErrorStateProps {
   className?: string;
   /** Extra action(s) rendered alongside Retry (e.g. "Fix with AI"). */
   action?: React.ReactNode;
-  /** When provided, shows a dismiss (✕) button that clears the error. */
+  /** When provided, shows a dismiss button that clears the error. */
   onDismiss?: () => void;
 }
 
@@ -68,9 +69,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
                 title="Dismiss"
                 className="p-1.5 rounded-md text-danger/70 hover:text-danger hover:bg-danger/10 transition-colors"
               >
-                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
-                  <line x1="3" y1="3" x2="13" y2="13" /><line x1="13" y1="3" x2="3" y2="13" />
-                </svg>
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
           </div>

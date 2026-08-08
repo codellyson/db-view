@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 
 interface ForeignKey {
   constraint_name: string;
@@ -50,7 +51,7 @@ export const RelationshipDisplay: React.FC<RelationshipDisplayProps> = ({
               {relationships.map((fk, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm text-primary">
                   <span className="font-mono font-medium">{fk.source_column}</span>
-                  <span className="text-muted">&rarr;</span>
+                  <ArrowRight className="h-3 w-3 text-muted" />
                   {onNavigateToTable ? (
                     <button
                       onClick={() => onNavigateToTable(fk.target_table)}

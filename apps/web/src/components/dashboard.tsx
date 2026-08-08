@@ -42,6 +42,7 @@ import { useKeyboardShortcuts, type Shortcut } from "../hooks/use-keyboard-short
 import { useTableListPrefs } from "../hooks/use-table-list-prefs";
 import { useUrlState } from "../hooks/use-url-state";
 import { usePlugins } from "../hooks/use-plugins";
+import { Plus, Sparkles } from 'lucide-react';
 
 export function Dashboard() {
   const { isConnected, databaseName, databaseType } = useConnection();
@@ -506,9 +507,7 @@ export function Dashboard() {
                   title="New SQL editor (Alt+Q)"
                   aria-label="New SQL editor tab"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
+                  <Plus className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={() => setIsAiOpen((v) => !v)}
@@ -519,9 +518,7 @@ export function Dashboard() {
                   aria-label="Toggle AI mode"
                   aria-pressed={isAiOpen}
                 >
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                    <path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" />
-                  </svg>
+                  <Sparkles className="h-3.5 w-3.5" />
                   AI
                 </button>
               </>
@@ -586,7 +583,7 @@ export function Dashboard() {
                         Query Result
                       </h1>
                       <span className="text-sm text-muted font-mono flex-shrink-0">
-                        {qr.rows.length} {qr.rows.length === 1 ? 'row' : 'rows'} &middot; {qr.executionTime}ms
+                        {qr.rows.length} {qr.rows.length === 1 ? 'row' : 'rows'} · {qr.executionTime}ms
                       </span>
                     </div>
                     <QueryResultGrid

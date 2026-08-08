@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import { QueryHistoryEntry } from "@/types";
 import { fuzzyMatch } from "@/lib/fuzzy";
+import { Star, X } from 'lucide-react';
 
 interface QueryHistoryProps {
   entries: QueryHistoryEntry[];
@@ -107,7 +108,7 @@ export const QueryHistory: React.FC<QueryHistoryProps> = ({
                     }`}
                     aria-label={entry.isFavorite ? "Unfavorite query" : "Favorite query"}
                   >
-                    {entry.isFavorite ? "★" : "☆"}
+                    <Star className={`h-3.5 w-3.5 ${entry.isFavorite ? "fill-warning text-warning" : ""}`} />
                   </button>
                   {onSave && (
                     <button
@@ -130,7 +131,7 @@ export const QueryHistory: React.FC<QueryHistoryProps> = ({
                     className="px-1 text-sm text-muted hover:text-danger transition-colors"
                     aria-label="Delete query from history"
                   >
-                    &times;
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>

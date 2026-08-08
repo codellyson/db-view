@@ -7,6 +7,7 @@ import { useDashboardActions } from '../contexts/dashboard-context';
 import { useToast } from '../contexts/toast-context';
 import { useAiSchemaText } from '../hooks/use-ai-schema';
 import { useChatHistory, type UiMessage } from '../hooks/use-chat-history';
+import { AlignLeft, ArrowUp, Check, Loader2, Pencil, Plus, Sparkles, X } from 'lucide-react';
 
 interface AiChatPanelProps {
   onClose: () => void;
@@ -51,9 +52,7 @@ const ChatMarkdown: React.FC<{ children: string }> = ({ children }) => (
 );
 
 const SparkleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-    <path d="M7 2l1.35 3.65L12 7l-3.65 1.35L7 12l-1.35-3.65L2 7l3.65-1.35zM11.9 9.8l.56 1.54L14 11.9l-1.54.56L11.9 14l-.56-1.54L9.8 11.9l1.54-.56z" />
-  </svg>
+  <Sparkles className={className} />
 );
 
 const fmtCell = (v: unknown): string =>
@@ -70,7 +69,7 @@ const StepRow: React.FC<{ step: ChatStep }> = ({ step }) => (
         ? '✎'
         : step.kind === 'list_tables' || step.kind === 'describe_table'
           ? '🔍'
-          : step.ok ? '✓' : '✕'}
+          : step.ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
     </span>
     <div className="min-w-0 flex-1">
       <code className="block font-mono text-muted break-all whitespace-pre-wrap">{step.sql}</code>
@@ -354,7 +353,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
             title="New chat"
             aria-label="New chat"
           >
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"><path d="M8 3v10M3 8h10" /></svg>
+            <Plus className="w-4 h-4" />
           </button>
           <button
             onClick={() => setShowChats((v) => !v)}
@@ -363,7 +362,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
             aria-label="Conversations"
             aria-expanded={showChats}
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"><path d="M2 4h12M2 8h12M2 12h8" /></svg>
+            <AlignLeft className="w-3.5 h-3.5" />
             {conversations.length > 0 && <span className="font-mono">{conversations.length}</span>}
           </button>
           <button
@@ -372,9 +371,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
             title="Close AI mode"
             aria-label="Close AI mode"
           >
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-              <line x1="3" y1="3" x2="13" y2="13" /><line x1="13" y1="3" x2="3" y2="13" />
-            </svg>
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -417,7 +414,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
                   title="Rename"
                   aria-label="Rename conversation"
                 >
-                  <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 2l3 3-8 8H3v-3z" strokeLinejoin="round" /></svg>
+                  <Pencil className="w-3 h-3" />
                 </button>
                 <button
                   onClick={() => deleteChat(c.id)}
@@ -425,7 +422,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
                   title="Delete"
                   aria-label="Delete conversation"
                 >
-                  <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="3" y1="3" x2="13" y2="13" /><line x1="13" y1="3" x2="3" y2="13" /></svg>
+                  <X className="w-3 h-3" />
                 </button>
               </div>
             ))
@@ -524,10 +521,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
               </div>
             ) : (
               <div className="flex items-center gap-2 text-sm text-muted">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
+                <Loader2 className="animate-spin h-4 w-4" />
                 {liveSteps.length > 0 ? 'Thinking…' : 'Working…'}
               </div>
             )}
@@ -573,9 +567,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
               title="Send (Enter)"
               aria-label="Send"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M8 13V3" /><path d="M3.5 7.5L8 3l4.5 4.5" />
-              </svg>
+              <ArrowUp className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

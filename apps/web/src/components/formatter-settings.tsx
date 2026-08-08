@@ -6,6 +6,7 @@ import { Select } from "./ui/select";
 import { DEFAULT_FORMATTERS } from "@/lib/default-plugins";
 import type { FormatterPreset, FormatterMatcher } from "@/lib/plugin-types";
 import { usePlugins } from "../hooks/use-plugins";
+import { ArrowRight } from 'lucide-react';
 
 interface FormatterSettingsProps {
   isOpen: boolean;
@@ -75,7 +76,7 @@ export const FormatterSettingsBody: React.FC = () => {
                 <div>
                   <div className="text-sm font-medium text-primary">{f.name}</div>
                   <div className="text-xs text-muted">
-                    {f.matcher.type}: {f.matcher.value} &rarr; {f.preset}
+                    {f.matcher.type}: {f.matcher.value} <ArrowRight className="inline h-3 w-3 align-middle" /> {f.preset}
                   </div>
                 </div>
                 <button
@@ -108,7 +109,7 @@ export const FormatterSettingsBody: React.FC = () => {
                   <div>
                     <div className="text-sm font-medium text-primary">{f.name}</div>
                     <div className="text-xs text-muted">
-                      {f.matcher.type}: {f.matcher.value} &rarr; {f.preset}
+                      {f.matcher.type}: {f.matcher.value} <ArrowRight className="inline h-3 w-3 align-middle" /> {f.preset}
                     </div>
                   </div>
                   <button

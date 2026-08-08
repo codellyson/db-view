@@ -4,6 +4,7 @@ import { useConnection } from '../contexts/connection-context';
 import { useToast } from '../contexts/toast-context';
 import { ConfirmDialog } from './ui/confirm-dialog';
 import { describeConnection } from '@/lib/connection-url';
+import { ChevronDown, Loader2, LogOut, X } from 'lucide-react';
 
 interface ConnectionSelectorProps {
   status: 'connected' | 'connecting' | 'disconnected';
@@ -94,16 +95,7 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
           }`}
         />
         <span className="truncate max-w-[160px]">{label}</span>
-        <svg
-          className={`w-3.5 h-3.5 text-muted flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.75}
-          aria-hidden="true"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6l4 4 4-4" />
-        </svg>
+        <ChevronDown className={`w-3.5 h-3.5 text-muted flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -167,19 +159,14 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
                           </p>
                         </div>
                         {isConnecting && switchingTo === connection.id ? (
-                          <svg className="ml-2 h-4 w-4 animate-spin text-accent flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                          </svg>
+                          <Loader2 className="ml-2 h-4 w-4 animate-spin text-accent flex-shrink-0" />
                         ) : (
                           <button
                             onClick={(e) => handleDelete(e, connection.id)}
                             className="ml-2 flex items-center justify-center w-6 h-6 rounded text-muted hover:text-danger hover:bg-danger/10 transition-colors"
                             aria-label={`Delete connection ${connection.name}`}
                           >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l10 10M13 3L3 13" />
-                            </svg>
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
@@ -195,9 +182,7 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
               disabled={isConnecting}
               className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-danger border-t border-border hover:bg-danger/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 14H3.5A1.5 1.5 0 012 12.5v-9A1.5 1.5 0 013.5 2H6M10.5 11l3-3-3-3M13 8H6" />
-              </svg>
+              <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
               Disconnect
             </button>
           </div>

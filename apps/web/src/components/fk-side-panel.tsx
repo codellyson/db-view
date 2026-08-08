@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '@/lib/db';
 import type { ForeignKeyTarget } from './query-result-grid';
+import { ExternalLink, X } from 'lucide-react';
 
 export interface FKQuery {
   /** column on the source row that initiated the lookup, for breadcrumb display */
@@ -145,9 +146,7 @@ export const FKSidePanel: React.FC<FKSidePanelProps> = ({
               className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 transition-colors"
               title="Open this table in a new tab"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 3H3.5A1.5 1.5 0 002 4.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V10M9.5 2.5H13.5V6.5M13.5 2.5L7.5 8.5" />
-              </svg>
+              <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
               Open table
             </button>
             <button
@@ -155,9 +154,7 @@ export const FKSidePanel: React.FC<FKSidePanelProps> = ({
               className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors"
               aria-label="Close"
             >
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l10 10M13 3L3 13" />
-              </svg>
+              <X className="w-4 h-4" />
             </button>
           </div>
         </header>

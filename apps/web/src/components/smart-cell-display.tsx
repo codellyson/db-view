@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState, memo } from 'react';
 import { createPortal } from 'react-dom';
+import { Check, Copy, Eye } from 'lucide-react';
 
 interface SmartCellDisplayProps {
   value: any;
@@ -92,10 +93,7 @@ export const SmartCellDisplay = memo(function SmartCellDisplay({
           title="Click to reveal"
         >
           <span className="font-mono tracking-widest select-none">••••••••</span>
-          <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2 8c2-3.5 4.5-5 6-5s4 1.5 6 5c-2 3.5-4.5 5-6 5s-4-1.5-6-5z" />
-            <circle cx="8" cy="8" r="2" />
-          </svg>
+          <Eye className="w-3 h-3 flex-shrink-0" />
         </span>
       );
     }
@@ -138,14 +136,9 @@ export const SmartCellDisplay = memo(function SmartCellDisplay({
           aria-label="Copy UUID"
         >
           {copied ? (
-            <svg className="w-3 h-3 text-success" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l3 3 7-7" />
-            </svg>
+            <Check className="w-3 h-3 text-success" />
           ) : (
-            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
-              <rect x="5" y="5" width="9" height="9" rx="1" />
-              <path d="M3 11V3a1 1 0 011-1h8" />
-            </svg>
+            <Copy className="w-3 h-3" />
           )}
         </button>
       </span>

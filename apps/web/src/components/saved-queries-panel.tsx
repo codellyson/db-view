@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from "react";
 import { SavedQuery } from "@/types";
+import { X } from 'lucide-react';
 
 interface SavedQueriesPanelProps {
   queries: SavedQuery[];
@@ -129,7 +130,7 @@ export const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
                 className="px-1 text-sm text-muted hover:text-danger transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
                 aria-label="Delete saved query"
               >
-                &times;
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>

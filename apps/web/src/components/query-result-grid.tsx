@@ -43,6 +43,7 @@ import {
   type TablePending,
 } from '@/contexts/pending-changes-context';
 import type { ColumnInfo } from '@/types';
+import { ArrowUpRight, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 const ROW_HEIGHT = 36;
 const HEADER_HEIGHT = 40;
@@ -1520,18 +1521,7 @@ const HeaderCell = memo(function HeaderCell({
           {col}
         </span>
         {sortState && (
-          <svg
-            className="w-3 h-3 text-accent flex-shrink-0"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            aria-label={sortState === 'asc' ? 'ascending' : 'descending'}
-          >
-            {sortState === 'asc' ? (
-              <path d="M8 5l4 6H4z" />
-            ) : (
-              <path d="M8 11l-4-6h8z" />
-            )}
-          </svg>
+          <ChevronUp className="w-3 h-3 text-accent flex-shrink-0" />
         )}
       </div>
       {columnType && (
@@ -1657,20 +1647,9 @@ const Row = memo(function Row(props: RowProps) {
           <span className={`group-hover/rownum:hidden ${isExpanded ? 'hidden' : ''}`}>
             {rowIndex + 1}
           </span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className={`h-3.5 w-3.5 hidden group-hover/rownum:block ${
+          <ChevronRight className={`h-3.5 w-3.5 hidden group-hover/rownum:block ${
               isExpanded ? 'rotate-90 !block' : ''
-            }`}
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-              clipRule="evenodd"
-            />
-          </svg>
+            }`} />
         </div>
         {/* Checkbox column (only when editable) */}
         {canEdit && rowKey && (
@@ -1898,9 +1877,7 @@ const Cell = memo(function Cell(props: CellProps) {
           title={`Open ${fk.schema}.${fk.table} where ${fk.column} = ${String(value)}`}
           aria-label="Follow foreign key"
         >
-          <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M5.22 14.78a.75.75 0 0 0 1.06 0l7.22-7.22v3.69a.75.75 0 0 0 1.5 0v-5.5a.75.75 0 0 0-.75-.75h-5.5a.75.75 0 0 0 0 1.5h3.69L5.22 13.72a.75.75 0 0 0 0 1.06Z" />
-          </svg>
+          <ArrowUpRight className="w-3 h-3" />
         </button>
       )}
     </div>
@@ -2028,9 +2005,7 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
           aria-label="Discard this new record"
           title="Discard this new record"
         >
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <X className="h-3.5 w-3.5" />
         </button>
         {canEdit && <div className="flex-shrink-0" style={{ width: CHECKBOX_WIDTH }} />}
         {displayColumns.map((col, idx) => (
