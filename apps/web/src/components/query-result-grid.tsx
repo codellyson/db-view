@@ -1423,7 +1423,7 @@ const HeaderRow = memo(function HeaderRow(props: HeaderRowProps) {
       className="bg-bg-secondary sticky top-0 z-30 flex border-b border-border"
       style={{ height: HEADER_HEIGHT }}
     >
-      <div className="flex-shrink-0" style={{ width: ROW_NUM_WIDTH }} />
+      <div className="flex-shrink-0 border-r border-border" style={{ width: ROW_NUM_WIDTH }} />
       {canEdit && (
         <SelectAllCheckbox
           allRowKeys={allRowKeys}
@@ -1639,7 +1639,7 @@ const Row = memo(function Row(props: RowProps) {
       >
         {/* Row-number column */}
         <div
-          className="flex-shrink-0 flex items-center justify-center text-[10px] font-mono text-muted hover:text-primary cursor-pointer group/rownum"
+          className="flex-shrink-0 flex items-center justify-center border-r border-border text-[10px] font-mono text-muted hover:text-primary cursor-pointer group/rownum"
           style={{ width: ROW_NUM_WIDTH }}
           onClick={() => onToggleExpand(rowIndex)}
           title="Expand row"
@@ -1654,7 +1654,7 @@ const Row = memo(function Row(props: RowProps) {
         {/* Checkbox column (only when editable) */}
         {canEdit && rowKey && (
           <div
-            className="flex-shrink-0 flex items-center justify-center"
+            className="flex-shrink-0 flex items-center justify-center border-r border-border"
             style={{ width: CHECKBOX_WIDTH }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1671,7 +1671,7 @@ const Row = memo(function Row(props: RowProps) {
           </div>
         )}
         {canEdit && !rowKey && (
-          <div className="flex-shrink-0" style={{ width: CHECKBOX_WIDTH }} />
+          <div className="flex-shrink-0 border-r border-border" style={{ width: CHECKBOX_WIDTH }} />
         )}
         {/* Data cells */}
         {displayColumns.map((col, idx) => {
@@ -1837,8 +1837,8 @@ const Cell = memo(function Cell(props: CellProps) {
   return (
     <div
       data-cell-col={col}
-      className={`flex-shrink-0 px-3 flex items-center text-sm text-primary font-mono ${
-        isFrozen ? 'sticky z-10 bg-inherit border-r border-border' : ''
+      className={`flex-shrink-0 px-3 flex items-center text-sm text-primary font-mono border-r border-border ${
+        isFrozen ? 'sticky z-10 bg-inherit' : ''
       } ${stagedCellChanged ? 'bg-warning/30 border-l-2 border-l-warning' : ''} ${
         isSelected ? 'ring-2 ring-inset ring-accent/60 bg-accent/5' : ''
       }`}
@@ -1911,7 +1911,7 @@ const SelectAllCheckbox = memo(function SelectAllCheckbox({
   }, [state]);
   return (
     <div
-      className="flex-shrink-0 flex items-center justify-center"
+      className="flex-shrink-0 flex items-center justify-center border-r border-border"
       style={{ width: CHECKBOX_WIDTH }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -2007,7 +2007,7 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
         >
           <X className="h-3.5 w-3.5" />
         </button>
-        {canEdit && <div className="flex-shrink-0" style={{ width: CHECKBOX_WIDTH }} />}
+        {canEdit && <div className="flex-shrink-0 border-r border-border" style={{ width: CHECKBOX_WIDTH }} />}
         {displayColumns.map((col, idx) => (
           <Cell
             key={col}
