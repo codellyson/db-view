@@ -37,7 +37,7 @@ export const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonPr
         variant={variant === 'accent' ? 'primary' : 'outline'}
         size="sm"
         className={cn(
-          'gap-1.5 px-2.5 text-sm',
+          'gap-2 px-3 text-sm',
           active && variant !== 'accent' && 'bg-bg-secondary text-primary',
           className
         )}
@@ -118,7 +118,7 @@ export function ToolbarGroup({
     <div
       className={cn(
         'flex items-center shrink-0',
-        bordered ? 'gap-0 rounded-md border border-border h-8 px-0.5' : 'gap-0.5',
+        bordered ? 'gap-0.5 rounded-md border border-border h-8 px-1' : 'gap-1.5',
         className
       )}
     >
@@ -150,7 +150,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(opt.value)}
             aria-pressed={selected}
             className={cn(
-              'inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-sm font-medium transition-all',
+              'inline-flex items-center gap-2 h-7 px-3 rounded text-sm font-medium transition-all',
               selected
                 ? 'bg-bg text-primary shadow-sm'
                 : 'text-secondary hover:text-primary'
