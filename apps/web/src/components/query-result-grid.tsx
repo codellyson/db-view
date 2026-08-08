@@ -1151,6 +1151,37 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     [schema, table, stageInsert, rowVirtualizer],
   );
 
+  // Right-click on the blank area below the rows. Row and cell handlers own
+  // their own targets, so bail when the click landed on one.
+  const onCanvasContext = useCallback(
+    (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest('[data-index]')) return;
+      e.preventDefault();
+      const items: ContextMenuEntry[] = [];
+      if (canInsert) {
+        items.push({
+          label: 'Add record',
+          onClick: () => {
+            if (schema && table) stageInsert({ schema, table });
+          },
+        });
+      }
+      if (filteredData.length > 0) {
+        if (items.length > 0) items.push({ type: 'divider' });
+        if (onBulkExport) {
+          items.push({ label: `Export ${filteredData.length} rows`, onClick: () => onBulkExport(filteredData) });
+        }
+        items.push({
+          label: 'Copy rows as JSON',
+          onClick: () => void navigator.clipboard.writeText(JSON.stringify(filteredData, null, 2)),
+        });
+      }
+      if (items.length === 0) return;
+      showMenu(e, items);
+    },
+    [canInsert, schema, table, stageInsert, filteredData, onBulkExport, showMenu],
+  );
+
   // Bulk export: snapshot the rows backing the selected row keys.
   const exportSelected = useCallback(() => {
     if (!onBulkExport) return;
@@ -1189,6 +1220,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
       <div className={`relative flex flex-col min-h-0${fillParent ? ' flex-1' : ''}`}>
       <div
         ref={scrollContainerRef}
+        onContextMenu={onCanvasContext}
         className={`border border-border rounded-md overflow-auto relative bg-bg${
           fillParent ? ' flex-1 min-h-0' : ''
         }`}
