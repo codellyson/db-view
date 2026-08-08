@@ -7,6 +7,8 @@ export type SaveIntent = 'right' | 'left' | 'down' | null;
 
 interface EditableCellProps {
   value: any;
+  /** Token shown for an untouched draft cell (NULL / DEFAULT). */
+  placeholder?: string;
   column: string;
   columnType?: string;
   onSave: (column: string, newValue: any, intent?: SaveIntent) => void;
@@ -93,6 +95,7 @@ function computePosition(anchor: DOMRect, popoverSize: { width: number; height: 
 
 export const EditableCell = memo(function EditableCell({
   value,
+  placeholder,
   column,
   columnType,
   onSave,
@@ -242,7 +245,11 @@ export const EditableCell = memo(function EditableCell({
         className={`truncate ${!disabled ? 'cursor-text' : ''} ${isEditing ? 'opacity-40' : ''}`}
         onDoubleClick={!disabled ? onStartEdit : undefined}
       >
-        <SmartCellDisplay value={value} column={column} columnType={columnType} />
+        {placeholder !== undefined && value === undefined ? (
+          <span className="text-warning/80">{placeholder}</span>
+        ) : (
+          <SmartCellDisplay value={value} column={column} columnType={columnType} />
+        )}
       </div>
 
       {isEditing && position && typeof window !== 'undefined' &&

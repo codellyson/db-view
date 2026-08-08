@@ -65,6 +65,9 @@ interface TableToolbarProps {
 
   canAddRecord?: boolean;
   onAddRecord: () => void;
+  pendingCount?: number;
+  onSaveChanges: () => void;
+  onDiscardChanges: () => void;
   onImportCsv: () => void;
   onExport: () => void;
 }
@@ -99,6 +102,9 @@ export function TableToolbar({
   onRefreshSchema,
   canAddRecord,
   onAddRecord,
+  pendingCount = 0,
+  onSaveChanges,
+  onDiscardChanges,
   onImportCsv,
   onExport,
 }: TableToolbarProps) {
@@ -234,6 +240,25 @@ export function TableToolbar({
       >
         <span className="hidden lg:inline">Add record</span>
       </ToolbarButton>
+
+      {pendingCount > 0 && view === 'data' && (
+        <>
+          <ToolbarButton
+            onClick={onSaveChanges}
+            className="bg-success/15 text-success hover:bg-success/25"
+            title={`Review and run ${pendingCount} pending ${pendingCount === 1 ? 'change' : 'changes'}`}
+          >
+            Save changes
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={onDiscardChanges}
+            className="underline underline-offset-2 hover:text-danger"
+            title="Discard all pending changes"
+          >
+            Discard changes
+          </ToolbarButton>
+        </>
+      )}
 
       <div className="relative shrink-0">
         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted pointer-events-none" />

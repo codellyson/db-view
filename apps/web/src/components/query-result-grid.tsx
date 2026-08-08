@@ -128,9 +128,8 @@ export interface QueryResultGridProps {
 }
 
 export interface QueryResultGridHandle {
-  /** Scroll to the always-present empty insert row (when canInsert). No-op
-   *  until Batch 5 lands the inline insert flow. */
-  scrollToEmptyRow: () => void;
+  /** Stage a new draft row at the top and bring it into view. */
+  addRecord: () => void;
 }
 
 // ─── External stores ─────────────────────────────────────────────────────
@@ -361,6 +360,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     schema,
     table,
     primaryKeys = [],
+    columnSchema,
     pksFromRow,
     columnToSource,
     onCellUpdate,
@@ -412,6 +412,16 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
   // we know where to send the staged insert. When false, no inline insert
   // row is rendered.
   const canInsert = canEdit && !!schema && !!table;
+
+  // What an untouched draft cell will send: the column default when it has
+  // one, otherwise NULL.
+  const columnDefaults = useMemo(() => {
+    const map: Record<string, 'DEFAULT' | 'NULL'> = {};
+    for (const col of columnSchema ?? []) {
+      map[col.name] = col.default != null ? 'DEFAULT' : 'NULL';
+    }
+    return map;
+  }, [columnSchema]);
   const stagedInserts = tablePending?.inserts ?? [];
 
   const getRowPks = useCallback(
@@ -520,9 +530,10 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     () => (expandedIdx !== null ? (el: Element) => el.getBoundingClientRect().height : undefined),
     [expandedIdx],
   );
-  // Virtual rows = data rows + staged inserts + (canInsert ? 1 empty placeholder : 0).
-  const emptyRowIndex = filteredData.length + stagedInserts.length;
-  const totalVirtualRows = emptyRowIndex + (canInsert ? 1 : 0);
+  // Drafts lead the virtual list, so a new record appears where the user is
+  // looking rather than below however many rows are loaded.
+  const draftCount = stagedInserts.length;
+  const totalVirtualRows = draftCount + filteredData.length;
   const rowVirtualizer = useVirtualizer({
     count: totalVirtualRows,
     getScrollElement: () => scrollContainerRef.current,
@@ -559,7 +570,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
       else if (intent === 'down') nextRow += 1;
       if (
         nextRow < 0 ||
-        nextRow >= filteredData.length ||
+        nextRow >= totalVirtualRows ||
         nextCol < 0 ||
         nextCol >= displayColumns.length
       ) {
@@ -568,13 +579,19 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
       stores.editing.set({ rowIndex: nextRow, col: displayColumns[nextCol] });
       return true;
     },
-    [displayColumns, filteredData.length, stores],
+    [displayColumns, totalVirtualRows, stores],
+  );
+
+  /** Virtual index -> backing DB row; undefined for the leading drafts. */
+  const rowAt = useCallback(
+    (virtualIndex: number) => filteredData[virtualIndex - draftCount],
+    [filteredData, draftCount],
   );
 
   const handleCellSave = useCallback(
     (rowIndex: number, col: string, originalValue: any, nextValue: any, intent?: SaveIntent) => {
       if (!onCellUpdate) return;
-      const row = filteredData[rowIndex];
+      const row = rowAt(rowIndex);
       if (!row) return;
       const pks = getRowPks(row);
       const baseColumn = columnToSource?.[col] ?? col;
@@ -583,13 +600,13 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
         stores.editing.set(null);
       }
     },
-    [onCellUpdate, filteredData, getRowPks, columnToSource, moveEdit, stores],
+    [onCellUpdate, rowAt, getRowPks, columnToSource, moveEdit, stores],
   );
 
   const handleRowDelete = useCallback(
     (rowIndex: number) => {
       if (!onRowDelete) return;
-      const row = filteredData[rowIndex];
+      const row = rowAt(rowIndex);
       if (!row) return;
       const pks = getRowPks(row);
       onRowDelete({ pks, snapshot: row });
@@ -613,14 +630,6 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     [schema, table, updateInsert, stores],
   );
 
-  const handleEmptyRowSave = useCallback(
-    (col: string, value: any) => {
-      if (!schema || !table) return;
-      stageInsert({ schema, table, values: { [col]: value } });
-      stores.editing.set(null);
-    },
-    [schema, table, stageInsert, stores],
-  );
 
   const handleDiscardInsert = useCallback(
     (tempId: string) => {
@@ -822,7 +831,7 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
         {
           label: 'Copy row as JSON',
           onClick: () => {
-            const row = filteredData[rowIndex];
+            const row = rowAt(rowIndex);
             if (!row) return;
             void navigator.clipboard.writeText(JSON.stringify(row, null, 2));
           },
@@ -838,12 +847,12 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
       }
       showMenu(e, items);
     },
-    [stores, filteredData, canEdit, handleRowDelete, showMenu],
+    [stores, rowAt, canEdit, handleRowDelete, showMenu],
   );
 
   const onCellContext = useCallback(
     (e: React.MouseEvent, rowIndex: number, col: string, value: any) => {
-      const row = filteredData[rowIndex];
+      const row = rowAt(rowIndex);
       if (!row) return;
       const editable = canEdit && !readOnlyColumnSet.has(col);
       const baseColumn = columnToSource?.[col] ?? col;
@@ -1130,17 +1139,16 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
     ],
   );
 
-  // Imperative ref. The empty insert row sits at the bottom of the virtual
-  // list; scrolling to it brings the user there.
   useImperativeHandle(
     ref,
     () => ({
-      scrollToEmptyRow: () => {
-        if (canInsert) rowVirtualizer.scrollToIndex(emptyRowIndex, { align: 'end' });
-        else if (filteredData.length > 0) rowVirtualizer.scrollToIndex(filteredData.length - 1);
+      addRecord: () => {
+        if (!schema || !table) return;
+        stageInsert({ schema, table });
+        rowVirtualizer.scrollToIndex(0, { align: 'start' });
       },
     }),
-    [canInsert, emptyRowIndex, filteredData.length, rowVirtualizer],
+    [schema, table, stageInsert, rowVirtualizer],
   );
 
   // Bulk export: snapshot the rows backing the selected row keys.
@@ -1229,10 +1237,32 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
           >
             {rowVirtualizer.getVirtualItems().map((vr) => {
               const idx = vr.index;
-              // Regular DB row.
-              if (idx < filteredData.length) {
-                const row = filteredData[idx];
-                if (!row) return null;
+              // Draft rows lead.
+              if (idx < draftCount) {
+                const ins = stagedInserts[idx];
+                if (!ins) return null;
+                return (
+                  <InsertRow
+                    key={vr.key}
+                    rowIndex={idx}
+                    top={vr.start}
+                    displayColumns={displayColumns}
+                    columnTypes={columnTypes}
+                    columnDefaults={columnDefaults}
+                    canEdit={canEdit}
+                    frozen={layout.frozen}
+                    frozenLeft={frozenLeft}
+                    selectCell={selectCell}
+                    startEdit={startEdit}
+                    cancelEdit={cancelEdit}
+                    ins={ins}
+                    onSaveStaged={handleStagedInsertSave}
+                    onDiscard={handleDiscardInsert}
+                  />
+                );
+              }
+              const row = rowAt(idx);
+              if (row) {
                 return (
                   <Row
                     key={vr.key}
@@ -1260,52 +1290,6 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
                     frozen={layout.frozen}
                     frozenLeft={frozenLeft}
                     measureRef={rowVirtualizer.measureElement}
-                  />
-                );
-              }
-              // Staged insert.
-              if (idx < emptyRowIndex) {
-                const ins = stagedInserts[idx - filteredData.length];
-                if (!ins) return null;
-                return (
-                  <InsertRow
-                    key={vr.key}
-                    rowIndex={idx}
-                    top={vr.start}
-                    displayColumns={displayColumns}
-                    columnTypes={columnTypes}
-                    canEdit={canEdit}
-                    frozen={layout.frozen}
-                    frozenLeft={frozenLeft}
-                    selectCell={selectCell}
-                    startEdit={startEdit}
-                    cancelEdit={cancelEdit}
-                    ins={ins}
-                    onSaveStaged={handleStagedInsertSave}
-                    onSaveEmpty={undefined}
-                    onDiscard={handleDiscardInsert}
-                  />
-                );
-              }
-              // Always-empty placeholder row.
-              if (canInsert && idx === emptyRowIndex) {
-                return (
-                  <InsertRow
-                    key={vr.key}
-                    rowIndex={idx}
-                    top={vr.start}
-                    displayColumns={displayColumns}
-                    columnTypes={columnTypes}
-                    canEdit={canEdit}
-                    frozen={layout.frozen}
-                    frozenLeft={frozenLeft}
-                    selectCell={selectCell}
-                    startEdit={startEdit}
-                    cancelEdit={cancelEdit}
-                    ins={undefined}
-                    onSaveStaged={undefined}
-                    onSaveEmpty={handleEmptyRowSave}
-                    onDiscard={undefined}
                   />
                 );
               }
@@ -1758,6 +1742,8 @@ interface CellProps {
   colIdx: number;
   value: any;
   columnType?: string;
+  /** Shown when `value` is undefined — a draft cell that will take NULL/DEFAULT. */
+  placeholder?: string;
   formatter?: ColumnFormatter;
   editable: boolean;
   stagedCellChanged: boolean;
@@ -1779,6 +1765,7 @@ const Cell = memo(function Cell(props: CellProps) {
     colIdx,
     value,
     columnType,
+    placeholder,
     formatter,
     editable,
     stagedCellChanged,
@@ -1855,6 +1842,7 @@ const Cell = memo(function Cell(props: CellProps) {
         {editable ? (
           <EditableCell
             value={value}
+            placeholder={placeholder}
             column={col}
             columnType={columnType}
             isEditing={isEditing}
@@ -1938,17 +1926,16 @@ interface InsertRowProps {
   top: number;
   displayColumns: string[];
   columnTypes: Record<string, string>;
+  columnDefaults: Record<string, 'DEFAULT' | 'NULL'>;
   canEdit: boolean;
   frozen: string | null;
   frozenLeft: number;
   selectCell: (rowIndex: number, col: string) => void;
   startEdit: (rowIndex: number, col: string) => void;
   cancelEdit: () => void;
-  /** Set when this row backs a PendingInsert; undefined for the empty row. */
-  ins?: { tempId: string; values: Record<string, any> };
-  onSaveStaged?: (tempId: string, col: string, value: any, intent?: SaveIntent) => void;
-  onSaveEmpty?: (col: string, value: any) => void;
-  onDiscard?: (tempId: string) => void;
+  ins: { tempId: string; values: Record<string, any> };
+  onSaveStaged: (tempId: string, col: string, value: any, intent?: SaveIntent) => void;
+  onDiscard: (tempId: string) => void;
 }
 
 const InsertRow = memo(function InsertRow(props: InsertRowProps) {
@@ -1957,6 +1944,7 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
     top,
     displayColumns,
     columnTypes,
+    columnDefaults,
     canEdit,
     frozen,
     frozenLeft,
@@ -1965,33 +1953,23 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
     cancelEdit,
     ins,
     onSaveStaged,
-    onSaveEmpty,
     onDiscard,
   } = props;
 
-  // A single save-router for either path. Cells call it the same way; we
-  // dispatch based on whether this row backs a staged insert.
   const onCellSave = useCallback(
     (_rowIndex: number, col: string, _original: any, next: any, intent?: SaveIntent) => {
-      if (ins && onSaveStaged) onSaveStaged(ins.tempId, col, next, intent);
-      else if (onSaveEmpty) onSaveEmpty(col, next);
+      onSaveStaged(ins.tempId, col, next, intent);
     },
-    [ins, onSaveStaged, onSaveEmpty],
+    [ins, onSaveStaged],
   );
 
-  // Right-click on the row body discards the staged insert (if any). Plain
-  // ContextMenu would be nicer, but the data-table did the same one-action
-  // shortcut and users are used to it.
   const onContextMenu = useCallback(
     (e: React.MouseEvent) => {
-      if (!ins || !onDiscard) return;
       e.preventDefault();
       onDiscard(ins.tempId);
     },
     [ins, onDiscard],
   );
-
-  const bgClass = ins ? 'bg-success/15 hover:bg-success/20' : 'bg-success/5 hover:bg-success/10';
 
   return (
     <div
@@ -2006,19 +1984,22 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
       }}
     >
       <div
-        className={`flex border-b border-border ${bgClass}`}
+        className="flex border-y border-warning/40 bg-warning/10 hover:bg-warning/15"
         style={{ height: ROW_HEIGHT }}
         onContextMenu={onContextMenu}
       >
-        {/* Row-number column: + marker */}
-        <div
-          className="flex-shrink-0 flex items-center justify-center text-success font-bold"
+        <button
+          type="button"
+          onClick={() => onDiscard(ins.tempId)}
+          className="flex-shrink-0 flex items-center justify-center text-muted hover:text-danger transition-colors"
           style={{ width: ROW_NUM_WIDTH }}
-          aria-label={ins ? 'New row' : 'Add new row'}
-          title={ins ? 'Staged insert' : 'Add new row'}
+          aria-label="Discard this new record"
+          title="Discard this new record"
         >
-          +
-        </div>
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
         {canEdit && <div className="flex-shrink-0" style={{ width: CHECKBOX_WIDTH }} />}
         {displayColumns.map((col, idx) => (
           <Cell
@@ -2026,8 +2007,9 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
             rowIndex={rowIndex}
             col={col}
             colIdx={idx}
-            value={ins?.values[col]}
+            value={ins.values[col]}
             columnType={columnTypes[col]}
+            placeholder={columnDefaults[col] ?? 'NULL'}
             editable={true}
             stagedCellChanged={false}
             isFrozen={frozen === col}

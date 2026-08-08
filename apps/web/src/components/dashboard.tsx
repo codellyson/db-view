@@ -203,7 +203,7 @@ export function Dashboard() {
       category: 'Editing',
       action: () => {
         if (primaryKeys.length > 0 && selectedTable) {
-          dataTableRef.current?.scrollToEmptyRow();
+          dataTableRef.current?.addRecord();
         }
       },
     },
@@ -657,7 +657,15 @@ export function Dashboard() {
                   onRefresh={() => refreshTableData()}
                   onRefreshSchema={() => selectedTable && loadTableSchema(selectedTable)}
                   canAddRecord={schema.length > 0}
-                  onAddRecord={() => dataTableRef.current?.scrollToEmptyRow()}
+                  onAddRecord={() => dataTableRef.current?.addRecord()}
+                  pendingCount={
+                    selectedTable ? pending.getCount(selectedSchema, selectedTable) : 0
+                  }
+                  onSaveChanges={() => setIsReviewOpen(true)}
+                  onDiscardChanges={() =>
+                    selectedTable &&
+                    pending.discardTable({ schema: selectedSchema, table: selectedTable })
+                  }
                   onImportCsv={() => setIsCSVImportOpen(true)}
                   onExport={() => setIsExportOpen(true)}
                 />
@@ -733,7 +741,10 @@ export function Dashboard() {
     {/* AI mode — docked side panel; shares layout width instead of overlaying. */}
     {isAiOpen && <AiChatPanel onClose={() => setIsAiOpen(false)} />}
     </div>
-    <PendingChangesBar onOpenReview={() => setIsReviewOpen(true)} target={reviewTarget} />
+    <PendingChangesBar
+      onOpenReview={() => setIsReviewOpen(true)}
+      target={selectedTable ? null : editorEditableTarget}
+    />
     <CommandPalette
       isOpen={isCommandPaletteOpen}
       onClose={() => setIsCommandPaletteOpen(false)}
