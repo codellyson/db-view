@@ -27,6 +27,7 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { EditableCell, type SaveIntent } from './editable-cell';
 import { ContextMenu, useContextMenu, type ContextMenuEntry } from './ui/context-menu';
@@ -43,7 +44,7 @@ import {
   type TablePending,
 } from '@/contexts/pending-changes-context';
 import type { ColumnInfo } from '@/types';
-import { ArrowUpRight, ChevronRight, ChevronUp, X } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronRight, ChevronUp, Copy, Eye, Maximize2, PencilLine, X } from 'lucide-react';
 
 const ROW_HEIGHT = 36;
 const HEADER_HEIGHT = 40;
@@ -1767,6 +1768,128 @@ interface CellProps {
   cancelEdit: () => void;
   onCellSave: (rowIndex: number, col: string, original: any, next: any, intent?: SaveIntent) => void;
   onCellContext: (e: React.MouseEvent, rowIndex: number, col: string, value: any) => void;
+  onToggleExpand?: (rowIndex: number) => void;
+}
+
+
+function formatFullValue(value: any): string {
+  if (value === null) return 'NULL';
+  if (value === undefined) return '';
+  if (typeof value === 'object') return JSON.stringify(value, null, 2);
+  const s = String(value);
+  if (/^\s*[{[]/.test(s)) {
+    try {
+      return JSON.stringify(JSON.parse(s), null, 2);
+    } catch {
+      return s;
+    }
+  }
+  return s;
+}
+
+function CellValueViewer({
+  column,
+  columnType,
+  value,
+  anchor,
+  onClose,
+}: {
+  column: string;
+  columnType?: string;
+  value: any;
+  anchor: DOMRect;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const text = formatFullValue(value);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  const width = 380;
+  const left = Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8));
+  const below = window.innerHeight - anchor.bottom > 240;
+
+  return createPortal(
+    <div
+      ref={ref}
+      style={{
+        width,
+        left,
+        ...(below ? { top: anchor.bottom + 4 } : { bottom: window.innerHeight - anchor.top + 4 }),
+      }}
+      className="fixed z-50 rounded-md border border-border bg-bg shadow-xl"
+    >
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+        <span className="text-xs font-medium text-primary truncate">{column}</span>
+        {columnType && <span className="text-[11px] text-muted font-mono">{columnType}</span>}
+        <span className="flex-1" />
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard.writeText(text);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1200);
+          }}
+          className="text-muted hover:text-primary transition-colors"
+          title="Copy value"
+          aria-label="Copy value"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-muted hover:text-primary transition-colors"
+          aria-label="Close"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <pre className="max-h-64 overflow-auto px-3 py-2 text-xs font-mono text-primary whitespace-pre-wrap break-all">
+        {text.length === 0 ? <span className="text-muted">(empty)</span> : text}
+      </pre>
+    </div>,
+    document.body,
+  );
+}
+
+function CellAction({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(e);
+      }}
+      className="flex items-center justify-center h-5 w-5 rounded border border-border bg-bg text-muted hover:text-primary hover:border-secondary transition-colors"
+    >
+      {children}
+    </button>
+  );
 }
 
 const Cell = memo(function Cell(props: CellProps) {
@@ -1789,11 +1912,14 @@ const Cell = memo(function Cell(props: CellProps) {
     cancelEdit,
     onCellSave,
     onCellContext,
+    onToggleExpand,
   } = props;
 
   const { selection, editing } = useStores();
   const isSelected = useIsHere(selection, rowIndex, col);
   const isEditing = useIsHere(editing, rowIndex, col);
+
+  const [viewerAnchor, setViewerAnchor] = useState<DOMRect | null>(null);
 
   const handleClick = useCallback(
     (_e: React.MouseEvent) => {
@@ -1837,7 +1963,7 @@ const Cell = memo(function Cell(props: CellProps) {
   return (
     <div
       data-cell-col={col}
-      className={`flex-shrink-0 px-3 flex items-center text-sm text-primary font-mono border-r border-border ${
+      className={`group/cell flex-shrink-0 px-3 flex items-center text-sm text-primary font-mono border-r border-border ${
         isFrozen ? 'sticky z-10 bg-inherit' : ''
       } ${stagedCellChanged ? 'bg-warning/30 border-l-2 border-l-warning' : ''} ${
         isSelected ? 'ring-2 ring-inset ring-accent/60 bg-accent/5' : ''
@@ -1867,6 +1993,33 @@ const Cell = memo(function Cell(props: CellProps) {
           <SmartCellDisplay value={value} column={col} columnType={columnType} />
         )}
       </div>
+      <div className="flex-shrink-0 items-center gap-0.5 ml-1 hidden group-hover/cell:flex">
+        {onToggleExpand && (
+          <CellAction label="Expand row" onClick={() => onToggleExpand(rowIndex)}>
+            <Maximize2 className="h-3 w-3" />
+          </CellAction>
+        )}
+        <CellAction
+          label="Show full value"
+          onClick={(e) => setViewerAnchor(e.currentTarget.getBoundingClientRect())}
+        >
+          <Eye className="h-3 w-3" />
+        </CellAction>
+        {editable && (
+          <CellAction label="Edit value" onClick={() => startEdit(rowIndex, col)}>
+            <PencilLine className="h-3 w-3" />
+          </CellAction>
+        )}
+      </div>
+      {viewerAnchor && (
+        <CellValueViewer
+          column={col}
+          columnType={columnType}
+          value={value}
+          anchor={viewerAnchor}
+          onClose={() => setViewerAnchor(null)}
+        />
+      )}
       {fk && value !== null && value !== undefined && (
         <button
           onClick={(e) => {
