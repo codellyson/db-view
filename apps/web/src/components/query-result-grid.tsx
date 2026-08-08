@@ -1295,7 +1295,6 @@ export const QueryResultGrid = forwardRef<QueryResultGridHandle, QueryResultGrid
                     displayColumns={displayColumns}
                     columnTypes={columnTypes}
                     columnDefaults={columnDefaults}
-                    canEdit={canEdit}
                     frozen={layout.frozen}
                     frozenLeft={frozenLeft}
                     selectCell={selectCell}
@@ -2127,7 +2126,6 @@ interface InsertRowProps {
   displayColumns: string[];
   columnTypes: Record<string, string>;
   columnDefaults: Record<string, 'DEFAULT' | 'NULL'>;
-  canEdit: boolean;
   frozen: string | null;
   frozenLeft: number;
   selectCell: (rowIndex: number, col: string) => void;
@@ -2146,7 +2144,6 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
     displayColumns,
     columnTypes,
     columnDefaults,
-    canEdit,
     frozen,
     frozenLeft,
     selectCell,
@@ -2190,18 +2187,16 @@ const InsertRow = memo(function InsertRow(props: InsertRowProps) {
         style={{ height: ROW_HEIGHT }}
         onContextMenu={onContextMenu}
       >
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => onDiscard(ins.tempId)}
-            className="flex-shrink-0 flex items-center justify-center border-r border-border text-muted hover:text-danger transition-colors"
-            style={{ width: CHECKBOX_WIDTH }}
-            aria-label="Discard this new record"
-            title="Discard this new record"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => onDiscard(ins.tempId)}
+          className="flex-shrink-0 flex items-center justify-center border-r border-border text-muted hover:text-danger transition-colors"
+          style={{ width: CHECKBOX_WIDTH }}
+          aria-label="Discard this new record"
+          title="Discard this new record"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
         {displayColumns.map((col, idx) => (
           <Cell
             key={col}
