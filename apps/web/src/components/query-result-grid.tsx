@@ -1700,11 +1700,14 @@ const Row = memo(function Row(props: RowProps) {
               cancelEdit={cancelEdit}
               onCellSave={onCellSave}
               onCellContext={onCellContext}
+              onToggleExpand={onToggleExpand}
             />
           );
         })}
       </div>
-      {isExpanded && <ExpandedDetail row={row} columns={displayColumns} />}
+      {isExpanded && (
+        <ExpandedDetail row={row} columns={displayColumns} columnTypes={columnTypes} />
+      )}
     </div>
   );
 });
@@ -1714,33 +1717,50 @@ const Row = memo(function Row(props: RowProps) {
 const ExpandedDetail = memo(function ExpandedDetail({
   row,
   columns,
+  columnTypes,
 }: {
   row: any;
   columns: string[];
+  columnTypes: Record<string, string>;
 }) {
   return (
-    <div className="border-b border-border bg-bg-secondary/40 p-4">
-      <div className="text-xs font-medium text-secondary mb-3 border-b border-border pb-2">
-        Row detail
-      </div>
-      <div className="space-y-1.5">
-        {columns.map((col) => {
-          const value = row[col];
-          return (
-            <div key={col} className="flex flex-col sm:flex-row sm:gap-4 gap-0.5 text-sm">
-              <span className="font-medium text-secondary sm:min-w-[150px] flex-shrink-0 text-xs sm:text-sm">
-                {col}
-              </span>
-              <span className="text-primary font-mono break-all whitespace-pre-wrap text-xs sm:text-sm">
-                {value === null || value === undefined
-                  ? 'NULL'
-                  : typeof value === 'object'
-                    ? JSON.stringify(value, null, 2)
-                    : String(value)}
-              </span>
-            </div>
-          );
-        })}
+    <div className="border-b border-border bg-bg-secondary/40 px-4 py-3">
+      <div className="text-xs font-medium text-secondary mb-2">Row detail</div>
+      <div className="overflow-hidden rounded-md border border-border">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-bg-secondary text-xs text-secondary">
+              <th className="text-left font-medium px-3 py-1.5 border-b border-r border-border">Column</th>
+              <th className="text-left font-medium px-3 py-1.5 border-b border-r border-border">Type</th>
+              <th className="text-left font-medium px-3 py-1.5 border-b border-border">Value</th>
+            </tr>
+          </thead>
+          <tbody className="[&>tr:last-child>td]:border-b-0">
+            {columns.map((col) => {
+              const value = row[col];
+              const isNull = value === null || value === undefined;
+              return (
+                <tr key={col} className="align-top">
+                  <td className="px-3 py-1.5 border-b border-r border-border text-secondary whitespace-nowrap">
+                    {col}
+                  </td>
+                  <td className="px-3 py-1.5 border-b border-r border-border text-muted font-mono text-xs whitespace-nowrap">
+                    {columnTypes[col] ?? ''}
+                  </td>
+                  <td className="px-3 py-1.5 border-b border-border font-mono text-primary break-all whitespace-pre-wrap">
+                    {isNull ? (
+                      <span className="text-muted">NULL</span>
+                    ) : typeof value === 'object' ? (
+                      JSON.stringify(value, null, 2)
+                    ) : (
+                      String(value)
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -2001,7 +2021,11 @@ const Cell = memo(function Cell(props: CellProps) {
         )}
         <CellAction
           label="Show full value"
-          onClick={(e) => setViewerAnchor(e.currentTarget.getBoundingClientRect())}
+          onClick={(e) =>
+            setViewerAnchor(
+              (e.currentTarget.closest('[data-cell-col]') ?? e.currentTarget).getBoundingClientRect(),
+            )
+          }
         >
           <Eye className="h-3 w-3" />
         </CellAction>
