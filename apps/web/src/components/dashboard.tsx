@@ -714,7 +714,17 @@ export function Dashboard() {
       }
     />
     </div>
-    {/* AI mode — docked side panel; shares layout width instead of overlaying. */}
+    {/* Docked side panels — they share the layout width rather than overlaying. */}
+    <FKSidePanel
+      query={fkQuery}
+      onClose={() => setFkQuery(null)}
+      onOpenTable={(s, t) => {
+        if (s !== selectedSchema) handleSchemaChange(s);
+        handleTableSelect(t);
+        setFkQuery(null);
+      }}
+      onFollow={(next) => setFkQuery(next)}
+    />
     {isAiOpen && <AiChatPanel onClose={() => setIsAiOpen(false)} />}
     </div>
     <PendingChangesBar
@@ -747,16 +757,6 @@ export function Dashboard() {
         currentRows={bulkExportRows ?? tableData}
       />
     )}
-    <FKSidePanel
-      query={fkQuery}
-      onClose={() => setFkQuery(null)}
-      onOpenTable={(s, t) => {
-        if (s !== selectedSchema) handleSchemaChange(s);
-        handleTableSelect(t);
-        setFkQuery(null);
-      }}
-      onFollow={(next) => setFkQuery(next)}
-    />
     <TablePicker
       isOpen={isTablePickerOpen}
       onClose={() => setIsTablePickerOpen(false)}

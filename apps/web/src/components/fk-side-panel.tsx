@@ -1,6 +1,5 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { db } from '@/lib/db';
 import type { ForeignKeyTarget } from './query-result-grid';
 import { ExternalLink, X } from 'lucide-react';
@@ -116,16 +115,9 @@ export const FKSidePanel: React.FC<FKSidePanelProps> = ({
   const row = rows[0];
   const tooManyRows = rows.length > 1;
 
-  return createPortal(
-    <>
-      <div
-        className="fixed inset-0 z-40 bg-black/30"
-        onMouseDown={onClose}
-        aria-hidden="true"
-      />
+  return (
       <aside
-        className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-md bg-bg border-l border-border shadow-2xl flex flex-col"
-        role="dialog"
+        className="relative h-screen w-[26rem] max-w-[85vw] flex-shrink-0 flex flex-col bg-bg border-l border-border"
         aria-label="Related row"
       >
         <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border flex-shrink-0">
@@ -214,7 +206,5 @@ export const FKSidePanel: React.FC<FKSidePanelProps> = ({
           )}
         </div>
       </aside>
-    </>,
-    document.body
   );
 };
