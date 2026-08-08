@@ -1726,28 +1726,33 @@ const ExpandedDetail = memo(function ExpandedDetail({
   return (
     <div className="border-b border-border bg-bg-secondary/40 px-4 py-3">
       <div className="text-xs font-medium text-secondary mb-2">Row detail</div>
-      <div className="overflow-hidden rounded-md border border-border">
-        <table className="w-full border-collapse text-sm">
+      <div className="overflow-x-auto rounded-md border border-border">
+        <table className="border-collapse text-sm">
           <thead>
-            <tr className="bg-bg-secondary text-xs text-secondary">
-              <th className="text-left font-medium px-3 py-1.5 border-b border-r border-border">Column</th>
-              <th className="text-left font-medium px-3 py-1.5 border-b border-r border-border">Type</th>
-              <th className="text-left font-medium px-3 py-1.5 border-b border-border">Value</th>
+            <tr className="bg-bg-secondary">
+              {columns.map((col) => (
+                <th
+                  key={col}
+                  className="text-left px-3 py-1.5 border-b border-r border-border last:border-r-0 whitespace-nowrap"
+                >
+                  <span className="text-xs font-medium text-secondary">{col}</span>
+                  {columnTypes[col] && (
+                    <span className="ml-1.5 text-[11px] font-mono text-muted">{columnTypes[col]}</span>
+                  )}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="[&>tr:last-child>td]:border-b-0">
-            {columns.map((col) => {
-              const value = row[col];
-              const isNull = value === null || value === undefined;
-              return (
-                <tr key={col} className="align-top">
-                  <td className="px-3 py-1.5 border-b border-r border-border text-secondary whitespace-nowrap">
-                    {col}
-                  </td>
-                  <td className="px-3 py-1.5 border-b border-r border-border text-muted font-mono text-xs whitespace-nowrap">
-                    {columnTypes[col] ?? ''}
-                  </td>
-                  <td className="px-3 py-1.5 border-b border-border font-mono text-primary break-all whitespace-pre-wrap">
+          <tbody>
+            <tr className="align-top">
+              {columns.map((col) => {
+                const value = row[col];
+                const isNull = value === null || value === undefined;
+                return (
+                  <td
+                    key={col}
+                    className="px-3 py-1.5 border-r border-border last:border-r-0 font-mono text-primary max-w-[320px] whitespace-pre-wrap break-all"
+                  >
                     {isNull ? (
                       <span className="text-muted">NULL</span>
                     ) : typeof value === 'object' ? (
@@ -1756,9 +1761,9 @@ const ExpandedDetail = memo(function ExpandedDetail({
                       String(value)
                     )}
                   </td>
-                </tr>
-              );
-            })}
+                );
+              })}
+            </tr>
           </tbody>
         </table>
       </div>
