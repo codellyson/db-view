@@ -1,9 +1,5 @@
 @import "@codellyson/justui/tailwind.css";
 
-/* JustUI's own `@source "../../dist"` doesn't reach it: v4 skips node_modules
-   by default and pnpm links the package into its store. Point at the real
-   directory or every JustUI component renders unstyled. */
-@source "../../node_modules/@codellyson/justui/dist";
 
 /* App-only additions on top of JustUI's theme. */
 @theme {
