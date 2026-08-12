@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmptyState as JustEmptyState } from '@codellyson/justui/react';
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -12,21 +13,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   description,
   action,
-}) => {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 px-4">
-      {icon && (
-        <div className="text-muted mb-6 text-3xl">
-          {icon}
-        </div>
-      )}
-      <h3 className="text-lg font-medium text-primary mb-2">{title}</h3>
-      {description && (
-        <p className="text-sm text-muted text-center max-w-md mb-6">
-          {description}
-        </p>
-      )}
-      {action && <div>{action}</div>}
-    </div>
-  );
-};
+}) => (
+  <JustEmptyState icon={icon} title={title} description={description} className="py-16">
+    {action}
+  </JustEmptyState>
+);

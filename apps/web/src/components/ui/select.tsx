@@ -1,37 +1,53 @@
-import React from "react";
-import { ChevronDown } from 'lucide-react';
+import React from 'react';
+import { Select as JustSelect, type SelectOption } from '@codellyson/justui/react';
 
-interface SelectProps
-  extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> {
-  // Layout/width classes go on the wrapper (it owns the chevron position),
-  // e.g. "flex-1" or "w-40". Defaults to full width.
+interface SelectProps {
+  value?: string;
+  onChange?: (value: string) => void;
+  /** `<option>` children are read into JustUI's options array, so call sites
+   *  can keep listing their choices inline. */
+  children?: React.ReactNode;
   containerClassName?: string;
-  // sm matches `py-1.5` inputs (the app default); md matches `py-2` inputs.
-  inputSize?: "sm" | "md";
+  className?: string;
+  inputSize?: 'sm' | 'md';
+  disabled?: boolean;
+  searchable?: boolean;
+  placeholder?: string;
 }
 
-const SIZE: Record<NonNullable<SelectProps["inputSize"]>, string> = {
-  sm: "py-1.5 text-sm",
-  md: "py-2 text-sm",
-};
+function optionsFromChildren(children: React.ReactNode): SelectOption[] {
+  const out: SelectOption[] = [];
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child) || child.type !== 'option') return;
+    const props = child.props as { value?: string; children?: React.ReactNode; disabled?: boolean };
+    out.push({
+      value: String(props.value ?? ''),
+      label: String(props.children ?? props.value ?? ''),
+      disabled: props.disabled,
+    });
+  });
+  return out;
+}
 
-// Native <select> renders taller than a text input at the same padding because
-// the browser draws its own dropdown chrome. `appearance-none` strips that so
-// the box sizes from padding like an input; we draw our own chevron. This is
-// the one place select styling lives so every dropdown matches the inputs.
-export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className = "", containerClassName = "w-full", inputSize = "sm", children, ...props }, ref) => (
-    <div className={`relative ${containerClassName}`}>
-      <select
-        ref={ref}
-        className={`w-full appearance-none rounded-md border border-border bg-bg pl-2.5 pr-8 text-primary focus:outline-none focus:ring-2 focus:ring-accent ${SIZE[inputSize]} ${className}`}
-        {...props}
-      >
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-    </div>
-  ),
+export const Select: React.FC<SelectProps> = ({
+  value,
+  onChange,
+  children,
+  containerClassName,
+  className,
+  inputSize = 'sm',
+  disabled,
+  searchable,
+  placeholder,
+}) => (
+  <JustSelect
+    value={value}
+    onChange={onChange}
+    options={optionsFromChildren(children)}
+    size={inputSize}
+    disabled={disabled}
+    searchable={searchable}
+    placeholder={placeholder}
+    className={[containerClassName, className].filter(Boolean).join(' ') || undefined}
+  />
 );
-
-Select.displayName = "Select";

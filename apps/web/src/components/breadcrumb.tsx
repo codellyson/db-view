@@ -1,48 +1,30 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { Breadcrumb as JustBreadcrumb, BreadcrumbItem } from '@codellyson/justui/react';
 
-interface BreadcrumbItem {
+interface Crumb {
   label: string;
   onClick?: () => void;
 }
 
-interface BreadcrumbProps {
-  items: BreadcrumbItem[];
-}
-
-export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items }) => {
+export const Breadcrumb: React.FC<{ items: Crumb[] }> = ({ items }) => {
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-2 sm:mb-4">
-      <ol className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm overflow-x-auto">
-        {items.map((item, index) => {
-          const isLast = index === items.length - 1;
-          return (
-            <li key={index} className="flex items-center gap-1.5 min-w-0">
-              {index > 0 && (
-                <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted" />
-              )}
-              {isLast || !item.onClick ? (
-                <span
-                  title={item.label}
-                  className={`truncate max-w-[18rem] ${isLast ? 'font-medium text-primary' : 'text-muted'}`}
-                >
-                  {item.label}
-                </span>
-              ) : (
-                <button
-                  onClick={item.onClick}
-                  title={item.label}
-                  className="truncate max-w-[18rem] text-secondary hover:text-primary transition-colors"
-                >
-                  {item.label}
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
+    <JustBreadcrumb className="mb-2 sm:mb-4" maxItems={4}>
+      {items.map((item, index) => {
+        const isLast = index === items.length - 1;
+        return (
+          <BreadcrumbItem
+            key={index}
+            current={isLast}
+            title={item.label}
+            onClick={isLast ? undefined : item.onClick}
+            className="truncate max-w-[18rem]"
+          >
+            {item.label}
+          </BreadcrumbItem>
+        );
+      })}
+    </JustBreadcrumb>
   );
 };

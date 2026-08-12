@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* JustUI is authored for Tailwind v4, where these two exist as utilities. This
+   app is on v3, so without them focus rings fall back to the browser outline. */
+@layer utilities {
+  .outline-hidden {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  .shadow-xs {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+}
+
 /*
  * Design tokens copied from apps/next/app/globals.css. Keep aligned with
  * the Next.js source of truth during the migration; cut over to this file

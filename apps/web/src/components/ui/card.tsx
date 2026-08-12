@@ -1,4 +1,5 @@
 import React from 'react';
+import { Card as JustCard, CardSection } from '@codellyson/justui/react';
 
 interface CardProps {
   children: React.ReactNode;
@@ -6,21 +7,13 @@ interface CardProps {
   className?: string;
 }
 
-export const Card: React.FC<CardProps> = ({
-  children,
-  title,
-  className = '',
-}) => {
-  return (
-    <div className={`bg-bg border border-border rounded-lg ${className}`}>
-      {title && (
-        <div className="border-b border-border px-5 py-3">
-          <h4 className="text-sm font-semibold text-primary">{title}</h4>
-        </div>
-      )}
-      <div className="p-5">
-        {children}
-      </div>
-    </div>
-  );
-};
+export const Card: React.FC<CardProps> = ({ children, title, className }) => (
+  <JustCard withBorder padding="md" className={className}>
+    {title && (
+      <CardSection withBorder inheritPadding className="py-3">
+        <h4 className="text-sm font-semibold text-primary">{title}</h4>
+      </CardSection>
+    )}
+    {children}
+  </JustCard>
+);

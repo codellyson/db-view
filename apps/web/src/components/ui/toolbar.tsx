@@ -2,36 +2,41 @@ import React from 'react';
 import {
   Badge,
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Separator,
+  Divider,
+  Menu,
+  MenuDivider,
+  MenuDropdown,
+  MenuItem as JustMenuItem,
+  MenuLabel as JustMenuLabel,
+  MenuTarget,
+  SegmentedControl as JustSegmentedControl,
+  Tooltip,
   cn,
 } from '@codellyson/justui/react';
 
 export function ToolbarDivider() {
-  return <Separator orientation="vertical" className="h-5 mx-1 shrink-0" />;
+  return <Divider orientation="vertical" className="h-5 mx-1 shrink-0" />;
 }
 
-// Must forward the ref and spread the rest: `DropdownMenuTrigger asChild`
+// Must forward the ref and spread the rest: `MenuTarget asChild`
 // clones this with its own handlers and aria/data attributes, and dropping
 // them leaves a trigger that never opens.
-interface ToolbarButtonProps extends React.ComponentPropsWithoutRef<'button'> {
+interface ToolbarButtonProps extends Omit<React.ComponentPropsWithoutRef<'button'>, 'color'> {
   icon?: React.ReactNode;
   active?: boolean;
   variant?: 'default' | 'accent';
   badge?: number;
+  /** Opt-in rich tooltip. Menu triggers keep the native `title` instead —
+   *  nesting two asChild triggers stops the menu from opening. */
+  tooltip?: string;
 }
 
 export const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
   function ToolbarButton(
-    { children, icon, active, variant = 'default', badge, className, ...rest },
+    { children, icon, active, variant = 'default', badge, className, tooltip, ...rest },
     ref
   ) {
-    return (
+    const button = (
       <Button
         ref={ref}
         variant={variant === 'accent' ? 'primary' : 'outline'}
@@ -50,6 +55,7 @@ export const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonPr
         )}
       </Button>
     );
+    return tooltip ? <Tooltip label={tooltip}>{button}</Tooltip> : button;
   }
 );
 
@@ -79,8 +85,8 @@ export function ToolbarMenu({
   children,
 }: ToolbarMenuProps) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Menu>
+      <MenuTarget asChild>
         <ToolbarButton
           icon={icon}
           badge={badge}
@@ -91,16 +97,16 @@ export function ToolbarMenu({
         >
           {label}
         </ToolbarButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
+      </MenuTarget>
+      <MenuDropdown
         align={align === 'right' ? 'end' : 'start'}
-        style={{ width }}
+        width={width}
         className="max-h-80 overflow-auto origin-top animate-menu-in"
         collisionPadding={8}
       >
         {children}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </MenuDropdown>
+    </Menu>
   );
 }
 
@@ -140,28 +146,13 @@ export function SegmentedControl<T extends string>({
   options,
 }: SegmentedControlProps<T>) {
   return (
-    <div className="flex items-center gap-0.5 h-8 p-0.5 rounded-md border border-border bg-bg-secondary shrink-0">
-      {options.map((opt) => {
-        const selected = opt.value === value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            aria-pressed={selected}
-            className={cn(
-              'inline-flex items-center gap-2 h-7 px-3 rounded text-sm font-medium transition-all',
-              selected
-                ? 'bg-bg text-primary shadow-sm'
-                : 'text-secondary hover:text-primary'
-            )}
-          >
-            {opt.icon}
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
+    <JustSegmentedControl
+      value={value}
+      onChange={(next) => onChange(next as T)}
+      data={options.map((o) => ({ value: o.value, label: o.label, leftSection: o.icon }))}
+      size="sm"
+      className="shrink-0"
+    />
   );
 }
 
@@ -180,23 +171,24 @@ export function MenuItem({
   onSelect?: (event: Event) => void;
 }) {
   return (
-    <DropdownMenuItem
+    <JustMenuItem
       onClick={onClick}
       onSelect={onSelect}
       disabled={disabled}
-      className={cn('gap-2 text-sm', danger && 'text-danger focus:text-danger')}
+      color={danger ? 'red' : 'default'}
+      className="gap-2 text-sm"
     >
       {children}
-    </DropdownMenuItem>
+    </JustMenuItem>
   );
 }
 
 export function MenuLabel({ children }: { children: React.ReactNode }) {
   return (
-    <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted font-normal">
+    <JustMenuLabel className="text-[11px] uppercase tracking-wide text-muted font-normal">
       {children}
-    </DropdownMenuLabel>
+    </JustMenuLabel>
   );
 }
 
-export { DropdownMenuSeparator as MenuSeparator };
+export { MenuDivider as MenuSeparator };

@@ -1,8 +1,11 @@
 import React from 'react';
 import { Input as JustInput, Label, cn } from '@codellyson/justui/react';
 
+type TextInputType = 'text' | 'email' | 'password' | 'search' | 'tel' | 'url';
+
 interface InputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type' | 'size'> {
+  type?: TextInputType;
   label?: string;
   error?: string;
   value: string;
@@ -32,7 +35,7 @@ export const Input: React.FC<InputProps> = ({
         id={id}
         type={props.type || 'text'}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         className={cn('w-full', error && 'border-danger focus-visible:ring-danger', className)}
         aria-invalid={error ? true : undefined}
         aria-describedby={error && errorId ? errorId : undefined}
