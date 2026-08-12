@@ -112,9 +112,9 @@ const TableButton: React.FC<{
       onFocus={onFocus}
       onContextMenu={onContextMenu}
       tabIndex={tabIndex}
-      className={`group w-full text-left px-2.5 py-1.5 text-[13px] rounded-md transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-accent/40 flex items-center gap-2 ${
+      className={`group w-full text-left px-2.5 py-1.5 text-[13px] rounded-md transition-all duration-150 focus:outline-hidden focus:ring-1 focus:ring-accent/40 flex items-center gap-2 ${
         selected
-          ? 'bg-accent/10 text-accent font-medium shadow-sm shadow-accent/5'
+          ? 'bg-accent/10 text-accent font-medium shadow-xs shadow-accent/5'
           : 'text-secondary hover:text-primary hover:bg-bg-secondary'
       }`}
       title={table}
@@ -346,7 +346,7 @@ export const TableList: React.FC<TableListProps> = ({
         {onToggleGroupByPrefix && (
           <button
             onClick={onToggleGroupByPrefix}
-            className={`px-1.5 py-1 text-[10px] font-medium rounded transition-colors ${
+            className={`px-1.5 py-1 text-[10px] font-medium rounded-sm transition-colors ${
               groupByPrefixOn ? 'bg-accent/15 text-accent' : 'text-muted hover:text-primary hover:bg-bg-secondary'
             }`}
             title="Group tables by prefix"

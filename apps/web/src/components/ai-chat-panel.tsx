@@ -34,9 +34,9 @@ const ChatMarkdown: React.FC<{ children: string }> = ({ children }) => (
       pre: ({ children }) => <pre className="mb-2 overflow-x-auto">{children}</pre>,
       code: ({ className, children }) =>
         /language-/.test(className || '') ? (
-          <code className="block font-mono text-[11px] bg-bg-secondary rounded p-2 overflow-x-auto whitespace-pre">{children}</code>
+          <code className="block font-mono text-[11px] bg-bg-secondary rounded-sm p-2 overflow-x-auto whitespace-pre">{children}</code>
         ) : (
-          <code className="font-mono text-[12px] bg-bg-secondary rounded px-1 py-0.5">{children}</code>
+          <code className="font-mono text-[12px] bg-bg-secondary rounded-sm px-1 py-0.5">{children}</code>
         ),
       table: ({ children }) => (
         <div className="overflow-x-auto mb-2"><table className="text-[11px] border-collapse">{children}</table></div>
@@ -349,7 +349,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => { newChat(); setShowChats(false); setError(null); }}
-            className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-sm text-muted hover:text-accent hover:bg-accent/10 transition-colors"
             title="New chat"
             aria-label="New chat"
           >
@@ -357,7 +357,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
           </button>
           <button
             onClick={() => setShowChats((v) => !v)}
-            className={`h-7 px-1.5 flex items-center gap-1 rounded text-xs transition-colors ${showChats ? 'text-accent bg-accent/15' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
+            className={`h-7 px-1.5 flex items-center gap-1 rounded-sm text-xs transition-colors ${showChats ? 'text-accent bg-accent/15' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
             title="Conversations"
             aria-label="Conversations"
             aria-expanded={showChats}
@@ -367,7 +367,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
           </button>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-sm text-muted hover:text-primary hover:bg-bg-secondary transition-colors"
             title="Close AI mode"
             aria-label="Close AI mode"
           >
@@ -411,7 +411,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
                 )}
                 <Button
                   onClick={() => { setEditingId(c.id); setEditValue(c.title); }}
-                  className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary transition-colors flex-shrink-0"
+                  className="w-6 h-6 flex items-center justify-center rounded-sm text-muted hover:text-primary hover:bg-bg-secondary transition-colors flex-shrink-0"
                   title="Rename"
                   aria-label="Rename conversation"
                 >
@@ -419,7 +419,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
                 </Button>
                 <Button
                   onClick={() => deleteChat(c.id)}
-                  className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-danger hover:bg-danger/10 transition-colors flex-shrink-0"
+                  className="w-6 h-6 flex items-center justify-center rounded-sm text-muted hover:text-danger hover:bg-danger/10 transition-colors flex-shrink-0"
                   title="Delete"
                   aria-label="Delete conversation"
                 >
@@ -486,14 +486,14 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <Button
                             onClick={() => openInEditor(sql)}
-                            className="text-[11px] px-1.5 py-0.5 rounded bg-accent text-white hover:bg-accent-hover transition-colors"
+                            className="text-[11px] px-1.5 py-0.5 rounded-sm bg-accent text-white hover:bg-accent-hover transition-colors"
                             title="Open in a SQL editor tab (you'll confirm before it runs)"
                           >
                             Open in editor
                           </Button>
                           <Button
                             onClick={() => copySql(sql)}
-                            className="text-[11px] px-1.5 py-0.5 rounded text-accent hover:bg-accent/10 transition-colors"
+                            className="text-[11px] px-1.5 py-0.5 rounded-sm text-accent hover:bg-accent/10 transition-colors"
                           >
                             Copy
                           </Button>

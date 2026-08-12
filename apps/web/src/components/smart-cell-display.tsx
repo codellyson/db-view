@@ -174,7 +174,7 @@ export const SmartCellDisplay = memo(function SmartCellDisplay({
         <img
           src={valueStr}
           alt=""
-          className="h-5 w-5 rounded object-cover bg-bg-secondary flex-shrink-0"
+          className="h-5 w-5 rounded-sm object-cover bg-bg-secondary flex-shrink-0"
           loading="lazy"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -297,7 +297,7 @@ function JsonCell({
               left: Math.max(8, Math.min(rect.left, window.innerWidth - 460)),
               maxHeight: Math.min(384, window.innerHeight - rect.bottom - 16),
             }}
-            className="z-50 w-[28rem] max-w-[60vw] overflow-auto text-[11px] font-mono whitespace-pre-wrap break-all bg-bg p-2 rounded border border-border shadow-lg"
+            className="z-50 w-[28rem] max-w-[60vw] overflow-auto text-[11px] font-mono whitespace-pre-wrap break-all bg-bg p-2 rounded-sm border border-border shadow-lg"
           >
             {pretty}
           </pre>,

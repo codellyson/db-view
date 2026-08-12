@@ -136,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Tooltip label="Batch export tables">
                     <button
                       onClick={(e) => { e.stopPropagation(); onBatchExport(); }}
-                      className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded transition-all"
+                      className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded-sm transition-all"
                       aria-label="Batch export tables"
                     >
                       <Download className="h-3.5 w-3.5" />
@@ -291,7 +291,7 @@ const SidebarSection: React.FC<{
         <Tooltip label={actionLabel || "Add"}>
           <button
             onClick={(e) => { e.stopPropagation(); onAction(); }}
-            className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded transition-all"
+            className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded-sm transition-all"
             aria-label={actionLabel || "Add"}
           >
             <Plus className="h-3.5 w-3.5" />

@@ -184,7 +184,7 @@ const AiSection: React.FC = () => {
             <button
               onClick={detect}
               disabled={checking}
-              className="flex-shrink-0 rounded px-1.5 py-0.5 text-accent hover:bg-accent/10 disabled:opacity-40 transition-colors"
+              className="flex-shrink-0 rounded-sm px-1.5 py-0.5 text-accent hover:bg-accent/10 disabled:opacity-40 transition-colors"
             >
               {checking ? 'Checking…' : 'Check again'}
             </button>
@@ -308,7 +308,7 @@ const DataSection: React.FC = () => {
   };
 
   const numberInput =
-    'w-32 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent';
+    'w-32 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-hidden focus:ring-2 focus:ring-accent';
 
   return (
     <div className="space-y-4 px-4">

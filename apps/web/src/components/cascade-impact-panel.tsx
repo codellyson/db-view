@@ -43,7 +43,7 @@ export const CascadeImpactPanel: React.FC<Props> = ({
           <button
             type="button"
             onClick={onRetry}
-            className="px-2.5 py-1 text-xs font-medium text-secondary hover:text-primary border border-border rounded hover:bg-bg-secondary transition-colors"
+            className="px-2.5 py-1 text-xs font-medium text-secondary hover:text-primary border border-border rounded-sm hover:bg-bg-secondary transition-colors"
           >
             Retry preview
           </button>
@@ -145,7 +145,7 @@ const TruncatedBanner: React.FC<{
         <button
           type="button"
           onClick={onRunFullPreview}
-          className="px-2.5 py-1 text-xs font-medium text-secondary hover:text-primary border border-border rounded hover:bg-bg-secondary transition-colors"
+          className="px-2.5 py-1 text-xs font-medium text-secondary hover:text-primary border border-border rounded-sm hover:bg-bg-secondary transition-colors"
         >
           Keep mapping
         </button>

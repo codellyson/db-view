@@ -212,7 +212,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       : 'postgresql://user:password@localhost:5432/mydb';
 
   return (
-    <div className="border border-border rounded-lg bg-bg shadow-sm">
+    <div className="border border-border rounded-lg bg-bg shadow-xs">
       <div className="border-b border-border px-4 py-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-primary">New connection</h3>
         <div className="flex gap-1">

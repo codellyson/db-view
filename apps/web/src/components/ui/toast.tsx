@@ -50,7 +50,7 @@ function ToastItem({
       <span className="flex-1 truncate">{message}</span>
       <button
         onClick={handleRemove}
-        className="flex-shrink-0 text-muted hover:text-primary transition-colors focus:outline-none"
+        className="flex-shrink-0 text-muted hover:text-primary transition-colors focus:outline-hidden"
         aria-label="Dismiss notification"
       >
         <X className="h-4 w-4" />

@@ -320,7 +320,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <span>Fetching rows…</span>
               <span className="font-mono">{progress.done.toLocaleString()} / {progress.total.toLocaleString()}</span>
             </div>
-            <div className="h-1 bg-bg-secondary rounded overflow-hidden">
+            <div className="h-1 bg-bg-secondary rounded-sm overflow-hidden">
               <div
                 className="h-full bg-accent transition-all"
                 style={{ width: `${Math.min(100, (progress.done / progress.total) * 100)}%` }}

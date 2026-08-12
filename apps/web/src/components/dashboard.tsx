@@ -503,7 +503,7 @@ export function Dashboard() {
               <>
                 <button
                   onClick={() => openEditorTab()}
-                  className="flex h-7 items-center justify-center px-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded transition-colors"
+                  className="flex h-7 items-center justify-center px-1.5 text-muted hover:text-accent hover:bg-accent/10 rounded-sm transition-colors"
                   title="New SQL editor (Alt+Q)"
                   aria-label="New SQL editor tab"
                 >
@@ -511,7 +511,7 @@ export function Dashboard() {
                 </button>
                 <button
                   onClick={() => setIsAiOpen((v) => !v)}
-                  className={`flex h-7 items-center gap-1 px-1.5 rounded text-xs font-medium transition-colors ${
+                  className={`flex h-7 items-center gap-1 px-1.5 rounded-sm text-xs font-medium transition-colors ${
                     isAiOpen ? 'text-accent bg-accent/15' : 'text-muted hover:text-accent hover:bg-accent/10'
                   }`}
                   title="Toggle AI mode"

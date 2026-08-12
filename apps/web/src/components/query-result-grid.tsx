@@ -1922,7 +1922,7 @@ function CellAction({
         e.stopPropagation();
         onClick(e);
       }}
-      className="flex items-center justify-center h-5 w-5 rounded border border-border bg-bg text-muted hover:text-primary hover:border-secondary transition-colors"
+      className="flex items-center justify-center h-5 w-5 rounded-sm border border-border bg-bg text-muted hover:text-primary hover:border-secondary transition-colors"
     >
       {children}
     </button>
@@ -2064,7 +2064,7 @@ const Cell = memo(function Cell(props: CellProps) {
             e.stopPropagation();
             fkClick(col, fk, value);
           }}
-          className="flex-shrink-0 ml-1 p-0.5 text-blue-400 hover:text-blue-300 rounded"
+          className="flex-shrink-0 ml-1 p-0.5 text-blue-400 hover:text-blue-300 rounded-sm"
           title={`Open ${fk.schema}.${fk.table} where ${fk.column} = ${String(value)}`}
           aria-label="Follow foreign key"
         >
@@ -2244,7 +2244,7 @@ const BulkActionBar = memo(function BulkActionBar({
         {onExport && (
           <button
             onClick={onExport}
-            className="px-2 py-1 text-xs font-medium text-primary hover:bg-bg-secondary rounded"
+            className="px-2 py-1 text-xs font-medium text-primary hover:bg-bg-secondary rounded-sm"
           >
             Export {count} row{count === 1 ? '' : 's'}
           </button>
@@ -2252,14 +2252,14 @@ const BulkActionBar = memo(function BulkActionBar({
         {onDelete && (
           <button
             onClick={onDelete}
-            className="px-2 py-1 text-xs font-medium text-danger hover:bg-danger/10 rounded"
+            className="px-2 py-1 text-xs font-medium text-danger hover:bg-danger/10 rounded-sm"
           >
             Delete {count} row{count === 1 ? '' : 's'}
           </button>
         )}
         <button
           onClick={onClear}
-          className="px-2 py-1 text-xs font-medium text-muted hover:text-primary hover:bg-bg-secondary rounded"
+          className="px-2 py-1 text-xs font-medium text-muted hover:text-primary hover:bg-bg-secondary rounded-sm"
         >
           Clear selection
         </button>

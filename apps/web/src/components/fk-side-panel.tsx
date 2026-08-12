@@ -143,7 +143,7 @@ export const FKSidePanel: React.FC<FKSidePanelProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors"
+              className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded-sm transition-colors"
               aria-label="Close"
             >
               <X className="w-4 h-4" />

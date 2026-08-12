@@ -163,7 +163,7 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
                         ) : (
                           <button
                             onClick={(e) => handleDelete(e, connection.id)}
-                            className="ml-2 flex items-center justify-center w-6 h-6 rounded text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                            className="ml-2 flex items-center justify-center w-6 h-6 rounded-sm text-muted hover:text-danger hover:bg-danger/10 transition-colors"
                             aria-label={`Delete connection ${connection.name}`}
                           >
                             <X className="w-3.5 h-3.5" />

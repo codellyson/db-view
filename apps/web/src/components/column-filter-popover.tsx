@@ -205,14 +205,14 @@ export const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-2 py-1 text-[11px] font-medium text-secondary hover:text-primary hover:bg-bg-secondary rounded transition-colors"
+            className="px-2 py-1 text-[11px] font-medium text-secondary hover:text-primary hover:bg-bg-secondary rounded-sm transition-colors"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleApply}
-            className="px-2.5 py-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded transition-colors"
+            className="px-2.5 py-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded-sm transition-colors"
           >
             Apply
           </button>

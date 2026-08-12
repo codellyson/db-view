@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
         <span className="text-xs font-medium">Connection lost. Recent operations may have failed.</span>
         <button
           onClick={handleReconnect}
-          className="ml-auto px-2 py-0.5 text-xs font-medium bg-danger/20 hover:bg-danger/30 rounded transition-colors"
+          className="ml-auto px-2 py-0.5 text-xs font-medium bg-danger/20 hover:bg-danger/30 rounded-sm transition-colors"
         >
           Reconnect
         </button>

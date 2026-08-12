@@ -634,7 +634,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               <Tooltip label="Generate SQL with AI">
                 <button
                   onClick={() => setShowAiGenerate((v) => !v)}
-                  className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${showAiGenerate ? 'text-accent bg-accent/15' : 'text-muted hover:text-accent hover:bg-accent/10'}`}
+                  className={`w-7 h-7 flex items-center justify-center rounded-sm transition-colors ${showAiGenerate ? 'text-accent bg-accent/15' : 'text-muted hover:text-accent hover:bg-accent/10'}`}
                   aria-pressed={showAiGenerate}
                 >
                   <Sparkles className="w-4 h-4" />
@@ -645,7 +645,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 <button
                   onClick={handleExecute}
                   disabled={isExecuting || !query.trim()}
-                  className="w-7 h-7 flex items-center justify-center rounded text-green-500 hover:bg-green-500/15 disabled:opacity-30 transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-sm text-green-500 hover:bg-green-500/15 disabled:opacity-30 transition-colors"
                 >
                   <Play className="w-4 h-4" />
                 </button>
@@ -655,7 +655,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 <button
                   onClick={() => setQuery(formatSQL(query, databaseType))}
                   disabled={isExecuting || !query.trim()}
-                  className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary disabled:opacity-30 transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-sm text-muted hover:text-primary hover:bg-bg-secondary disabled:opacity-30 transition-colors"
                 >
                   <AlignLeft className="w-4 h-4" />
                 </button>
@@ -664,7 +664,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 <button
                   onClick={handleExplain}
                   disabled={isExecuting || isExplaining || !query.trim()}
-                  className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-sm text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
                 >
                   <BarChart3 className="w-4 h-4" />
                 </button>
@@ -676,7 +676,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                     setIsSaveQueryOpen(true);
                   }}
                   disabled={isExecuting || !query.trim()}
-                  className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-sm text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
                 >
                   <Bookmark className="w-4 h-4" />
                 </button>
@@ -685,7 +685,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 <button
                   onClick={handleClear}
                   disabled={isExecuting}
-                  className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-danger hover:bg-danger/10 disabled:opacity-30 transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-sm text-muted hover:text-danger hover:bg-danger/10 disabled:opacity-30 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -693,7 +693,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               <Tooltip label="History">
                 <button
                   onClick={() => setShowHistory(!showHistory)}
-                  className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${showHistory ? 'text-accent bg-accent/15' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
+                  className={`w-7 h-7 flex items-center justify-center rounded-sm transition-colors ${showHistory ? 'text-accent bg-accent/15' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
                 >
                   <Clock className="w-4 h-4" />
                 </button>
@@ -770,7 +770,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 <Tooltip label="Close plan">
                   <button
                     onClick={() => { setExplainData(null); setInterpretation(null); }}
-                    className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary transition-colors"
+                    className="w-6 h-6 flex items-center justify-center rounded-sm text-muted hover:text-primary hover:bg-bg-secondary transition-colors"
                     aria-label="Close plan"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -839,7 +839,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               {editableMeta ? (
                 <Tooltip label={`Editable — ${editableMeta.schema}.${editableMeta.table}`}>
                   <span
-                    className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/10 text-accent"
+                    className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded-sm bg-accent/10 text-accent"
                   >
                     Editable
                   </span>
@@ -850,7 +850,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                     editability.detail ? ` (${editability.detail})` : ''
                   }`}
                 >
-                  <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-bg-secondary text-muted">
+                  <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded-sm bg-bg-secondary text-muted">
                     Read-only
                   </span>
                 </Tooltip>
@@ -875,7 +875,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 <button
                   onClick={() => setIsExportOpen(true)}
                   disabled={activeTab.rows.length === 0}
-                  className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   aria-label="Export result"
                 >
                   <Download className="h-3.5 w-3.5" />
@@ -885,7 +885,7 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                 <button
                   onClick={refreshResults}
                   disabled={isExecuting}
-                  className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   aria-label="Refresh results"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${isExecuting ? 'animate-spin' : ''}`} />

@@ -184,7 +184,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                   <Pin className="h-3 w-3 text-warning flex-shrink-0" aria-label="Pinned" />
                 )}
                 <span
-                  className={`flex-shrink-0 font-mono text-[9px] px-1 py-px rounded ${
+                  className={`flex-shrink-0 font-mono text-[9px] px-1 py-px rounded-sm ${
                     isActive ? 'bg-accent/10 text-accent' : 'bg-bg-secondary text-muted'
                   }`}
                 >
@@ -196,7 +196,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                     role="button"
                     tabIndex={-1}
                     onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
-                    className={`flex-shrink-0 p-0.5 rounded hover:bg-danger/10 hover:text-danger transition-colors ${
+                    className={`flex-shrink-0 p-0.5 rounded-sm hover:bg-danger/10 hover:text-danger transition-colors ${
                       isActive ? 'text-muted' : 'text-transparent group-hover:text-muted'
                     }`}
                     aria-label={`Close ${tab.label}`}
@@ -229,7 +229,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                 onClick={() => setShowOverflowMenu(false)}
                 aria-hidden="true"
               />
-              <div className="absolute right-0 top-full mt-1 z-40 min-w-[200px] max-w-[300px] max-h-[60vh] overflow-y-auto bg-bg border border-border rounded shadow-lg py-1">
+              <div className="absolute right-0 top-full mt-1 z-40 min-w-[200px] max-w-[300px] max-h-[60vh] overflow-y-auto bg-bg border border-border rounded-sm shadow-lg py-1">
                 {ordered
                   .filter((t) => overflowIds.has(t.id))
                   .map((t) => (
@@ -243,7 +243,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                         t.id === activeTabId ? 'text-accent' : 'text-secondary'
                       }`}
                     >
-                      <span className="font-mono text-[9px] px-1 py-px rounded bg-bg-secondary text-muted flex-shrink-0">
+                      <span className="font-mono text-[9px] px-1 py-px rounded-sm bg-bg-secondary text-muted flex-shrink-0">
                         {TYPE_BADGE[t.type]}
                       </span>
                       <span className="truncate">{t.label}</span>

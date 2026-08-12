@@ -61,7 +61,7 @@ export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated
         <span className="text-muted flex-1 min-w-0">Generate SQL from plain English — add an API key to enable it.</span>
         <button
           onClick={openSettings}
-          className="px-3 py-1.5 text-sm rounded bg-accent text-white hover:bg-accent-hover transition-colors flex-shrink-0"
+          className="px-3 py-1.5 text-sm rounded-sm bg-accent text-white hover:bg-accent-hover transition-colors flex-shrink-0"
         >
           Set up AI
         </button>
@@ -69,7 +69,7 @@ export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated
     );
   }
 
-  // Configured: a single rounded field with the controls living inside it.
+  // Configured: a single rounded-sm field with the controls living inside it.
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-1 pl-3 pr-1 py-1 border border-border rounded-md bg-bg focus-within:ring-2 focus-within:ring-accent transition-colors">
@@ -88,7 +88,7 @@ export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated
           disabled={isBusy}
           title="AI settings"
           aria-label="AI settings"
-          className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary disabled:opacity-40 transition-colors flex-shrink-0"
+          className="w-7 h-7 flex items-center justify-center rounded-sm text-muted hover:text-primary hover:bg-bg-secondary disabled:opacity-40 transition-colors flex-shrink-0"
         >
           <Sun className="w-3.5 h-3.5" />
         </button>

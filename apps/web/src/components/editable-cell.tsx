@@ -267,7 +267,7 @@ export const EditableCell = memo(function EditableCell({
             // editor don't bubble up to the Cell (which is the React parent
             // even though the DOM parent is document.body via the portal).
             // The Cell's onClick blurs the active element to defeat
-            // CodeMirror; without this, clicking the input would blur it.
+            // CodeMirror; without this, clicking the input would blur-sm it.
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
@@ -282,7 +282,7 @@ export const EditableCell = memo(function EditableCell({
                 )}
               </div>
               <div className="flex items-center gap-1 text-[10px] text-muted flex-shrink-0">
-                <kbd className="px-1 py-0.5 bg-bg rounded border border-border">
+                <kbd className="px-1 py-0.5 bg-bg rounded-sm border border-border">
                   {isLargeEditor
                     ? (typeof navigator !== 'undefined' && navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl') + '+Enter'
                     : 'Enter'}
@@ -338,7 +338,7 @@ export const EditableCell = memo(function EditableCell({
                         setEditValue(crypto.randomUUID());
                       }
                     }}
-                    className="px-2 py-1.5 text-[11px] font-medium text-secondary hover:text-primary border border-border rounded hover:bg-bg-secondary transition-colors flex-shrink-0"
+                    className="px-2 py-1.5 text-[11px] font-medium text-secondary hover:text-primary border border-border rounded-sm hover:bg-bg-secondary transition-colors flex-shrink-0"
                     title="Generate a new UUID"
                   >
                     Generate
@@ -351,7 +351,7 @@ export const EditableCell = memo(function EditableCell({
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded-sm bg-bg text-primary focus:outline-hidden focus:ring-2 focus:ring-accent"
                 />
               ) : (
                 <Input
@@ -383,14 +383,14 @@ export const EditableCell = memo(function EditableCell({
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="px-2.5 py-1 text-[11px] font-medium text-secondary hover:text-primary hover:bg-bg-secondary rounded transition-colors"
+                  className="px-2.5 py-1 text-[11px] font-medium text-secondary hover:text-primary hover:bg-bg-secondary rounded-sm transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={() => save()}
-                  className="px-2.5 py-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded transition-colors"
+                  className="px-2.5 py-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded-sm transition-colors"
                 >
                   Save
                 </button>

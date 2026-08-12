@@ -191,14 +191,14 @@ export function TableToolbar({
               <button
                 type="button"
                 onClick={onShowAllColumns}
-                className="flex-1 px-2 py-1 text-xs rounded text-secondary hover:text-primary hover:bg-bg-secondary"
+                className="flex-1 px-2 py-1 text-xs rounded-sm text-secondary hover:text-primary hover:bg-bg-secondary"
               >
                 Show all
               </button>
               <button
                 type="button"
                 onClick={onHideAllColumns}
-                className="flex-1 px-2 py-1 text-xs rounded text-secondary hover:text-primary hover:bg-bg-secondary"
+                className="flex-1 px-2 py-1 text-xs rounded-sm text-secondary hover:text-primary hover:bg-bg-secondary"
               >
                 Hide all
               </button>
