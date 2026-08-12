@@ -311,7 +311,7 @@ const DataSection: React.FC = () => {
     'w-32 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-4">
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium text-secondary">Show line numbers in the SQL editor</label>
         <Switch

@@ -1757,15 +1757,20 @@ const ExpandedDetail = memo(function ExpandedDetail({
                 return (
                   <td
                     key={col}
-                    className="px-3 py-1.5 border-r border-border last:border-r-0 font-mono text-primary max-w-[320px] whitespace-pre-wrap break-all"
+                    className="px-3 py-1.5 border-r border-border last:border-r-0 font-mono text-primary align-top"
                   >
-                    {isNull ? (
-                      <span className="text-muted">NULL</span>
-                    ) : typeof value === 'object' ? (
-                      JSON.stringify(value, null, 2)
-                    ) : (
-                      String(value)
-                    )}
+                    {/* Capped and scrolled per cell: otherwise one long value
+                        wraps into dozens of lines and every other cell in the
+                        row stretches to match it. */}
+                    <div className="max-w-[320px] max-h-24 overflow-y-auto whitespace-pre-wrap break-all">
+                      {isNull ? (
+                        <span className="text-muted">NULL</span>
+                      ) : typeof value === 'object' ? (
+                        JSON.stringify(value, null, 2)
+                      ) : (
+                        String(value)
+                      )}
+                    </div>
                   </td>
                 );
               })}
