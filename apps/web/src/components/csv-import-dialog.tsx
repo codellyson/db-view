@@ -144,7 +144,7 @@ export const CSVImportDialog: React.FC<CSVImportDialogProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       title={`Import CSV into ${tableName}`}
-      className="max-w-lg"
+      width={512}
     >
       <div className="space-y-4">
         {error && (
@@ -210,11 +210,8 @@ export const CSVImportDialog: React.FC<CSVImportDialogProps> = ({
                   <Select
                     containerClassName="flex-1"
                     value={columnMapping[header] || SKIP_COLUMN}
-                    onChange={(e) =>
-                      setColumnMapping((prev) => ({
-                        ...prev,
-                        [header]: e.target.value,
-                      }))
+                    onChange={(v) =>
+                      setColumnMapping((prev) => ({ ...prev, [header]: v }))
                     }
                   >
                     <option value={SKIP_COLUMN}>-- Skip --</option>

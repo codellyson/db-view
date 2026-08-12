@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { SmartCellDisplay } from './smart-cell-display';
+import { Input, Select, Textarea } from '@codellyson/justui/react';
 
 export type SaveIntent = 'right' | 'left' | 'down' | null;
 
@@ -293,42 +294,42 @@ export const EditableCell = memo(function EditableCell({
             {/* Body: input */}
             <div className="p-2 flex-1 min-h-0">
               {editorKind === 'boolean' ? (
-                <select
-                  ref={inputRef as React.RefObject<HTMLSelectElement>}
+                <Select
+                  ref={inputRef as React.RefObject<HTMLButtonElement>}
                   value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                >
-                  <option value="">NULL</option>
-                  <option value="true">true</option>
-                  <option value="false">false</option>
-                </select>
+                  onChange={setEditValue}
+                  options={[
+                    { value: '', label: 'NULL' },
+                    { value: 'true', label: 'true' },
+                    { value: 'false', label: 'false' },
+                  ]}
+                  className="w-full font-mono"
+                />
               ) : isLargeEditor ? (
-                <textarea
+                <Textarea
                   ref={textareaRef}
                   value={editValue}
-                  onChange={(e) => {
-                    setEditValue(e.target.value);
+                  onChange={(v) => {
+                    setEditValue(v);
                     if (jsonError) setJsonError(null);
                   }}
                   onKeyDown={handleKeyDown}
                   rows={12}
                   spellCheck={false}
-                  className={`w-full h-full px-2 py-1.5 text-sm font-mono border rounded bg-bg text-primary focus:outline-none focus:ring-2 resize-none ${
-                    jsonError ? 'border-danger focus:ring-danger' : 'border-border focus:ring-accent'
-                  }`}
+                  error={jsonError ? true : undefined}
+                  containerClassName="w-full h-full"
+                  className="h-full font-mono resize-none min-h-0"
                 />
               ) : editorKind === 'uuid' ? (
                 <div className="flex gap-1.5">
-                  <input
+                  <Input
                     ref={inputRef as React.RefObject<HTMLInputElement>}
-                    type="text"
                     value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
+                    onChange={setEditValue}
                     onKeyDown={handleKeyDown}
                     placeholder="00000000-0000-0000-0000-000000000000"
-                    className="flex-1 min-w-0 px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                    containerClassName="flex-1 min-w-0"
+                    className="font-mono"
                   />
                   <button
                     type="button"
@@ -353,14 +354,14 @@ export const EditableCell = memo(function EditableCell({
                   className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               ) : (
-                <input
+                <Input
                   ref={inputRef as React.RefObject<HTMLInputElement>}
-                  type={editorKind === 'number' ? 'number' : 'text'}
-                  step={editorKind === 'number' ? 'any' : undefined}
+                  inputMode={editorKind === 'number' ? 'decimal' : undefined}
                   value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
+                  onChange={setEditValue}
                   onKeyDown={handleKeyDown}
-                  className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                  containerClassName="w-full"
+                  className="font-mono"
                 />
               )}
               {jsonError && (

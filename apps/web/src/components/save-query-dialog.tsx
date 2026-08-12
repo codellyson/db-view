@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
+import { Input } from '@codellyson/justui/react';
 
 interface SaveQueryDialogProps {
   isOpen: boolean;
@@ -38,12 +39,11 @@ export const SaveQueryDialog: React.FC<SaveQueryDialogProps> = ({
           <label className="block text-xs font-medium text-secondary mb-1.5">
             Name
           </label>
-          <input
-            type="text"
+          <Input
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={setName}
             placeholder="My query"
-            className="w-full px-3 py-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+            containerClassName="w-full"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSave();
@@ -54,12 +54,11 @@ export const SaveQueryDialog: React.FC<SaveQueryDialogProps> = ({
           <label className="block text-xs font-medium text-secondary mb-1.5">
             Tags (comma-separated)
           </label>
-          <input
-            type="text"
+          <Input
             value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
+            onChange={setTagsInput}
             placeholder="analytics, users, report"
-            className="w-full px-3 py-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+            containerClassName="w-full"
           />
         </div>
         <div>

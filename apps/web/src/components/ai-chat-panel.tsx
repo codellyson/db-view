@@ -8,7 +8,7 @@ import { useToast } from '../contexts/toast-context';
 import { useAiSchemaText } from '../hooks/use-ai-schema';
 import { useChatHistory, type UiMessage } from '../hooks/use-chat-history';
 import { AlignLeft, ArrowUp, Check, Loader2, Pencil, Plus, Sparkles, X } from 'lucide-react';
-
+import { Button, Input, Select, Textarea, Tooltip } from '@codellyson/justui/react';
 interface AiChatPanelProps {
   onClose: () => void;
 }
@@ -388,16 +388,17 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
                 className={`flex items-center gap-1 px-2 py-1.5 border-b border-border/60 last:border-b-0 ${c.id === activeId ? 'bg-accent/10' : 'hover:bg-bg-secondary'}`}
               >
                 {editingId === c.id ? (
-                  <input
+                  <Input
                     autoFocus
                     value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
+                    onChange={setEditValue}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') commitRename(c.id);
                       else if (e.key === 'Escape') { setEditingId(null); setEditValue(''); }
                     }}
                     onBlur={() => commitRename(c.id)}
-                    className="flex-1 min-w-0 px-1.5 py-0.5 text-xs border border-border rounded bg-bg text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                    containerClassName="flex-1 min-w-0"
+                    className="text-xs"
                   />
                 ) : (
                   <button
@@ -408,22 +409,22 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
                     {c.title}
                   </button>
                 )}
-                <button
+                <Button
                   onClick={() => { setEditingId(c.id); setEditValue(c.title); }}
                   className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary transition-colors flex-shrink-0"
                   title="Rename"
                   aria-label="Rename conversation"
                 >
                   <Pencil className="w-3 h-3" />
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => deleteChat(c.id)}
                   className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-danger hover:bg-danger/10 transition-colors flex-shrink-0"
                   title="Delete"
                   aria-label="Delete conversation"
                 >
                   <X className="w-3 h-3" />
-                </button>
+                </Button>
               </div>
             ))
           )}
@@ -483,19 +484,19 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
                           Proposed change — review before running
                         </span>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
+                          <Button
                             onClick={() => openInEditor(sql)}
                             className="text-[11px] px-1.5 py-0.5 rounded bg-accent text-white hover:bg-accent-hover transition-colors"
                             title="Open in a SQL editor tab (you'll confirm before it runs)"
                           >
                             Open in editor
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={() => copySql(sql)}
                             className="text-[11px] px-1.5 py-0.5 rounded text-accent hover:bg-accent/10 transition-colors"
                           >
                             Copy
-                          </button>
+                          </Button>
                         </div>
                       </div>
                       <code className="block font-mono text-[11px] text-primary whitespace-pre-wrap break-all">{sql}</code>
@@ -533,45 +534,46 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
       {/* Composer */}
       <div className="border-t border-border p-2.5 flex-shrink-0">
         <div className="border border-border rounded-xl bg-bg focus-within:ring-2 focus-within:ring-accent transition-colors">
-          <textarea
+          <Textarea
             ref={inputRef}
             value={input}
-            onChange={(e) => onInputChange(e.target.value)}
+            onChange={onInputChange}
             onKeyDown={onKeyDown}
             disabled={disabled}
             rows={1}
             placeholder="Ask about your data…  (↑ recalls previous)"
-            className="block w-full resize-none overflow-y-auto bg-transparent px-3 pt-2.5 pb-1 text-sm leading-relaxed text-primary placeholder:text-muted focus:outline-none disabled:opacity-50"
+            containerClassName="contents"
+            className="block w-full resize-none overflow-y-auto border-0 bg-transparent min-h-0 rounded-none px-3 pt-2.5 pb-1 text-sm leading-relaxed focus-visible:ring-0"
           />
           <div className="flex items-center justify-between gap-2 px-2 pb-2 pt-0.5">
             {status?.configured && modelOptions.length > 0 ? (
-              <select
-                value={chatModel}
-                onChange={(e) => onModelChange(e.target.value)}
-                disabled={isBusy}
-                title="Model used for AI mode"
-                aria-label="AI mode model"
-                className="max-w-[60%] text-[10px] text-muted bg-transparent border-0 focus:outline-none focus:ring-0 cursor-pointer disabled:opacity-50 truncate"
-              >
-                {modelOptions.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+              <Tooltip label="Model used for AI mode">
+                <Select
+                  value={chatModel}
+                  onChange={onModelChange}
+                  disabled={isBusy}
+                  aria-label="AI mode model"
+                  options={modelOptions.map((m) => ({ value: m, label: m }))}
+                  size="xs"
+                  className="max-w-[60%] text-[10px] text-muted bg-transparent border-0 truncate"
+                />
+              </Tooltip>
+
             ) : (
               <span className="text-[10px] text-muted px-1 truncate">{status?.model ?? ''}</span>
             )}
-            <button
+            <Button
               onClick={send}
               disabled={disabled || !input.trim()}
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-accent text-white hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              className="w-7 h-7 flex items-center justify-center rounded-full   text-white hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
               title="Send (Enter)"
               aria-label="Send"
             >
               <ArrowUp className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
         </div>
-        <p className="mt-1 text-[10px] text-muted px-1">
+        <p className="mt-2 text-[10px] text-muted px-1">
           Reads run automatically. Changes are proposed for you to run via the SQL editor.
         </p>
       </div>

@@ -11,6 +11,8 @@ import {
   getTelemetryEnabled, setTelemetryEnabled,
 } from '@/lib/app-settings';
 import { Check } from 'lucide-react';
+import { Input, Switch } from '@codellyson/justui/react';
+import { Button } from './ui';
 
 type Tab = 'ai' | 'appearance' | 'formatting' | 'data' | 'privacy';
 
@@ -35,10 +37,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
     if (isOpen && initialTab) setTab(initialTab);
   }, [isOpen, initialTab]);
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Settings" className="!max-w-3xl">
-      {/* -my-5 cancels the Modal's p-5 so the divider runs full-height. */}
-      <div className="flex gap-5 -my-5">
-        <nav className="flex flex-col gap-0.5 w-36 flex-shrink-0 border-r border-border pr-5 py-5">
+    <Modal isOpen={isOpen} onClose={onClose} title="Settings" width={768}>
+      {/* -my-4 cancels the Modal's py-4 so the divider runs full-height. */}
+      <div className="flex gap-5 -my-4">
+        <nav className="flex flex-col gap-0.5 w-36 flex-shrink-0 border-r border-border pr-5 py-4">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -51,7 +53,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
             </button>
           ))}
         </nav>
-        <div className="flex-1 min-w-0 min-h-[360px] max-h-[60vh] overflow-y-auto pr-1 py-5">
+        <div className="flex-1 min-w-0 h-[min(60vh,520px)] overflow-y-auto pr-1 py-4">
           {tab === 'ai' && <AiSection />}
           {tab === 'appearance' && <AppearanceSection />}
           {tab === 'formatting' && <FormatterSettingsBody />}
@@ -136,7 +138,7 @@ const AiSection: React.FC = () => {
   }, [refresh]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-2">
       <p className="text-xs text-muted">
         AI is opt-in. {isLocal
           ? 'The local agent runs on your machine using your own login — no key is stored. Used by AI mode.'
@@ -151,19 +153,17 @@ const AiSection: React.FC = () => {
         </div>
       )}
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-secondary">Provider</label>
-        <Select value={provider} onChange={(e) => setProvider(e.target.value as ProviderId)}>
+        <label className="block text-xs font-medium text-secondary uppercase">Provider</label>
+        <Select value={provider} onChange={(v) => setProvider(v as ProviderId)}>
           {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
         </Select>
       </div>
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-secondary">Model (optional)</label>
-        <input
-          type="text"
+        <Input
           value={model}
-          onChange={(e) => setModel(e.target.value)}
+          onChange={setModel}
           placeholder={`Default: ${meta.defaultModel}`}
-          className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+          label='Model (optional)'
         />
       </div>
       {isLocal ? (
@@ -204,32 +204,33 @@ const AiSection: React.FC = () => {
           <label className="block text-xs font-medium text-secondary">
             API key {status?.configured && <span className="text-muted font-normal">(leave blank to keep current)</span>}
           </label>
-          <input
+          <Input
             type="password"
+            withPasswordToggle
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={setApiKey}
             onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
             placeholder={meta.keyPlaceholder}
-            className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+            containerClassName="w-full"
+            className="font-mono"
           />
         </div>
       )}
       <div className="flex items-center gap-2">
-        <button
+        <Button
           onClick={save}
           disabled={busy || !canSave}
-          className="px-3 py-1.5 text-sm rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-40 transition-colors"
         >
           {status?.configured ? 'Update' : 'Save'}
-        </button>
+        </Button>
         {status?.configured && (
-          <button
+          <Button
             onClick={remove}
             disabled={busy}
-            className="px-3 py-1.5 text-sm rounded-md text-danger hover:bg-danger/10 disabled:opacity-40 transition-colors"
+            variant='secondary'
           >
             {isLocal ? 'Disconnect' : 'Remove key'}
-          </button>
+          </Button>
         )}
         {saved && (
           <span className="inline-flex items-center gap-1 text-xs text-success">
@@ -267,7 +268,7 @@ const AppearanceSection: React.FC = () => {
       </div>
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">Theme</label>
-        <Select value={themeId} onChange={(e) => setThemeId(e.target.value)}>
+        <Select value={themeId} onChange={(v) => setThemeId(v)}>
           {themes.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
         </Select>
       </div>
@@ -313,21 +314,19 @@ const DataSection: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium text-secondary">Show line numbers in the SQL editor</label>
-        <button
-          onClick={toggleLineNumbers}
-          role="switch"
-          aria-checked={lineNumbers}
+        <Switch
+          checked={lineNumbers}
+          onChange={toggleLineNumbers}
+          size="sm"
           aria-label="Show line numbers"
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${lineNumbers ? 'bg-accent' : 'bg-border'}`}
-        >
-          <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${lineNumbers ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
-        </button>
+        />
       </div>
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">SQL editor result limit</label>
-        <input
-          type="text" inputMode="numeric" value={rowCap}
-          onChange={(e) => setRowCap(e.target.value.replace(/[^0-9]/g, ''))}
+        <Input
+          inputMode="numeric"
+          value={rowCap}
+          onChange={(v) => setRowCap(v.replace(/[^0-9]/g, ''))}
           onBlur={commitRowCap}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
           className={numberInput}
@@ -339,9 +338,10 @@ const DataSection: React.FC = () => {
       </div>
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-secondary">Idle disconnect (minutes)</label>
-        <input
-          type="text" inputMode="numeric" value={idleMin}
-          onChange={(e) => setIdleMin(e.target.value.replace(/[^0-9]/g, ''))}
+        <Input
+          inputMode="numeric"
+          value={idleMin}
+          onChange={(v) => setIdleMin(v.replace(/[^0-9]/g, ''))}
           onBlur={commitIdle}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
           className={numberInput}
@@ -370,15 +370,13 @@ const PrivacySection: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <label className="text-xs font-medium text-secondary">Send anonymous usage analytics</label>
-        <button
-          onClick={toggle}
-          role="switch"
-          aria-checked={enabled}
+        <Switch
+          checked={enabled}
+          onChange={toggle}
+          size="sm"
+          className="flex-shrink-0"
           aria-label="Send anonymous usage analytics"
-          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${enabled ? 'bg-accent' : 'bg-border'}`}
-        >
-          <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
-        </button>
+        />
       </div>
       <p className="text-xs text-muted leading-relaxed">
         Helps us understand how many people use JustDB and which features matter.

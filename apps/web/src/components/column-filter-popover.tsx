@@ -1,8 +1,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Select } from './ui/select';
 import type { Filter, FilterOperator } from '@/lib/filters';
+import { Input, Select, Textarea } from '@codellyson/justui/react';
 
 interface ColumnFilterPopoverProps {
   column: string;
@@ -65,7 +65,7 @@ export const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
   );
 
   const popoverRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLButtonElement>(null);
 
   useEffect(() => {
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -136,58 +136,57 @@ export const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
       </div>
       <div className="p-3 space-y-2">
         <Select
-          ref={inputRef as React.RefObject<HTMLSelectElement>}
+          ref={inputRef as React.RefObject<HTMLButtonElement>}
           value={operator}
-          onChange={(e) => setOperator(e.target.value as FilterOperator)}
-          onKeyDown={handleKeyDown}
-        >
-          {OPERATOR_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
+          onChange={(v) => setOperator(v as FilterOperator)}
+          options={OPERATOR_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          className="w-full"
+        />
 
         {needsValue && (
-          <input
-            type={numeric && (operator === 'eq' || operator === 'neq') ? 'number' : 'text'}
+          <Input
+            inputMode={numeric && (operator === 'eq' || operator === 'neq') ? 'numeric' : undefined}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={setValue}
             onKeyDown={handleKeyDown}
             placeholder="Value"
-            className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+            containerClassName="w-full"
+            className="font-mono"
           />
         )}
 
         {operator === 'between' && (
           <div className="flex gap-1.5">
-            <input
-              type={numeric ? 'number' : 'text'}
+            <Input
+              inputMode={numeric ? 'numeric' : undefined}
               value={low}
-              onChange={(e) => setLow(e.target.value)}
+              onChange={setLow}
               onKeyDown={handleKeyDown}
               placeholder="From"
-              className="flex-1 min-w-0 px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+              containerClassName="flex-1 min-w-0"
+              className="font-mono"
             />
-            <input
-              type={numeric ? 'number' : 'text'}
+            <Input
+              inputMode={numeric ? 'numeric' : undefined}
               value={high}
-              onChange={(e) => setHigh(e.target.value)}
+              onChange={setHigh}
               onKeyDown={handleKeyDown}
               placeholder="To"
-              className="flex-1 min-w-0 px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+              containerClassName="flex-1 min-w-0"
+              className="font-mono"
             />
           </div>
         )}
 
         {operator === 'in' && (
-          <textarea
+          <Textarea
             value={list}
-            onChange={(e) => setList(e.target.value)}
+            onChange={setList}
             onKeyDown={handleKeyDown}
             placeholder="Comma-separated values"
             rows={2}
-            className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+            containerClassName="w-full"
+            className="font-mono min-h-0 resize-none"
           />
         )}
       </div>

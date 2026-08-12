@@ -10,6 +10,7 @@ import {
   generateSQLContent,
   downloadBlob,
 } from "@/lib/export-utils";
+import { Checkbox } from '@codellyson/justui/react';
 
 interface BatchExportModalProps {
   isOpen: boolean;
@@ -145,7 +146,7 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       title="Batch Export"
-      className="max-w-lg"
+      width={512}
     >
       <div className="space-y-4">
         <div>
@@ -190,21 +191,17 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
               </div>
             ) : (
               tables.map((table) => (
-                <label
+                <div
                   key={table}
-                  className="flex items-center gap-2.5 px-3 py-2 hover:bg-bg-secondary cursor-pointer transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 hover:bg-bg-secondary transition-colors"
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedTables.has(table)}
                     onChange={() => toggleTable(table)}
                     disabled={isExporting}
-                    className="rounded border-border text-accent focus:ring-accent"
+                    label={<span className="text-sm text-primary font-mono truncate">{table}</span>}
                   />
-                  <span className="text-sm text-primary font-mono truncate">
-                    {table}
-                  </span>
-                </label>
+                </div>
               ))
             )}
           </div>

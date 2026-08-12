@@ -10,6 +10,7 @@ import { buildDisplaySQL, type MutationRequest } from '@/lib/mutation';
 import { db } from '@/lib/db';
 import { CascadeImpactPanel } from './cascade-impact-panel';
 import type { CascadeNodeRequest, CascadeResult } from '@/lib/cascade';
+import { Checkbox } from '@codellyson/justui/react';
 
 interface ReviewSqlModalProps {
   isOpen: boolean;
@@ -205,18 +206,18 @@ export const ReviewSqlModal: React.FC<ReviewSqlModalProps> = ({
         </div>
 
         {requiresAck && !cascadeLoading && (
-          <label className="flex items-start gap-2 px-1 cursor-pointer select-none">
-            <input
-              type="checkbox"
+          <div className="px-1 select-none">
+            <Checkbox
               checked={acknowledged}
-              onChange={(e) => setAcknowledged(e.target.checked)}
+              onChange={(checked) => setAcknowledged(checked === true)}
               disabled={isSaving}
-              className="mt-0.5 cursor-pointer accent-accent"
+              label={
+                <span className="text-xs text-secondary">
+                  I’ve reviewed the impact above and want to proceed.
+                </span>
+              }
             />
-            <span className="text-xs text-secondary">
-              I’ve reviewed the impact above and want to proceed.
-            </span>
-          </label>
+          </div>
         )}
 
         <div className="flex gap-2 justify-end">

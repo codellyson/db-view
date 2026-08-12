@@ -5,6 +5,7 @@ import { TableList } from './table-list';
 import { SidebarSkeleton } from './skeletons/sidebar-skeleton';
 import type { SavedQuery } from '@/types';
 import { ArrowRight, ChevronDown, ChevronRight, Code2, Database, Download, Plus, X } from 'lucide-react';
+import { Select, Tooltip } from '@codellyson/justui/react';
 
 interface FunctionInfo {
   name: string;
@@ -92,9 +93,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           runs flush across both panes and the sidebar no longer looks headless. */}
       <div className="h-12 flex-shrink-0 flex items-center gap-2 px-3 border-b border-border">
         <Database className="h-4 w-4 text-muted flex-shrink-0" />
-        <span className="text-sm font-medium text-primary truncate" title={databaseName}>
-          {databaseName || 'Database'}
-        </span>
+        <Tooltip label={databaseName}>
+          <span className="text-sm font-medium text-primary truncate" >
+            {databaseName || 'Database'}
+          </span>
+        </Tooltip>
       </div>
       <div className="flex-1 overflow-y-auto p-3 pl-0">
         {schemas && schemas.length > 1 && onSchemaChange && (
@@ -103,18 +106,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Schema
             </label>
             <div className="relative">
-              <select
+              <Select
                 value={selectedSchema}
-                onChange={(e) => onSchemaChange(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs rounded-md border border-border bg-bg-secondary/50 text-primary focus:outline-none focus:ring-1 focus:ring-accent/40 appearance-none cursor-pointer hover:bg-bg-secondary transition-colors"
+                onChange={onSchemaChange}
+                options={schemas.map((schema) => ({ value: schema, label: schema }))}
+                size="xs"
                 aria-label="Select database schema"
-              >
-                {schemas.map((schema) => (
-                  <option key={schema} value={schema}>
-                    {schema}
-                  </option>
-                ))}
-              </select>
+                className="w-full text-xs bg-bg-secondary/50"
+              />
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted pointer-events-none" />
             </div>
           </div>
@@ -134,14 +133,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               actionLabel="Create table"
               extraActions={
                 onBatchExport && tables.length > 0 ? (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onBatchExport(); }}
-                    className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded transition-all"
-                    title="Batch export tables"
-                    aria-label="Batch export tables"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </button>
+                  <Tooltip label="Batch export tables">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onBatchExport(); }}
+                      className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded transition-all"
+                      aria-label="Batch export tables"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </button>
+                  </Tooltip>
                 ) : undefined
               }
             >
@@ -201,22 +201,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <ul className="space-y-px">
                   {savedQueries.map((q) => (
                     <li key={q.id} className="group flex items-center gap-1">
-                      <button
-                        onClick={() => onOpenSavedQuery(q)}
-                        className="flex-1 text-left px-2.5 py-1.5 text-[13px] rounded-md text-secondary hover:text-primary hover:bg-bg-secondary transition-colors truncate"
-                        title={q.query}
-                      >
-                        <span className="truncate">{q.name}</span>
-                      </button>
-                      {onDeleteSavedQuery && (
+                      <Tooltip label={q.query}>
                         <button
-                          onClick={(e) => { e.stopPropagation(); onDeleteSavedQuery(q.id); }}
-                          className="p-1 text-muted/0 group-hover:text-muted hover:!text-danger transition-all"
-                          title="Delete saved query"
-                          aria-label="Delete saved query"
+                          onClick={() => onOpenSavedQuery(q)}
+                          className="flex-1 text-left px-2.5 py-1.5 text-[13px] rounded-md text-secondary hover:text-primary hover:bg-bg-secondary transition-colors truncate"
                         >
-                          <X className="h-3 w-3" />
+                          <span className="truncate">{q.name}</span>
                         </button>
+                      </Tooltip>
+                      {onDeleteSavedQuery && (
+                        <Tooltip label="Delete saved query">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDeleteSavedQuery(q.id); }}
+                            className="p-1 text-muted/0 group-hover:text-muted hover:!text-danger transition-all"
+                            aria-label="Delete saved query"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Tooltip>
                       )}
                     </li>
                   ))}
@@ -286,14 +288,15 @@ const SidebarSection: React.FC<{
       </button>
       {extraActions}
       {onAction && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onAction(); }}
-          className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded transition-all"
-          title={actionLabel || "Add"}
-          aria-label={actionLabel || "Add"}
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
+        <Tooltip label={actionLabel || "Add"}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onAction(); }}
+            className="p-1 text-muted/0 group-hover/section:text-muted hover:!text-accent rounded transition-all"
+            aria-label={actionLabel || "Add"}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </Tooltip>
       )}
     </div>
     {isExpanded && <div className="mt-0.5 ml-1">{children}</div>}

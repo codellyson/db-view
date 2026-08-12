@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Modal } from './ui/modal';
 import { Button } from './ui/button';
 import { TriangleAlert } from 'lucide-react';
+import { Input } from '@codellyson/justui/react';
 
 interface QueryExecutionConfirmationProps {
   isOpen: boolean;
@@ -107,10 +108,9 @@ export const QueryExecutionConfirmation: React.FC<QueryExecutionConfirmationProp
             <p className="text-sm text-secondary mb-2">
               Type <strong className="font-mono text-primary">{confirmText}</strong> to confirm:
             </p>
-            <input
-              type="text"
+            <Input
               value={typedValue}
-              onChange={(e) => setTypedValue(e.target.value)}
+              onChange={setTypedValue}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && isTypedCorrect) {
                   e.preventDefault();
@@ -119,7 +119,8 @@ export const QueryExecutionConfirmation: React.FC<QueryExecutionConfirmationProp
               }}
               autoFocus
               placeholder={confirmText}
-              className="w-full px-3 py-2 text-sm font-mono border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted/40"
+              containerClassName="w-full"
+              className="font-mono placeholder:text-muted/40"
               spellCheck={false}
             />
           </div>

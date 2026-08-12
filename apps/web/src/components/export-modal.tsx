@@ -14,6 +14,7 @@ import {
 import type { Filter } from '@/lib/filters';
 import { db } from '@/lib/db';
 import { useToast } from '../contexts/toast-context';
+import { Checkbox, RadioGroup } from '@codellyson/justui/react';
 
 export type ExportFormat = 'csv' | 'tsv' | 'json' | 'ndjson' | 'sql' | 'xlsx';
 type Scope = 'current' | 'all';
@@ -217,37 +218,40 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Export" preventClose={busy}>
       <div className="space-y-4">
         {source.kind === 'table' ? (
-          <fieldset className="space-y-1.5">
-            <legend className="text-xs font-medium text-secondary mb-1.5">Scope</legend>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="radio"
-                name="scope"
-                value="current"
-                checked={scope === 'current'}
-                onChange={() => setScope('current')}
-              />
-              <span>
-                Current view{source.filters.length > 0 ? ' (filtered + sorted)' : source.sortColumn ? ' (sorted)' : ''}
-                <span className="text-muted ml-2">{currentRows.length} rows</span>
-              </span>
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="radio"
-                name="scope"
-                value="all"
-                checked={scope === 'all'}
-                onChange={() => setScope('all')}
-              />
-              <span>
-                All rows in this table
-                <span className="text-muted ml-2">
-                  {source.filters.length > 0 ? `${source.currentTotal} matching` : `${source.currentTotal} rows`}
-                </span>
-              </span>
-            </label>
-          </fieldset>
+          <RadioGroup
+            label={<span className="text-xs font-medium text-secondary">Scope</span>}
+            value={scope}
+            onChange={(next) => setScope(next as Scope)}
+            options={[
+              {
+                value: 'current',
+                label: (
+                  <>
+                    Current view
+                    {source.filters.length > 0
+                      ? ' (filtered + sorted)'
+                      : source.sortColumn
+                        ? ' (sorted)'
+                        : ''}
+                    <span className="text-muted ml-2">{currentRows.length} rows</span>
+                  </>
+                ),
+              },
+              {
+                value: 'all',
+                label: (
+                  <>
+                    All rows in this table
+                    <span className="text-muted ml-2">
+                      {source.filters.length > 0
+                        ? `${source.currentTotal} matching`
+                        : `${source.currentTotal} rows`}
+                    </span>
+                  </>
+                ),
+              },
+            ]}
+          />
         ) : (
           <div className="text-sm text-secondary">
             Exporting <span className="text-primary font-medium">{currentRows.length}</span> rows from the current query result.
@@ -258,7 +262,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           <label className="block text-xs font-medium text-secondary mb-1.5">Format</label>
           <Select
             value={format}
-            onChange={(e) => setFormat(e.target.value as ExportFormat)}
+            onChange={(v) => setFormat(v as ExportFormat)}
           >
             {formatOptions.map((o) => (
               <option key={o.value} value={o.value}>
@@ -271,46 +275,44 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         {(showCsvOpts || showJsonOpts || showSqlOpts) && (
           <div className="space-y-1.5">
             {showCsvOpts && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
+              <Checkbox
                   checked={csvHeaders}
-                  onChange={(e) => setCsvHeaders(e.target.checked)}
+                  onChange={(checked) => setCsvHeaders(checked === true)}
+                  label="Include headers"
                 />
-                Include headers
-              </label>
             )}
             {showJsonOpts && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
+              <Checkbox
                   checked={jsonPretty}
-                  onChange={(e) => setJsonPretty(e.target.checked)}
+                  onChange={(checked) => setJsonPretty(checked === true)}
+                  label="Pretty-print"
                 />
-                Pretty-print
-              </label>
             )}
             {showSqlOpts && source.kind === 'table' && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sqlQualified}
-                  onChange={(e) => setSqlQualified(e.target.checked)}
-                />
-                Use schema-qualified table name (<span className="font-mono text-xs">{source.schema}.{source.table}</span>)
-              </label>
+              <Checkbox
+                checked={sqlQualified}
+                onChange={(checked) => setSqlQualified(checked === true)}
+                label={
+                  <>
+                    Use schema-qualified table name (
+                    <span className="font-mono text-xs">
+                      {source.schema}.{source.table}
+                    </span>
+                    )
+                  </>
+                }
+              />
             )}
           </div>
         )}
 
-        <label className="flex items-center gap-2 text-xs text-muted cursor-pointer pt-2 border-t border-border">
-          <input
-            type="checkbox"
+        <div className="pt-2 border-t border-border">
+          <Checkbox
             checked={rememberDefaults}
-            onChange={(e) => setRememberDefaults(e.target.checked)}
+            onChange={(checked) => setRememberDefaults(checked === true)}
+            label={<span className="text-xs text-muted">Remember my choice</span>}
           />
-          Remember my choice
-        </label>
+        </div>
 
         {progress && progress.total > 0 && (
           <div>

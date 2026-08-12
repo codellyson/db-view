@@ -10,6 +10,7 @@ import { buildCreateTableSQL, COLUMN_TYPES } from "@/lib/ddl-builder";
 import { db } from "@/lib/db";
 import { ColumnDefinition } from "@/types";
 import { Trash2 } from 'lucide-react';
+import { Checkbox, Input } from '@codellyson/justui/react';
 
 interface TableCreationWizardProps {
   isOpen: boolean;
@@ -174,7 +175,7 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       title="Create table"
-      className="max-w-2xl"
+      width={672}
     >
       <div className="space-y-4">
         {error && (
@@ -189,12 +190,12 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
               <label className="block text-xs font-medium text-secondary mb-1.5">
                 Table name
               </label>
-              <input
-                type="text"
+              <Input
                 value={tableName}
-                onChange={(e) => setTableName(e.target.value)}
+                onChange={setTableName}
                 placeholder="my_table"
-                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted font-mono"
+                containerClassName="w-full"
+                className="font-mono"
                 autoFocus
               />
               {tableName && !isValidName && (
@@ -211,7 +212,7 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
                 <Select
                   inputSize="md"
                   value={tableSchema}
-                  onChange={(e) => setTableSchema(e.target.value)}
+                  onChange={(v) => setTableSchema(v)}
                 >
                   {schemas.map((s) => (
                     <option key={s} value={s}>
@@ -253,18 +254,18 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
                 >
                   <div className="flex-1 space-y-2">
                     <div className="flex gap-2">
-                      <input
-                        type="text"
+                      <Input
                         value={col.name}
-                        onChange={(e) => updateColumn(i, { name: e.target.value })}
+                        onChange={(v) => updateColumn(i, { name: v })}
                         placeholder="column_name"
-                        className="flex-1 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent font-mono placeholder:text-muted"
+                        containerClassName="flex-1"
+                        className="font-mono"
                       />
                       <Select
                         containerClassName="w-40"
                         className="font-mono"
                         value={col.type}
-                        onChange={(e) => updateColumn(i, { type: e.target.value })}
+                        onChange={(v) => updateColumn(i, { type: v })}
                       >
                         {types.map((t) => (
                           <option key={t} value={t}>
@@ -274,45 +275,33 @@ export const TableCreationWizard: React.FC<TableCreationWizardProps> = ({
                       </Select>
                     </div>
                     <div className="flex items-center gap-4 text-xs">
-                      <label className="flex items-center gap-1.5 text-secondary cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={col.isPrimaryKey}
-                          onChange={(e) =>
-                            updateColumn(i, {
-                              isPrimaryKey: e.target.checked,
-                              nullable: e.target.checked ? false : col.nullable,
-                            })
-                          }
-                          className="rounded"
-                        />
-                        PK
-                      </label>
-                      <label className="flex items-center gap-1.5 text-secondary cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={col.nullable}
-                          onChange={(e) => updateColumn(i, { nullable: e.target.checked })}
-                          disabled={col.isPrimaryKey}
-                          className="rounded"
-                        />
-                        Nullable
-                      </label>
-                      <label className="flex items-center gap-1.5 text-secondary cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={col.isUnique}
-                          onChange={(e) => updateColumn(i, { isUnique: e.target.checked })}
-                          className="rounded"
-                        />
-                        Unique
-                      </label>
-                      <input
-                        type="text"
+                      <Checkbox
+                        checked={col.isPrimaryKey}
+                        onChange={(checked) =>
+                          updateColumn(i, {
+                            isPrimaryKey: checked === true,
+                            nullable: checked === true ? false : col.nullable,
+                          })
+                        }
+                        label={<span className="text-xs text-secondary">PK</span>}
+                      />
+                      <Checkbox
+                        checked={col.nullable}
+                        onChange={(checked) => updateColumn(i, { nullable: checked === true })}
+                        disabled={col.isPrimaryKey}
+                        label={<span className="text-xs text-secondary">Nullable</span>}
+                      />
+                      <Checkbox
+                        checked={col.isUnique}
+                        onChange={(checked) => updateColumn(i, { isUnique: checked === true })}
+                        label={<span className="text-xs text-secondary">Unique</span>}
+                      />
+                      <Input
                         value={col.defaultValue || ""}
-                        onChange={(e) => updateColumn(i, { defaultValue: e.target.value })}
+                        onChange={(v) => updateColumn(i, { defaultValue: v })}
                         placeholder="Default"
-                        className="w-24 px-2 py-1 text-xs border border-border rounded bg-bg text-primary focus:outline-none focus:ring-1 focus:ring-accent font-mono placeholder:text-muted"
+                        containerClassName="w-24"
+                        className="text-xs font-mono"
                       />
                     </div>
                   </div>

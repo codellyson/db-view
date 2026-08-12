@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { Input } from '@codellyson/justui/react';
 
 interface TableEntry {
   schema: string;
@@ -112,17 +113,17 @@ export const TablePicker: React.FC<TablePickerProps> = ({ isOpen, onClose, table
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="px-4 py-3 border-b border-border">
-          <input
+          <Input
             ref={inputRef}
-            type="text"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
+            onChange={(v) => {
+              setQuery(v);
               setActiveIdx(0);
             }}
             onKeyDown={handleKeyDown}
             placeholder="Jump to a table..."
-            className="w-full bg-transparent text-base text-primary placeholder:text-muted focus:outline-none"
+            containerClassName="flex-1 min-w-0"
+            className="bg-transparent border-0 focus-visible:ring-0 px-0 text-base"
           />
         </div>
         <div ref={listRef} className="max-h-[60vh] overflow-y-auto">

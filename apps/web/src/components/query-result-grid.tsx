@@ -28,6 +28,7 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { Checkbox } from '@codellyson/justui/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { EditableCell, type SaveIntent } from './editable-cell';
 import { ContextMenu, useContextMenu, type ContextMenuEntry } from './ui/context-menu';
@@ -1668,14 +1669,9 @@ const Row = memo(function Row(props: RowProps) {
             style={{ width: CHECKBOX_WIDTH }}
             onClick={(e) => e.stopPropagation()}
           >
-            <input
-              type="checkbox"
-              className="cursor-pointer"
+            <Checkbox
               checked={isSelected}
-              onChange={(e) => {
-                const me = e.nativeEvent as MouseEvent | undefined;
-                onToggleSelect(rowIndex, rowKey, !!me?.shiftKey);
-              }}
+              onClick={(e) => onToggleSelect(rowIndex, rowKey, e.shiftKey)}
               aria-label={`Select row ${rowIndex + 1}`}
             />
           </div>
@@ -2095,21 +2091,14 @@ const SelectAllCheckbox = memo(function SelectAllCheckbox({
     for (const k of allRowKeys) if (sel.has(k)) count++;
     return count === 0 ? 'none' : count === allRowKeys.length ? 'all' : 'some';
   });
-  const ref = useRef<HTMLInputElement | null>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = state === 'some';
-  }, [state]);
   return (
     <div
       className="flex-shrink-0 flex items-center justify-center border-r border-border"
       style={{ width: CHECKBOX_WIDTH }}
       onClick={(e) => e.stopPropagation()}
     >
-      <input
-        ref={ref}
-        type="checkbox"
-        className="cursor-pointer"
-        checked={state === 'all'}
+      <Checkbox
+        checked={state === 'all' ? true : state === 'some' ? 'indeterminate' : false}
         onChange={() => (state === 'all' ? onClear() : onSelectAll())}
         aria-label="Select all visible rows"
         disabled={allRowKeys.length === 0}

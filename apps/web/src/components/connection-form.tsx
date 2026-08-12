@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { DBConfig } from '@/types';
 import { parseConnectionURL, isConnectionURL, sqliteDisplayName } from '@/lib/connection-url';
+import { Checkbox, Input as JustInput } from '@codellyson/justui/react';
 
 type InputMode = 'url' | 'fields';
 type DbType = 'postgresql' | 'mysql' | 'sqlite';
@@ -272,13 +273,13 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
             <label className="block text-xs font-medium text-secondary mb-1">
               {dbType === 'sqlite' ? 'Connection URL' : 'Connection URL'}
             </label>
-            <input
-              type="text"
+            <JustInput
               value={connectionUrl}
-              onChange={(e) => parseUrl(e.target.value)}
+              onChange={parseUrl}
               placeholder={urlPlaceholder}
               disabled={isConnecting}
-              className="w-full px-3 py-2 text-sm border border-border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent bg-bg text-primary placeholder:text-muted"
+              containerClassName="w-full"
+              className="font-mono"
             />
             {errors.connectionUrl && (
               <p className="mt-1 text-xs text-danger">{errors.connectionUrl}</p>
@@ -293,13 +294,15 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 <label className="block text-xs font-medium text-secondary mb-1">
                   Auth token
                 </label>
-                <input
+                <JustInput
                   type="password"
+                  withPasswordToggle
                   value={authToken}
-                  onChange={(e) => setAuthToken(e.target.value)}
+                  onChange={setAuthToken}
                   placeholder="eyJhbGciOi… (required for Turso unless embedded in the URL via ?authToken=…)"
                   disabled={isConnecting}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent bg-bg text-primary placeholder:text-muted"
+                  containerClassName="w-full"
+                  className="font-mono"
                 />
               </div>
             )}
@@ -311,13 +314,13 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 SQLite file or Turso URL
               </label>
               <div className="flex gap-2">
-                <input
-                  type="text"
+                <JustInput
                   value={uploadedFileName || filepath}
-                  onChange={(e) => { setFilepath(e.target.value); setUploadedFileName(''); }}
+                  onChange={(v) => { setFilepath(v); setUploadedFileName(''); }}
                   placeholder="libsql://dbname.turso.io  or  /path/to/file.db"
                   disabled={isConnecting || isPickingFile}
-                  className="flex-1 px-3 py-2 text-sm border border-border rounded-md font-mono focus:outline-none focus:ring-2 focus:ring-accent bg-bg text-primary placeholder:text-muted"
+                  containerClassName="flex-1"
+                  className="font-mono"
                 />
                 <button
                   type="button"
@@ -360,7 +363,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
               />
               <Input
                 label="Port"
-                type="number"
+                inputMode="numeric"
                 value={port}
                 onChange={setPort}
                 placeholder="5432"
@@ -401,40 +404,28 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         )}
         {dbType !== 'sqlite' && (
           <div className="flex items-center gap-4 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useSSL}
-                onChange={(e) => setUseSSL(e.target.checked)}
-                disabled={isConnecting}
-                className="h-4 w-4 border border-border rounded-md accent-accent"
-              />
-              <span className="text-xs font-medium text-primary">SSL</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={saveConnection}
-                onChange={(e) => setSaveConnection(e.target.checked)}
-                disabled={isConnecting}
-                className="h-4 w-4 border border-border rounded-md accent-accent"
-              />
-              <span className="text-xs font-medium text-primary">Save connection</span>
-            </label>
+            <Checkbox
+              checked={useSSL}
+              onChange={(checked) => setUseSSL(checked === true)}
+              disabled={isConnecting}
+              label={<span className="text-xs font-medium text-primary">SSL</span>}
+            />
+            <Checkbox
+              checked={saveConnection}
+              onChange={(checked) => setSaveConnection(checked === true)}
+              disabled={isConnecting}
+              label={<span className="text-xs font-medium text-primary">Save connection</span>}
+            />
           </div>
         )}
         {dbType === 'sqlite' && (
           <div className="flex items-center gap-4 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={saveConnection}
-                onChange={(e) => setSaveConnection(e.target.checked)}
-                disabled={isConnecting}
-                className="h-4 w-4 border border-border rounded-md accent-accent"
-              />
-              <span className="text-xs font-medium text-primary">Save connection</span>
-            </label>
+            <Checkbox
+              checked={saveConnection}
+              onChange={(checked) => setSaveConnection(checked === true)}
+              disabled={isConnecting}
+              label={<span className="text-xs font-medium text-primary">Save connection</span>}
+            />
           </div>
         )}
         {saveConnection && (

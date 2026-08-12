@@ -7,6 +7,7 @@ import { DEFAULT_FORMATTERS } from "@/lib/default-plugins";
 import type { FormatterPreset, FormatterMatcher } from "@/lib/plugin-types";
 import { usePlugins } from "../hooks/use-plugins";
 import { ArrowRight } from 'lucide-react';
+import { Input, Switch } from '@codellyson/justui/react';
 
 interface FormatterSettingsProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface FormatterSettingsProps {
 
 /** Standalone modal wrapper — kept for existing callers. */
 export const FormatterSettings: React.FC<FormatterSettingsProps> = ({ isOpen, onClose }) => (
-  <Modal isOpen={isOpen} onClose={onClose} title="Data Formatters" className="max-w-lg">
+  <Modal isOpen={isOpen} onClose={onClose} title="Data Formatters" width={512}>
     <FormatterSettingsBody />
   </Modal>
 );
@@ -79,18 +80,12 @@ export const FormatterSettingsBody: React.FC = () => {
                     {f.matcher.type}: {f.matcher.value} <ArrowRight className="inline h-3 w-3 align-middle" /> {f.preset}
                   </div>
                 </div>
-                <button
-                  onClick={() => toggleBuiltIn(f.id)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                    !isDisabled ? "bg-accent" : "bg-border"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-                      !isDisabled ? "translate-x-[18px]" : "translate-x-[3px]"
-                    }`}
-                  />
-                </button>
+                <Switch
+                  checked={!isDisabled}
+                  onChange={() => toggleBuiltIn(f.id)}
+                  size="sm"
+                  aria-label={`Enable ${f.name}`}
+                />
               </div>
             );
           })}
@@ -126,34 +121,33 @@ export const FormatterSettingsBody: React.FC = () => {
         {showAddForm ? (
           <div className="space-y-3 border border-border rounded-md p-3 bg-bg-secondary">
             <div className="text-xs font-medium text-secondary">New Formatter</div>
-            <input
-              type="text"
+            <Input
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              onChange={setNewName}
               placeholder="Formatter name"
-              className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted"
+              containerClassName="w-full"
             />
             <div className="flex gap-2">
               <Select
                 containerClassName="flex-1"
                 value={newMatcherType}
-                onChange={(e) => setNewMatcherType(e.target.value as FormatterMatcher["type"])}
+                onChange={(v) => setNewMatcherType(v as FormatterMatcher["type"])}
               >
                 {MATCHER_TYPE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </Select>
-              <input
-                type="text"
+              <Input
                 value={newMatcherValue}
-                onChange={(e) => setNewMatcherValue(e.target.value)}
+                onChange={setNewMatcherValue}
                 placeholder="e.g. timestamp"
-                className="flex-1 px-2 py-1.5 text-sm border border-border rounded-md bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent font-mono placeholder:text-muted"
+                containerClassName="flex-1"
+                className="font-mono"
               />
             </div>
             <Select
               value={newPreset}
-              onChange={(e) => setNewPreset(e.target.value as FormatterPreset)}
+              onChange={(v) => setNewPreset(v as FormatterPreset)}
             >
               {PRESET_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>

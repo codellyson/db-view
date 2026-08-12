@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ContextMenu, useContextMenu, type ContextMenuEntry } from './ui/context-menu';
 import { Pin, X } from 'lucide-react';
+import { Tooltip } from '@codellyson/justui/react';
 
 export interface Tab {
   id: string;
@@ -155,70 +156,72 @@ export const TabBar: React.FC<TabBarProps> = ({
           const isActive = tab.id === activeTabId;
           const isPinned = !!tab.pinned;
           return (
-            <button
-              key={tab.id}
-              ref={(el) => {
-                tabRefs.current[tab.id] = el;
-                if (isActive) activeElRef.current = el;
-              }}
-              role="tab"
-              aria-selected={isActive}
-              draggable={!!onTabReorder}
-              onDragStart={(e) => handleDragStart(e, tab.id)}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, tab.id)}
-              onClick={() => onTabSelect(tab.id)}
-              onMouseDown={(e) => handleMiddleClick(e, tab.id)}
-              onContextMenu={(e) => handleContextMenu(e, tab)}
-              className={`group relative flex items-center gap-1.5 ${isPinned ? 'px-2' : 'px-3'} py-2 text-xs font-medium border-r border-border whitespace-nowrap transition-colors ${
-                isPinned ? 'max-w-[80px]' : 'max-w-[180px]'
-              } ${
-                isActive
-                  ? 'bg-bg text-primary border-b-2 border-b-accent -mb-px'
-                  : 'text-muted hover:text-secondary hover:bg-bg-secondary/50'
-              }`}
-              title={tab.label}
-            >
-              {isPinned && (
-                <Pin className="h-3 w-3 text-warning flex-shrink-0" aria-label="Pinned" />
-              )}
-              <span
-                className={`flex-shrink-0 font-mono text-[9px] px-1 py-px rounded ${
-                  isActive ? 'bg-accent/10 text-accent' : 'bg-bg-secondary text-muted'
+            <Tooltip label={tab.label}>
+              <button
+                key={tab.id}
+                ref={(el) => {
+                  tabRefs.current[tab.id] = el;
+                  if (isActive) activeElRef.current = el;
+                }}
+                role="tab"
+                aria-selected={isActive}
+                draggable={!!onTabReorder}
+                onDragStart={(e) => handleDragStart(e, tab.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, tab.id)}
+                onClick={() => onTabSelect(tab.id)}
+                onMouseDown={(e) => handleMiddleClick(e, tab.id)}
+                onContextMenu={(e) => handleContextMenu(e, tab)}
+                className={`group relative flex items-center gap-1.5 ${isPinned ? 'px-2' : 'px-3'} py-2 text-xs font-medium border-r border-border whitespace-nowrap transition-colors ${
+                  isPinned ? 'max-w-[80px]' : 'max-w-[180px]'
+                } ${
+                  isActive
+                    ? 'bg-bg text-primary border-b-2 border-b-accent -mb-px'
+                    : 'text-muted hover:text-secondary hover:bg-bg-secondary/50'
                 }`}
               >
-                {TYPE_BADGE[tab.type]}
-              </span>
-              {!isPinned && <span className="truncate">{tab.label}</span>}
-              {!isPinned && (
+                {isPinned && (
+                  <Pin className="h-3 w-3 text-warning flex-shrink-0" aria-label="Pinned" />
+                )}
                 <span
-                  role="button"
-                  tabIndex={-1}
-                  onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
-                  className={`flex-shrink-0 p-0.5 rounded hover:bg-danger/10 hover:text-danger transition-colors ${
-                    isActive ? 'text-muted' : 'text-transparent group-hover:text-muted'
+                  className={`flex-shrink-0 font-mono text-[9px] px-1 py-px rounded ${
+                    isActive ? 'bg-accent/10 text-accent' : 'bg-bg-secondary text-muted'
                   }`}
-                  aria-label={`Close ${tab.label}`}
                 >
-                  <X className="h-3 w-3" />
+                  {TYPE_BADGE[tab.type]}
                 </span>
-              )}
-            </button>
+                {!isPinned && <span className="truncate">{tab.label}</span>}
+                {!isPinned && (
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
+                    className={`flex-shrink-0 p-0.5 rounded hover:bg-danger/10 hover:text-danger transition-colors ${
+                      isActive ? 'text-muted' : 'text-transparent group-hover:text-muted'
+                    }`}
+                    aria-label={`Close ${tab.label}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                )}
+              </button>
+            </Tooltip>
           );
         })}
       </div>
       {overflowIds.size > 0 && (
         <div className="relative flex-shrink-0">
-          <button
-            ref={overflowAnchorRef}
-            onClick={() => setShowOverflowMenu((v) => !v)}
-            className="px-2 py-1.5 text-muted hover:text-primary hover:bg-bg-secondary/50 text-xs transition-colors"
-            title={`${overflowIds.size} more tab${overflowIds.size === 1 ? '' : 's'}`}
-            aria-label="Overflow menu"
-            aria-expanded={showOverflowMenu}
-          >
-            … <span className="font-mono">{overflowIds.size}</span>
-          </button>
+          <Tooltip label={`${overflowIds.size} more tab${overflowIds.size === 1 ? '' : 's'}`}>
+            <button
+              ref={overflowAnchorRef}
+              onClick={() => setShowOverflowMenu((v) => !v)}
+              className="px-2 py-1.5 text-muted hover:text-primary hover:bg-bg-secondary/50 text-xs transition-colors"
+              aria-label="Overflow menu"
+              aria-expanded={showOverflowMenu}
+            >
+              … <span className="font-mono">{overflowIds.size}</span>
+            </button>
+          </Tooltip>
           {showOverflowMenu && (
             <>
               <div
@@ -252,14 +255,15 @@ export const TabBar: React.FC<TabBarProps> = ({
         </div>
       )}
       {tabs.length > 1 && onTabCloseAll && (
-        <button
-          onClick={onTabCloseAll}
-          className="flex-shrink-0 px-2 py-1.5 text-muted hover:text-primary text-[10px] hover:bg-bg-secondary/50 transition-colors"
-          title="Close all tabs"
-          aria-label="Close all tabs"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        <Tooltip label="Close all tabs">
+          <button
+            onClick={onTabCloseAll}
+            className="flex-shrink-0 px-2 py-1.5 text-muted hover:text-primary text-[10px] hover:bg-bg-secondary/50 transition-colors"
+            aria-label="Close all tabs"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </Tooltip>
       )}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={close} />}
     </div>

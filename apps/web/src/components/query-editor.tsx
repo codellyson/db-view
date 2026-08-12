@@ -31,6 +31,7 @@ import { AiSqlBar } from './ai-sql-bar';
 import { ExplainPlan } from './explain-plan';
 import { useAiSchemaText } from '../hooks/use-ai-schema';
 import { AlignLeft, BarChart3, Bookmark, Clock, Download, Play, RefreshCw, Sparkles, X } from 'lucide-react';
+import { Input, Tooltip } from '@codellyson/justui/react';
 
 interface PendingQueryConfirmation {
   sql: string;
@@ -630,66 +631,73 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
           )}
           <div className="flex h-[40vh] min-h-[200px] border border-border rounded-md overflow-hidden">
             <div className="flex flex-col items-center gap-1 px-1.5 py-2 bg-bg-secondary/40 border-r border-border">
-              <button
-                onClick={() => setShowAiGenerate((v) => !v)}
-                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${showAiGenerate ? 'text-accent bg-accent/15' : 'text-muted hover:text-accent hover:bg-accent/10'}`}
-                title="Generate SQL with AI"
-                aria-pressed={showAiGenerate}
-              >
-                <Sparkles className="w-4 h-4" />
-              </button>
+              <Tooltip label="Generate SQL with AI">
+                <button
+                  onClick={() => setShowAiGenerate((v) => !v)}
+                  className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${showAiGenerate ? 'text-accent bg-accent/15' : 'text-muted hover:text-accent hover:bg-accent/10'}`}
+                  aria-pressed={showAiGenerate}
+                >
+                  <Sparkles className="w-4 h-4" />
+                </button>
+              </Tooltip>
               <div className="w-5 border-t border-border my-0.5" />
-              <button
-                onClick={handleExecute}
-                disabled={isExecuting || !query.trim()}
-                className="w-7 h-7 flex items-center justify-center rounded text-green-500 hover:bg-green-500/15 disabled:opacity-30 transition-colors"
-                title={hasSelection ? 'Run Selection (Ctrl+Enter)' : 'Execute (Ctrl+Enter)'}
-              >
-                <Play className="w-4 h-4" />
-              </button>
+              <Tooltip label={hasSelection ? 'Run Selection (Ctrl+Enter)' : 'Execute (Ctrl+Enter)'}>
+                <button
+                  onClick={handleExecute}
+                  disabled={isExecuting || !query.trim()}
+                  className="w-7 h-7 flex items-center justify-center rounded text-green-500 hover:bg-green-500/15 disabled:opacity-30 transition-colors"
+                >
+                  <Play className="w-4 h-4" />
+                </button>
+              </Tooltip>
               <div className="w-5 border-t border-border my-0.5" />
-              <button
-                onClick={() => setQuery(formatSQL(query, databaseType))}
-                disabled={isExecuting || !query.trim()}
-                className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary disabled:opacity-30 transition-colors"
-                title="Format SQL"
-              >
-                <AlignLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleExplain}
-                disabled={isExecuting || isExplaining || !query.trim()}
-                className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
-                title="Explain query plan"
-              >
-                <BarChart3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setPendingSaveQuery(query);
-                  setIsSaveQueryOpen(true);
-                }}
-                disabled={isExecuting || !query.trim()}
-                className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
-                title="Save query"
-              >
-                <Bookmark className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleClear}
-                disabled={isExecuting}
-                className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-danger hover:bg-danger/10 disabled:opacity-30 transition-colors"
-                title="Clear"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${showHistory ? 'text-accent bg-accent/15' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
-                title="History"
-              >
-                <Clock className="w-4 h-4" />
-              </button>
+              <Tooltip label="Format SQL">
+                <button
+                  onClick={() => setQuery(formatSQL(query, databaseType))}
+                  disabled={isExecuting || !query.trim()}
+                  className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary disabled:opacity-30 transition-colors"
+                >
+                  <AlignLeft className="w-4 h-4" />
+                </button>
+              </Tooltip>
+              <Tooltip label="Explain query plan">
+                <button
+                  onClick={handleExplain}
+                  disabled={isExecuting || isExplaining || !query.trim()}
+                  className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                </button>
+              </Tooltip>
+              <Tooltip label="Save query">
+                <button
+                  onClick={() => {
+                    setPendingSaveQuery(query);
+                    setIsSaveQueryOpen(true);
+                  }}
+                  disabled={isExecuting || !query.trim()}
+                  className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-accent hover:bg-accent/10 disabled:opacity-30 transition-colors"
+                >
+                  <Bookmark className="w-4 h-4" />
+                </button>
+              </Tooltip>
+              <Tooltip label="Clear">
+                <button
+                  onClick={handleClear}
+                  disabled={isExecuting}
+                  className="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-danger hover:bg-danger/10 disabled:opacity-30 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </Tooltip>
+              <Tooltip label="History">
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${showHistory ? 'text-accent bg-accent/15' : 'text-muted hover:text-primary hover:bg-bg-secondary'}`}
+                >
+                  <Clock className="w-4 h-4" />
+                </button>
+              </Tooltip>
             </div>
             <div className="flex-1 min-w-0 h-full">
               <SqlEditor
@@ -709,15 +717,16 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               onRetry={query.trim() ? handleExecute : undefined}
               onDismiss={() => { setError(null); setFailedSql(null); }}
               action={aiConfigured ? (
-                <button
-                  onClick={handleFixWithAi}
-                  disabled={isFixing}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                  title="Send the error and query to the AI for a fix"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {isFixing ? 'Fixing…' : 'Fix with AI'}
-                </button>
+                <Tooltip label="Send the error and query to the AI for a fix">
+                  <button
+                    onClick={handleFixWithAi}
+                    disabled={isFixing}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {isFixing ? 'Fixing…' : 'Fix with AI'}
+                  </button>
+                </Tooltip>
               ) : undefined}
             />
           )}
@@ -747,24 +756,26 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
               <span className="text-xs text-muted font-mono">{explainData.executionTime}ms</span>
               <div className="flex items-center gap-2">
                 {aiConfigured && (
-                  <button
-                    onClick={handleInterpretPlan}
-                    disabled={isInterpreting}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                    title="Have the AI read the plan and suggest improvements"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    {isInterpreting ? 'Interpreting…' : 'Interpret with AI'}
-                  </button>
+                  <Tooltip label="Have the AI read the plan and suggest improvements">
+                    <button
+                      onClick={handleInterpretPlan}
+                      disabled={isInterpreting}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-accent text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      {isInterpreting ? 'Interpreting…' : 'Interpret with AI'}
+                    </button>
+                  </Tooltip>
                 )}
-                <button
-                  onClick={() => { setExplainData(null); setInterpretation(null); }}
-                  className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary transition-colors"
-                  title="Close plan"
-                  aria-label="Close plan"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                <Tooltip label="Close plan">
+                  <button
+                    onClick={() => { setExplainData(null); setInterpretation(null); }}
+                    className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-bg-secondary transition-colors"
+                    aria-label="Close plan"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </Tooltip>
               </div>
             </div>
             {Array.isArray(explainData.plan) && explainData.plan[0]?.Plan ? (
@@ -826,25 +837,28 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
             </span>
             <div className="flex items-center gap-2">
               {editableMeta ? (
-                <span
-                  className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/10 text-accent"
-                  title={`Editable — ${editableMeta.schema}.${editableMeta.table}`}
-                >
-                  Editable
-                </span>
+                <Tooltip label={`Editable — ${editableMeta.schema}.${editableMeta.table}`}>
+                  <span
+                    className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/10 text-accent"
+                  >
+                    Editable
+                  </span>
+                </Tooltip>
               ) : editability.editable === false && activeFields && activeFields.length > 0 ? (
-                <span
-                  className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-bg-secondary text-muted"
-                  title={`Read-only — ${describeReason(editability.reason)}${editability.detail ? ` (${editability.detail})` : ''}`}
+                <Tooltip
+                  label={`Read-only — ${describeReason(editability.reason)}${
+                    editability.detail ? ` (${editability.detail})` : ''
+                  }`}
                 >
-                  Read-only
-                </span>
+                  <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-bg-secondary text-muted">
+                    Read-only
+                  </span>
+                </Tooltip>
               ) : null}
-              <input
+              <Input
                 ref={resultSearchInputRef}
-                type="text"
                 value={resultSearchQuery}
-                onChange={(e) => setResultSearchQuery(e.target.value)}
+                onChange={setResultSearchQuery}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') {
                     setResultSearchQuery('');
@@ -852,28 +866,31 @@ export const QueryEditor: React.FC<QueryEditorProps> = ({
                   }
                 }}
                 placeholder="Find in result..."
-                className="px-2 py-1 text-xs border border-border rounded bg-bg text-primary focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-muted w-40"
+                containerClassName="w-40"
+                className="text-xs"
                 aria-label="Find in result"
               />
               <span className="text-sm text-muted font-mono">{activeTab.executionTime}ms</span>
-              <button
-                onClick={() => setIsExportOpen(true)}
-                disabled={activeTab.rows.length === 0}
-                className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Export result"
-                aria-label="Export result"
-              >
-                <Download className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={refreshResults}
-                disabled={isExecuting}
-                className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Refresh results (re-run this tab's query)"
-                aria-label="Refresh results"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isExecuting ? 'animate-spin' : ''}`} />
-              </button>
+              <Tooltip label="Export result">
+                <button
+                  onClick={() => setIsExportOpen(true)}
+                  disabled={activeTab.rows.length === 0}
+                  className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Export result"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
+              <Tooltip label="Refresh results (re-run this tab's query)">
+                <button
+                  onClick={refreshResults}
+                  disabled={isExecuting}
+                  className="p-1 text-muted hover:text-primary hover:bg-bg-secondary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Refresh results"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isExecuting ? 'animate-spin' : ''}`} />
+                </button>
+              </Tooltip>
             </div>
           </div>
           {activeTab.rows.length === 0 ? (

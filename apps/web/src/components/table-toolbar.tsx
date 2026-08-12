@@ -10,6 +10,7 @@ import {
   Table,
   Table2,
 } from 'lucide-react';
+import { Checkbox } from '@codellyson/justui/react';
 import {
   MenuItem,
   MenuLabel,
@@ -209,12 +210,7 @@ export function TableToolbar({
                 onClick={() => onToggleColumn(col)}
                 onSelect={(e) => e.preventDefault()}
               >
-                <input
-                  type="checkbox"
-                  readOnly
-                  checked={visibleColumns.includes(col)}
-                  className="pointer-events-none accent-[rgb(var(--accent))]"
-                />
+                <Checkbox checked={visibleColumns.includes(col)} className="pointer-events-none" />
                 <span className="flex-1 truncate">{col}</span>
               </MenuItem>
             ))}
@@ -227,7 +223,7 @@ export function TableToolbar({
         variant="accent"
         disabled={!canAddRecord || notData}
         onClick={onAddRecord}
-        title="Add record (Alt+N)"
+        tooltip="Add record (Alt+N)"
       >
         <span className="hidden lg:inline">Add record</span>
       </ToolbarButton>
@@ -267,7 +263,7 @@ export function TableToolbar({
             <ToolbarButton
               icon={<ChevronLeft className="h-4 w-4" />}
               aria-label="Previous page"
-              title="Previous page"
+              tooltip="Previous page"
               disabled={currentPage <= 1 || isBusy}
               onClick={() => onPageChange(currentPage - 1)}
               className="h-7 px-1.5 border-0"
@@ -295,7 +291,7 @@ export function TableToolbar({
             <ToolbarButton
               icon={<ChevronRight className="h-4 w-4" />}
               aria-label="Next page"
-              title="Next page"
+              tooltip="Next page"
               disabled={currentPage >= totalPages || isBusy}
               onClick={() => onPageChange(currentPage + 1)}
               className="h-7 px-1.5 border-0"
@@ -308,7 +304,7 @@ export function TableToolbar({
         <ToolbarButton
           icon={<RefreshCw className={`h-4 w-4 ${isBusy ? 'animate-spin' : ''}`} />}
           aria-label="Refresh rows"
-          title="Refresh rows (Alt+R)"
+          tooltip="Refresh rows (Alt+R)"
           onClick={onRefresh}
         />
         <ToolbarMenu

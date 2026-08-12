@@ -3,6 +3,7 @@ import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { ContextMenu, useContextMenu, type ContextMenuEntry } from './ui/context-menu';
 import { fuzzyMatch } from '@/lib/fuzzy';
 import { Pin, Search, Table2, X } from 'lucide-react';
+import { Input } from '@codellyson/justui/react';
 
 interface TableListProps {
   tables: string[];
@@ -323,13 +324,13 @@ export const TableList: React.FC<TableListProps> = ({
       <div className="flex items-center gap-1.5 mb-2">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted pointer-events-none" />
-          <input
-            type="text"
+          <Input
             placeholder="Search tables..."
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setFocusedIndex(-1); }}
+            onChange={(v) => { setSearchQuery(v); setFocusedIndex(-1); }}
             onKeyDown={handleSearchKeyDown}
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-border rounded-md bg-bg-secondary/50 text-primary placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40 focus:bg-bg transition-colors"
+            containerClassName="w-full"
+            className="pl-8 text-xs bg-bg-secondary/50"
             aria-label="Search tables"
           />
           {searchQuery && (

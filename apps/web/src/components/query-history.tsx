@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { QueryHistoryEntry } from "@/types";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { Star, X } from 'lucide-react';
+import { Input } from '@codellyson/justui/react';
 
 interface QueryHistoryProps {
   entries: QueryHistoryEntry[];
@@ -59,12 +60,12 @@ export const QueryHistory: React.FC<QueryHistoryProps> = ({
         <span className="text-xs font-medium text-secondary flex-shrink-0">
           History ({entries.length})
         </span>
-        <input
-          type="text"
+        <Input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
           placeholder="Search history…"
-          className="flex-1 min-w-0 px-2 py-1 text-xs border border-border rounded bg-bg text-primary placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+          containerClassName="flex-1 min-w-0"
+          className="text-xs"
           aria-label="Search query history"
         />
         <button

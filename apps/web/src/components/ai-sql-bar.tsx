@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ai, type AiStatus } from '@/lib/ai';
 import { Loader2, Sun } from 'lucide-react';
+import { Input } from '@codellyson/justui/react';
 
 interface AiSqlBarProps {
   /** "postgresql" | "sqlite" | "mysql" — steers dialect-specific SQL. */
@@ -72,14 +73,14 @@ export const AiSqlBar: React.FC<AiSqlBarProps> = ({ dialect, schema, onGenerated
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-1 pl-3 pr-1 py-1 border border-border rounded-md bg-bg focus-within:ring-2 focus-within:ring-accent transition-colors">
-        <input
-          type="text"
+        <Input
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={setPrompt}
           onKeyDown={(e) => { if (e.key === 'Enter') generate(); }}
           disabled={disabled || isBusy}
           placeholder="Describe the query in plain English…"
-          className="flex-1 min-w-0 bg-transparent border-0 text-sm text-primary placeholder:text-muted focus:outline-none disabled:opacity-50"
+          containerClassName="flex-1 min-w-0"
+          className="bg-transparent border-0 focus-visible:ring-0 px-0"
           aria-label="Describe the query you want in plain English"
         />
         <button
