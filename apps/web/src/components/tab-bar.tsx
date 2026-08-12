@@ -156,9 +156,8 @@ export const TabBar: React.FC<TabBarProps> = ({
           const isActive = tab.id === activeTabId;
           const isPinned = !!tab.pinned;
           return (
-            <Tooltip label={tab.label}>
+            <Tooltip key={tab.id} label={tab.label}>
               <button
-                key={tab.id}
                 ref={(el) => {
                   tabRefs.current[tab.id] = el;
                   if (isActive) activeElRef.current = el;
