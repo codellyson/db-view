@@ -149,7 +149,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const { isConnected, databaseType, databaseName } = useConnection();
   const { addToast } = useToast();
   const queryClient = useQueryClient();
-  const [itemsPerPage, setItemsPerPage] = useState(100);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
   const {
     savedQueries,
     saveQuery,

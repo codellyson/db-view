@@ -30,7 +30,7 @@ import React, {
 import { createPortal } from 'react-dom';
 import { Checkbox } from '@codellyson/justui/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { EditableCell, type SaveIntent } from './editable-cell';
+import { CellDisplay, EditableCell, type SaveIntent } from './editable-cell';
 import { ContextMenu, useContextMenu, type ContextMenuEntry } from './ui/context-menu';
 import { TableSkeleton } from './skeletons/table-skeleton';
 import { SmartCellDisplay } from './smart-cell-display';
@@ -2015,16 +2015,26 @@ const Cell = memo(function Cell(props: CellProps) {
     >
       <div data-cell-content className="truncate flex-1 min-w-0">
         {editable ? (
-          <EditableCell
-            value={value}
-            placeholder={placeholder}
-            column={col}
-            columnType={columnType}
-            isEditing={isEditing}
-            onStartEdit={handleStartEdit}
-            onSave={handleSave}
-            onCancel={cancelEdit}
-          />
+          isEditing ? (
+            <EditableCell
+              value={value}
+              placeholder={placeholder}
+              column={col}
+              columnType={columnType}
+              isEditing
+              onStartEdit={handleStartEdit}
+              onSave={handleSave}
+              onCancel={cancelEdit}
+            />
+          ) : (
+            <CellDisplay
+              value={value}
+              placeholder={placeholder}
+              column={col}
+              columnType={columnType}
+              onStartEdit={handleStartEdit}
+            />
+          )
         ) : formatter ? (
           <FormattedCell formatted={applyFormatter(value, formatter.preset)} rawValue={value} />
         ) : (

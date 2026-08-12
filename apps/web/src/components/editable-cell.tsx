@@ -94,6 +94,40 @@ function computePosition(anchor: DOMRect, popoverSize: { width: number; height: 
   return { top, left, width: desiredWidth };
 }
 
+/**
+ * A cell at rest. EditableCell carries 13 hooks for the editing popover; a
+ * 50-row grid mounts hundreds of cells and needs none of that until one is
+ * actually being edited, so the display path is kept hook-free.
+ */
+export function CellDisplay({
+  value,
+  placeholder,
+  column,
+  columnType,
+  disabled,
+  onStartEdit,
+}: {
+  value: any;
+  placeholder?: string;
+  column: string;
+  columnType?: string;
+  disabled?: boolean;
+  onStartEdit?: () => void;
+}) {
+  return (
+    <div
+      className={`truncate ${!disabled ? 'cursor-text' : ''}`}
+      onDoubleClick={!disabled ? onStartEdit : undefined}
+    >
+      {placeholder !== undefined && value === undefined ? (
+        <span className="text-warning/80">{placeholder}</span>
+      ) : (
+        <SmartCellDisplay value={value} column={column} columnType={columnType} />
+      )}
+    </div>
+  );
+}
+
 export const EditableCell = memo(function EditableCell({
   value,
   placeholder,
