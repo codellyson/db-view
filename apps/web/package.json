@@ -12,7 +12,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@codellyson/justui": "^1.0.1",
+    "@codellyson/justui": "^1.0.2",
     "@codemirror/autocomplete": "^6.20.1",
     "@codemirror/lang-sql": "^6.10.0",
     "@codemirror/language": "^6.12.1",

@@ -58,8 +58,8 @@ importers:
   apps/web:
     dependencies:
       '@codellyson/justui':
-        specifier: ^1.0.1
-        version: 1.0.1(@heroicons/react@2.2.0(react@19.2.5))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(astro@5.18.2(@types/node@20.19.25)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.61.0)(typescript@5.9.3)(yaml@2.9.0))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.3)
+        specifier: ^1.0.2
+        version: 1.0.2(@heroicons/react@2.2.0(react@19.2.5))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(astro@5.18.2(@types/node@20.19.25)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.61.0)(typescript@5.9.3)(yaml@2.9.0))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.3)
       '@codemirror/autocomplete':
         specifier: ^6.20.1
         version: 6.20.1
@@ -308,8 +308,8 @@ packages:
     resolution: {integrity: sha512-VERIM64vtTP1C4mxQ5thVT9fK0apjPFobqybMtA1UdUujWka24ERHbRHFGmpbbhp73MhV+KSsHQH9C6uOTdEQA==}
     engines: {node: '>=18'}
 
-  '@codellyson/justui@1.0.1':
-    resolution: {integrity: sha512-lsIapnxIWWF8FDjJ+j/Iv5ikRzQweLA9mu7WVEgrfWtlz3GViULyTva6A3Y+U3p+MMGPbspAy5VPVEG8drUL5w==}
+  '@codellyson/justui@1.0.2':
+    resolution: {integrity: sha512-pFm2Xg77xGp8plUM9ivg0wsp7sSxxaL5fZitRN5G+UmDPdghbezSmIwgiJjd78oFZ/eawiJJFhweZpd43zVOyg==}
     peerDependencies:
       '@heroicons/react': ^2.0.0
       astro: ^5.0.0
@@ -4130,7 +4130,7 @@ snapshots:
     dependencies:
       fontkitten: 1.0.3
 
-  '@codellyson/justui@1.0.1(@heroicons/react@2.2.0(react@19.2.5))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(astro@5.18.2(@types/node@20.19.25)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.61.0)(typescript@5.9.3)(yaml@2.9.0))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.3)':
+  '@codellyson/justui@1.0.2(@heroicons/react@2.2.0(react@19.2.5))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(astro@5.18.2(@types/node@20.19.25)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.61.0)(typescript@5.9.3)(yaml@2.9.0))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.3)':
     dependencies:
       '@heroicons/react': 2.2.0(react@19.2.5)
       '@radix-ui/react-accordion': 1.2.20(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -5758,7 +5758,7 @@ snapshots:
       p-queue: 8.1.1
       package-manager-detector: 1.6.0
       piccolore: 0.1.3
-      picomatch: 4.0.4
+      picomatch: 4.0.3
       prompts: 2.4.2
       rehype: 13.0.2
       semver: 7.7.4
@@ -5766,7 +5766,7 @@ snapshots:
       smol-toml: 1.6.1
       svgo: 4.0.1
       tinyexec: 1.2.4
-      tinyglobby: 0.2.17
+      tinyglobby: 0.2.15
       tsconfck: 3.1.6(typescript@5.9.3)
       ultrahtml: 1.6.0
       unifont: 0.7.4
