@@ -39,7 +39,8 @@ commit_parsers = [
   { message = "^fix", group = "Fixed" },
   { message = "^perf", group = "Performance" },
   { message = "^refactor", group = "Changed" },
-  { message = "^style", skip = true },
+  # `style:` here means a visible interface change, not source formatting.
+  { message = "^style", group = "Changed" },
   { message = "^test", skip = true },
   { message = "^docs", group = "Documentation" },
   { message = "^chore\\(release\\)", skip = true },
