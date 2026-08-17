@@ -7,7 +7,8 @@ import AppFrame from '../components/AppFrame.astro';
 import BrowseMock from '../components/mock/BrowseMock.astro';
 import QueryMock from '../components/mock/QueryMock.astro';
 import EditMock from '../components/mock/EditMock.astro';
-import { DATABASES, LAUNCH_URL, ORG_URL, PLATFORMS, RELEASES_URL, REPO } from '../lib/site';
+import { DATABASES, LAUNCH_URL, PLATFORMS, RELEASES_URL, REPO } from '../lib/site';
+import { faqJsonLd, organizationJsonLd, softwareApplicationJsonLd, websiteJsonLd } from '../lib/seo';
 
 const downloadUrl = RELEASES_URL;
 
@@ -135,35 +136,11 @@ const FAQ = [
   },
 ];
 
-const softwareJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'JustDB',
-  description:
-    'A simple database client for developers. Browse tables, run SQL and edit records in PostgreSQL, SQLite and Turso — free, no signup, and connecting straight from your machine.',
-  applicationCategory: 'DeveloperApplication',
-  operatingSystem: 'macOS, Windows',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  url: Astro.site?.toString() ?? 'https://justdb.kreativekorna.com',
-  downloadUrl,
-  publisher: { '@type': 'Organization', name: 'KreativeKorna Concepts', url: ORG_URL },
-};
-
-const faqJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: FAQ.map(({ q, a }) => ({
-    '@type': 'Question',
-    name: q,
-    acceptedAnswer: { '@type': 'Answer', text: a },
-  })),
-};
-
 const supported = DATABASES.filter((d) => !d.planned);
 const planned = DATABASES.filter((d) => d.planned);
 ---
 
-<Layout jsonLd={[softwareJsonLd, faqJsonLd]}>
+<Layout jsonLd={[organizationJsonLd, websiteJsonLd, softwareApplicationJsonLd(), faqJsonLd(FAQ)]}>
   <Nav home />
 
   <main>
@@ -473,6 +450,14 @@ const planned = DATABASES.filter((d) => d.planned);
             </ul>
           </div>
         </div>
+
+        <p class="mt-8 text-[14px] text-muted" data-reveal>
+          Coming from a heavier client? See how JustDB compares to
+          <a href="/compare/dbeaver" class="text-secondary underline decoration-border-strong underline-offset-2 transition-colors hover:text-primary hover:decoration-accent">DBeaver</a>,
+          <a href="/compare/pgadmin" class="text-secondary underline decoration-border-strong underline-offset-2 transition-colors hover:text-primary hover:decoration-accent">pgAdmin</a>
+          and
+          <a href="/compare/beekeeper-studio" class="text-secondary underline decoration-border-strong underline-offset-2 transition-colors hover:text-primary hover:decoration-accent">Beekeeper Studio</a>.
+        </p>
       </div>
     </section>
 
