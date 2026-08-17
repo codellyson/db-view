@@ -1,26 +1,25 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Button from '../components/Button.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import AppFrame from '../components/AppFrame.astro';
+import BrowseMock from '../components/mock/BrowseMock.astro';
+import QueryMock from '../components/mock/QueryMock.astro';
+import EditMock from '../components/mock/EditMock.astro';
+import { DATABASES, LAUNCH_URL, ORG_URL, PLATFORMS, RELEASES_URL, REPO } from '../lib/site';
 
-// The "Open JustDB" CTA's href is the `justdb://` URL scheme registered by
-// the Tauri build, so the visible action matches the intent. A small client
-// script kicks in alongside the native click: if no handler responds within
-// ~1.5s (i.e. the app isn't installed and the page stayed visible), we
-// redirect to `downloadUrl`. Mobile UAs have no desktop install path, so
-// the script swaps the href to `downloadUrl` up-front.
-const launchUrl = 'justdb://open';
-const repo = 'codellyson/justdb';
-const downloadUrl = `https://github.com/${repo}/releases`;
+const downloadUrl = RELEASES_URL;
 
 // Resolve direct installer URLs for the latest release at build time so the
 // device-detected CTA links straight to the right file. Asset names carry the
-// version (e.g. JustDB_0.1.25_x64-setup.exe), so we can't hardcode them — we
+// version (e.g. JustDB_0.2.3_x64-setup.exe), so we can't hardcode them — we
 // match by extension against the latest release. Any failure or missing asset
 // falls back to the releases page.
 async function resolveDownloads(): Promise<Record<'macos' | 'windows' | 'linux', string>> {
   const fallback = { macos: downloadUrl, windows: downloadUrl, linux: downloadUrl };
   try {
-    const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'justdb-marketing' },
     });
     if (!res.ok) return fallback;
@@ -32,7 +31,7 @@ async function resolveDownloads(): Promise<Record<'macos' | 'windows' | 'linux',
       macos: find(/\.dmg$/i) ?? downloadUrl,
       // NSIS setup is the standard user installer; .msi is the fallback.
       windows: find(/-setup\.exe$/i) ?? find(/\.msi$/i) ?? downloadUrl,
-      // Linux bundles aren't published yet — send them to the releases page.
+      // Linux bundles aren't published — send them to the releases page.
       linux: downloadUrl,
     };
   } catch {
@@ -41,18 +40,98 @@ async function resolveDownloads(): Promise<Record<'macos' | 'windows' | 'linux',
 }
 const downloads = await resolveDownloads();
 
+const FEATURES = [
+  {
+    title: 'Browse your database',
+    body: 'Tables, views, columns, indexes, foreign keys and row counts — laid out plainly instead of buried behind a terminal.',
+    icon: 'table',
+  },
+  {
+    title: 'Query without leaving the app',
+    body: 'A real SQL editor with completion, formatting and EXPLAIN, and results in a grid you can keep working in.',
+    icon: 'code',
+  },
+  {
+    title: 'Edit records directly',
+    body: 'Change a cell, add a row, delete one. Edits stage up first — review the exact SQL before anything is written.',
+    icon: 'cell',
+  },
+  {
+    title: 'Follow the relationships',
+    body: 'Jump through a foreign key to the row it points at, and see what a delete would cascade to before you run it.',
+    icon: 'schema',
+  },
+  {
+    title: 'Find things fast',
+    body: 'Filter tables, search rows, filter by column, and pull any query back out of history — no scrolling through a tree.',
+    icon: 'search',
+  },
+  {
+    title: 'Stay in control',
+    body: 'A direct connection from your machine to your database. Passwords live in the OS keychain, not in a cloud account.',
+    icon: 'lock',
+  },
+];
+
+const WHY = [
+  { title: 'Fast', body: 'Opens to your connections. Two clicks to rows.', icon: 'bolt' },
+  { title: 'Simple', body: 'No dashboards, no workspaces, no onboarding tour.', icon: 'minus' },
+  { title: 'Private', body: 'Direct connection. Credentials stay in your keychain.', icon: 'shield' },
+  { title: 'Free', body: 'No account, no trial, no paid tier.', icon: 'free' },
+  { title: 'Native', body: 'A real desktop app on macOS and Windows.', icon: 'screens' },
+];
+
+const AUDIENCE = [
+  { title: 'Developers', body: 'Poke at a dev database without writing a throwaway script.' },
+  { title: 'Backend engineers', body: 'Check a schema, chase a foreign key, verify a migration landed.' },
+  { title: 'Indie hackers', body: 'Debug production data without installing a 400MB Java client.' },
+  { title: 'Small teams', body: 'One simple tool everyone can use, with no seats to buy.' },
+];
+
 const FAQ = [
   {
-    q: 'Which databases work?',
-    a: 'PostgreSQL, MySQL/MariaDB, and SQLite (including libsql/Turso).',
+    q: 'What databases does JustDB support?',
+    a: 'PostgreSQL and SQLite, including remote libSQL/Turso databases over a libsql:// URL with an auth token. MySQL and MariaDB are planned — the option stays hidden in the app until the driver actually ships.',
   },
   {
-    q: 'Which platforms are supported?',
-    a: 'Mac, Windows, and Linux. The desktop app runs natively on all three.',
+    q: 'Is JustDB free?',
+    a: 'Yes. No account, no trial, no paid tier, no upsell. It is built by KreativeKorna Concepts and released for free.',
   },
   {
-    q: 'Is it really free?',
-    a: 'Yes. No signup, no trial, no paywall. Built by KreativeKorna Concepts.',
+    q: 'Do I need an account?',
+    a: 'No. There is no signup, no login and no sync service. Open the app, paste a connection string, and you are in.',
+  },
+  {
+    q: 'Is my database uploaded anywhere?',
+    a: 'No. JustDB opens a direct connection from your machine to your database — queries, schemas and rows never pass through a server we run. The app does send anonymous usage analytics (which features get used, and coarse timing buckets; never SQL, table names, file paths or row data), and you can switch that off in Settings.',
+  },
+  {
+    q: 'Does JustDB store my database credentials?',
+    a: 'Passwords and Turso auth tokens are written to your OS keychain — Keychain on macOS, Credential Manager on Windows, Secret Service on Linux. The non-secret parts of a saved connection (host, port, database name, username) sit in a plain JSON file in the app config directory. Neither is uploaded anywhere.',
+  },
+  {
+    q: 'Can I connect to a remote database?',
+    a: 'Yes. Any PostgreSQL you can reach over the network, with TLS when the server requires it, plus Turso/libSQL over an authenticated libsql:// URL.',
+  },
+  {
+    q: 'Does it work with a database running in Docker?',
+    a: 'Yes. A container is just a host and a port — point JustDB at localhost:5432 (or whatever you published) like any other server. Nothing Docker-specific to configure.',
+  },
+  {
+    q: 'Can I use SSH tunnels?',
+    a: 'Not built in yet. Open the tunnel yourself — ssh -L 5432:db.internal:5432 bastion — and connect JustDB to the forwarded local port.',
+  },
+  {
+    q: 'Does JustDB use AI?',
+    a: 'Only if you turn it on. There is an optional panel that drafts and explains SQL, and it stays inert until you add your own provider API key (kept in the OS keychain) or point it at a local Claude Code CLI. Nothing leaves your machine otherwise.',
+  },
+  {
+    q: 'What operating systems are supported?',
+    a: 'macOS as a universal build (Apple silicon and Intel) and Windows x64 as an .exe or .msi installer. Linux is not published as a bundle yet, though the repo builds from source on Linux.',
+  },
+  {
+    q: 'Is there a cloud version?',
+    a: 'No, and none is planned. JustDB is a desktop app that talks straight to your database — that is the whole point.',
   },
 ];
 
@@ -61,17 +140,13 @@ const softwareJsonLd = {
   '@type': 'SoftwareApplication',
   name: 'JustDB',
   description:
-    'Just your data, no bullshit. A local desktop app for PostgreSQL, MySQL, and SQLite. Browse tables, run queries, inspect schemas. Credentials stay on your machine.',
+    'A simple database client for developers. Browse tables, run SQL and edit records in PostgreSQL, SQLite and Turso — free, no signup, and connecting straight from your machine.',
   applicationCategory: 'DeveloperApplication',
-  operatingSystem: 'macOS, Windows, Linux',
+  operatingSystem: 'macOS, Windows',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   url: Astro.site?.toString() ?? 'https://justdb.kreativekorna.com',
   downloadUrl,
-  publisher: {
-    '@type': 'Organization',
-    name: 'KreativeKorna Concepts',
-    url: 'https://kreativekorna.com',
-  },
+  publisher: { '@type': 'Organization', name: 'KreativeKorna Concepts', url: ORG_URL },
 };
 
 const faqJsonLd = {
@@ -83,45 +158,66 @@ const faqJsonLd = {
     acceptedAnswer: { '@type': 'Answer', text: a },
   })),
 };
+
+const supported = DATABASES.filter((d) => !d.planned);
+const planned = DATABASES.filter((d) => d.planned);
 ---
 
 <Layout jsonLd={[softwareJsonLd, faqJsonLd]}>
-  <div class="min-h-screen bg-bg">
-    <main class="container mx-auto px-6 sm:px-8 py-16 sm:py-24">
-      <div class="max-w-4xl mx-auto">
-        <header class="text-center mb-16">
-          <img
-            src="/logo.svg"
-            alt="JustDB"
-            width="64"
-            height="64"
-            class="mx-auto mb-6"
-          />
-          <h1 class="text-5xl sm:text-6xl font-bold tracking-tight text-primary mb-4">
-            JustDB
-          </h1>
-          <p class="text-xl sm:text-2xl text-primary font-medium mb-6">
-            See your database. Edit it. Query it.
-          </p>
-          <p class="text-base text-secondary leading-relaxed max-w-xl mx-auto">
-            A clean database explorer for PostgreSQL, MySQL, and SQLite. Free,
-            no signup.
+  <Nav home />
+
+  <main>
+    <!-- ── Hero ──────────────────────────────────────────────────────────── -->
+    <section class="relative overflow-hidden">
+      <div class="bg-grid pointer-events-none absolute inset-x-0 top-0 h-[720px]" aria-hidden="true"></div>
+      <div
+        class="pointer-events-none absolute left-1/2 top-[-14rem] h-[36rem] w-[62rem] -translate-x-1/2 rounded-full opacity-[0.16] blur-3xl"
+        style="background: radial-gradient(closest-side, rgb(var(--accent)), transparent);"
+        aria-hidden="true"
+      >
+      </div>
+
+      <div class="relative mx-auto max-w-shell px-5 pb-16 pt-16 sm:px-8 sm:pt-24">
+        <div class="mx-auto max-w-4xl text-center">
+          <p
+            class="inline-flex items-center gap-2 rounded-full border border-border bg-bg-secondary/60 px-3.5 py-1.5 text-[13px] text-secondary"
+            data-reveal
+          >
+            <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
+            A simple database client for developers
           </p>
 
-          <div class="flex flex-wrap items-center justify-center gap-3 mt-8">
+          <h1
+            class="mt-7 text-[clamp(2.6rem,7.2vw,5rem)] font-semibold leading-[1.02] tracking-[-0.03em] text-primary"
+            data-reveal
+          >
+            Your database, without<br class="hidden sm:block" /> the database drama.
+          </h1>
+
+          <p class="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed text-secondary" data-reveal>
+            Browse tables. Run queries. Edit records. Inspect relationships.
+            JustDB is a small desktop app for working with your database — without
+            the weight of a full database platform.
+          </p>
+
+          <div class="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row" data-reveal>
             <Button
-              variant="primary"
-              href={launchUrl}
+              size="lg"
+              href={LAUNCH_URL}
               id="cta-open-app"
               data-fallback={downloadUrl}
+              class="w-full sm:w-auto"
             >
               Open JustDB
+              <span class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
             </Button>
             <Button
+              size="lg"
               variant="secondary"
               href={downloadUrl}
               id="cta-download"
               external
+              class="w-full sm:w-auto"
               data-download-macos={downloads.macos}
               data-download-windows={downloads.windows}
               data-download-linux={downloads.linux}
@@ -130,197 +226,511 @@ const faqJsonLd = {
             </Button>
           </div>
 
-          <div class="mt-14 sm:mt-16">
-            <div class="relative rounded-xl border border-border bg-bg-secondary shadow-2xl shadow-black/20 overflow-hidden aspect-video">
-              <!-- `muted` is required for autoplay to be allowed; the clip has
-                   no audio track anyway. The screenshot is the poster shown
-                   until the first frame decodes. `webkit-playsinline` covers
-                   older iOS; the CSS below kills the stubborn native controls
-                   iOS injects on the poster. -->
-              <video
-                id="hero-video"
-                class="w-full h-full object-cover"
-                poster="/justdb-shot.png"
-                autoplay
-                muted
-                loop
-                playsinline
-                webkit-playsinline
-                disablepictureinpicture
-                disableRemotePlayback
-                preload="auto"
-              >
-                <source src="/justdb-demo.mp4" type="video/mp4" />
-              </video>
-            </div>
-          </div>
-        </header>
-
-        <style is:global>
-          /* iOS/WebKit paints a big center play glyph over the poster and can
-             surface controls even without the `controls` attribute. Nuke both
-             so the autoplaying loop stays chrome-free. */
-          #hero-video::-webkit-media-controls,
-          #hero-video::-webkit-media-controls-start-playback-button,
-          #hero-video::-webkit-media-controls-panel {
-            display: none !important;
-            -webkit-appearance: none;
-          }
-        </style>
-
-        <section aria-labelledby="how-it-works" class="mb-16 max-w-2xl mx-auto">
-          <h2 id="how-it-works" class="text-xl font-semibold text-primary mb-6">
-            How it works
-          </h2>
-          <ol class="space-y-4 text-secondary">
-            <li class="flex gap-4">
-              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">
-                1
-              </span>
-              <p>
-                <strong class="text-primary">Connect.</strong>
-                Paste your connection string and pick a driver.
-              </p>
-            </li>
-            <li class="flex gap-4">
-              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">
-                2
-              </span>
-              <p>
-                <strong class="text-primary">Browse.</strong>
-                Tables, columns, foreign keys, row counts. Pin what you use,
-                search the rest.
-              </p>
-            </li>
-            <li class="flex gap-4">
-              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/10 text-accent text-xs font-semibold flex items-center justify-center">
-                3
-              </span>
-              <p>
-                <strong class="text-primary">Edit or query.</strong>
-                Inline edits with staged changes, or write SQL in a full editor.
-              </p>
-            </li>
-          </ol>
-        </section>
-
-        <section aria-labelledby="faq" class="mb-16 max-w-2xl mx-auto">
-          <h2 id="faq" class="text-xl font-semibold text-primary mb-6">
-            Frequently asked questions
-          </h2>
-          <dl class="space-y-6">
-            {FAQ.map(({ q, a }) => (
-              <div>
-                <dt class="text-base font-medium text-primary mb-1.5">{q}</dt>
-                <dd class="text-sm text-secondary leading-relaxed">{a}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <footer class="pt-8 border-t border-border text-center max-w-2xl mx-auto">
-          <p class="text-xs text-muted mb-1">Built by</p>
-          <a
-            href="https://kreativekorna.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm font-medium text-primary hover:text-accent transition-colors"
-          >
-            KreativeKorna Concepts
-          </a>
-          <p class="text-xs text-muted/70 mt-3 flex items-center justify-center gap-3">
-            <a href={downloadUrl} class="hover:text-primary transition-colors">
-              Get the desktop app
-            </a>
-            <span class="opacity-50">·</span>
-            <a href="/changelog" class="hover:text-primary transition-colors">
-              Changelog
-            </a>
+          <p class="mt-7 font-mono text-[13px] text-muted" data-reveal>
+            PostgreSQL · SQLite · Turso
           </p>
-        </footer>
+
+          <ul
+            class="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted"
+            data-reveal
+          >
+            <li>Free forever</li>
+            <li class="text-border-strong" aria-hidden="true">·</li>
+            <li>No signup</li>
+            <li class="text-border-strong" aria-hidden="true">·</li>
+            <li>Local-first</li>
+          </ul>
+        </div>
+
+        <div class="mt-14 sm:mt-20" data-reveal>
+          <AppFrame class="mx-auto max-w-[1120px]">
+            <div class="h-[480px] sm:h-[520px]">
+              <BrowseMock />
+            </div>
+          </AppFrame>
+        </div>
       </div>
-    </main>
-  </div>
+    </section>
 
-  <script>
-    // "Open JustDB" CTA: href is `justdb://open`, so a native click hands
-    // the URL to the OS — installed app launches, no JS required.
-    //
-    // Fallback when nothing's installed: after the click, wait ~1.5s. If
-    // the tab is still visible (i.e. the OS didn't hijack focus to launch
-    // an app), redirect to the download URL stored in `data-fallback`.
-    //
-    // On mobile, no desktop app can exist — swap the href to the download
-    // URL up-front so the click goes straight there with no protocol noise.
-    type OS = 'macos' | 'windows' | 'linux';
+    <!-- ── Features ──────────────────────────────────────────────────────── -->
+    <section id="features" class="scroll-mt-20 border-t border-border">
+      <div class="mx-auto max-w-shell px-5 py-20 sm:px-8 sm:py-28">
+        <div class="max-w-2xl" data-reveal>
+          <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Features</p>
+          <h2 class="mt-3 text-[clamp(2rem,4.4vw,3.25rem)] font-semibold leading-[1.08] tracking-[-0.025em] text-primary">
+            Everything you need.<br />Nothing you don't.
+          </h2>
+        </div>
 
-    function detectOS(): OS | null {
-      // navigator.platform is frozen in modern browsers; prefer the UA-CH hint
-      // where available, then fall back to userAgent + platform sniffing.
-      const uaData = (navigator as any).userAgentData;
-      const hint = `${navigator.userAgent} ${uaData?.platform ?? navigator.platform ?? ''}`;
-      if (/Mac|iPhone|iPad|iPod/i.test(hint)) return 'macos';
-      if (/Win/i.test(hint)) return 'windows';
-      if (/Linux|X11|CrOS/i.test(hint)) return 'linux';
-      return null;
-    }
+        <ul class="mt-12 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map(({ title, body, icon }) => (
+            <li
+              class="group relative bg-bg p-7 transition-colors duration-300 hover:bg-bg-secondary/50"
+              data-reveal
+            >
+              <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-bg-secondary text-accent transition-transform duration-300 group-hover:-translate-y-0.5">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  {icon === 'table' && (
+                    <>
+                      <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                      <line x1="3" y1="9" x2="21" y2="9"></line>
+                      <line x1="9" y1="9" x2="9" y2="20"></line>
+                    </>
+                  )}
+                  {icon === 'code' && (
+                    <>
+                      <polyline points="4 7 8 12 4 17"></polyline>
+                      <line x1="12" y1="17" x2="20" y2="17"></line>
+                    </>
+                  )}
+                  {icon === 'cell' && (
+                    <>
+                      <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                      <line x1="12" y1="9" x2="12" y2="15"></line>
+                      <line x1="10" y1="9" x2="14" y2="9"></line>
+                      <line x1="10" y1="15" x2="14" y2="15"></line>
+                    </>
+                  )}
+                  {icon === 'schema' && (
+                    <>
+                      <rect x="3" y="3" width="7" height="6" rx="1"></rect>
+                      <rect x="14" y="15" width="7" height="6" rx="1"></rect>
+                      <path d="M6.5 9v5a2 2 0 0 0 2 2H14"></path>
+                    </>
+                  )}
+                  {icon === 'search' && (
+                    <>
+                      <circle cx="11" cy="11" r="7"></circle>
+                      <line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+                    </>
+                  )}
+                  {icon === 'lock' && (
+                    <>
+                      <rect x="4" y="10" width="16" height="10" rx="2"></rect>
+                      <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                    </>
+                  )}
+                </svg>
+              </span>
+              <h3 class="mt-5 text-[17px] font-medium tracking-tight text-primary">{title}</h3>
+              <p class="mt-2 text-[14px] leading-relaxed text-secondary">{body}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
 
-    const os = detectOS();
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const osLabel: Record<OS, string> = {
-      macos: 'Download for macOS',
-      windows: 'Download for Windows',
-      linux: 'Download for Linux',
-    };
+    <!-- ── Showcases ─────────────────────────────────────────────────────── -->
+    <section class="border-t border-border">
+      <div class="mx-auto max-w-shell space-y-24 px-5 py-20 sm:px-8 sm:py-28 lg:space-y-32">
+        <div class="grid items-center gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-14">
+          <div data-reveal>
+            <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Browse</p>
+            <h2 class="mt-3 text-[clamp(1.75rem,3.4vw,2.6rem)] font-semibold leading-[1.1] tracking-[-0.025em] text-primary">
+              See your database clearly.
+            </h2>
+            <p class="mt-5 text-[15px] leading-relaxed text-secondary">
+              Every table, view, column and index in one pane. Pin the tables you
+              live in, search the rest, and open as many as you want in tabs.
+            </p>
+            <ul class="mt-6 space-y-2.5 text-[14px] text-secondary">
+              {['Tables and views with live row counts', 'Column types, nullability and defaults at a glance', 'Tabs, pinning and a searchable table list'].map((item) => (
+                <li class="flex gap-3">
+                  <span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div data-reveal>
+            <AppFrame>
+              <div class="h-[460px]"><BrowseMock /></div>
+            </AppFrame>
+          </div>
+        </div>
 
-    // Point the "Download desktop app" button at the detected OS's installer.
-    const download = document.getElementById('cta-download');
-    let osDownloadUrl: string | undefined;
-    if (download instanceof HTMLAnchorElement && os) {
-      osDownloadUrl = download.dataset[
-        os === 'macos' ? 'downloadMacos' : os === 'windows' ? 'downloadWindows' : 'downloadLinux'
-      ];
-      if (osDownloadUrl) {
-        download.href = osDownloadUrl;
-        download.textContent = osLabel[os];
-      }
-    }
+        <div class="grid items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-14">
+          <div class="order-2 lg:order-1" data-reveal>
+            <AppFrame>
+              <div class="h-[460px]"><QueryMock /></div>
+            </AppFrame>
+          </div>
+          <div class="order-1 lg:order-2" data-reveal>
+            <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Query</p>
+            <h2 class="mt-3 text-[clamp(1.75rem,3.4vw,2.6rem)] font-semibold leading-[1.1] tracking-[-0.025em] text-primary">
+              SQL when you need it.
+            </h2>
+            <p class="mt-5 text-[15px] leading-relaxed text-secondary">
+              Write it, run it, read the result — then keep going. Results land in
+              the same grid as a table, so you can filter, sort and export them.
+            </p>
+            <ul class="mt-6 space-y-2.5 text-[14px] text-secondary">
+              {['Syntax highlighting, completion and formatting', 'EXPLAIN plans without leaving the editor', 'Searchable history, plus queries you can save and name'].map((item) => (
+                <li class="flex gap-3">
+                  <span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
-    // "Open JustDB" CTA: href is `justdb://open`, so a native click hands the
-    // URL to the OS — installed app launches, no JS required. If nothing's
-    // installed, after ~1.5s the tab is still visible (the OS didn't hijack
-    // focus), so we redirect to the best download we have. On mobile there's
-    // no desktop app to launch, so we swap the href up-front.
-    const cta = document.getElementById('cta-open-app');
-    if (cta instanceof HTMLAnchorElement) {
-      const fallback = osDownloadUrl ?? cta.dataset.fallback;
-      if (isMobile) {
-        if (fallback) cta.href = fallback;
-      } else if (fallback) {
-        cta.addEventListener('click', () => {
-          window.setTimeout(() => {
-            if (!document.hidden) window.location.href = fallback;
-          }, 1500);
-        });
-      }
-    }
+        <div class="grid items-center gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-14">
+          <div data-reveal>
+            <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Edit</p>
+            <h2 class="mt-3 text-[clamp(1.75rem,3.4vw,2.6rem)] font-semibold leading-[1.1] tracking-[-0.025em] text-primary">
+              Edit data without the terminal.
+            </h2>
+            <p class="mt-5 text-[15px] leading-relaxed text-secondary">
+              Change a value in place, add a row, drop one. Nothing is written
+              until you say so — edits stage up first, and you can read the exact
+              SQL before it runs.
+            </p>
+            <ul class="mt-6 space-y-2.5 text-[14px] text-secondary">
+              {['Staged changes with a Review SQL step', 'Cascade preview before a delete goes through', 'Import from CSV; export to CSV, JSON, SQL or Excel'].map((item) => (
+                <li class="flex gap-3">
+                  <span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div data-reveal>
+            <AppFrame>
+              <div class="h-[460px]"><EditMock /></div>
+            </AppFrame>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    // iOS is finicky about muted autoplay: the `muted` attribute alone is
-    // sometimes ignored, so set it as a property before calling play(). If the
-    // browser still blocks it (e.g. Low Power Mode), fall back to kicking off
-    // playback on the first user interaction. The poster stays put until then.
-    const hero = document.getElementById('hero-video');
-    if (hero instanceof HTMLVideoElement) {
-      hero.muted = true;
-      const tryPlay = () => hero.play().catch(() => {});
-      tryPlay();
-      const onFirstInteraction = () => {
-        tryPlay();
-        window.removeEventListener('touchstart', onFirstInteraction);
-        window.removeEventListener('click', onFirstInteraction);
-      };
-      window.addEventListener('touchstart', onFirstInteraction, { once: true, passive: true });
-      window.addEventListener('click', onFirstInteraction, { once: true });
-    }
-  </script>
+    <!-- ── Why ───────────────────────────────────────────────────────────── -->
+    <section class="border-t border-border">
+      <div class="mx-auto max-w-shell px-5 py-20 sm:px-8 sm:py-28">
+        <div class="max-w-2xl" data-reveal>
+          <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Why JustDB</p>
+          <h2 class="mt-3 text-[clamp(2rem,4.4vw,3.25rem)] font-semibold leading-[1.08] tracking-[-0.025em] text-primary">
+            Built for people who just want to see the damn database.
+          </h2>
+        </div>
+
+        <ul class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {WHY.map(({ title, body, icon }) => (
+            <li
+              class="rounded-xl border border-border bg-bg-secondary/40 p-6 transition-[transform,border-color] duration-300 hover:-translate-y-1 hover:border-border-strong"
+              data-reveal
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="text-accent" aria-hidden="true">
+                {icon === 'bolt' && <path d="M13 2 4 14h7l-1 8 9-12h-7z"></path>}
+                {icon === 'minus' && (
+                  <>
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                  </>
+                )}
+                {icon === 'shield' && <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path>}
+                {icon === 'free' && (
+                  <>
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"></line>
+                  </>
+                )}
+                {icon === 'screens' && (
+                  <>
+                    <rect x="2" y="5" width="13" height="9" rx="1"></rect>
+                    <rect x="15" y="10" width="7" height="9" rx="1"></rect>
+                  </>
+                )}
+              </svg>
+              <h3 class="mt-4 text-[15px] font-medium text-primary">{title}</h3>
+              <p class="mt-1.5 text-[13px] leading-relaxed text-muted">{body}</p>
+            </li>
+          ))}
+        </ul>
+
+        <!-- Positioning, stated as a contrast rather than a competitor table. -->
+        <div class="mt-16 grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center" data-reveal>
+          <div class="rounded-xl border border-border bg-bg-secondary/30 p-7">
+            <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Heavy database tools</p>
+            <ul class="mt-4 space-y-2 text-[14px] text-muted">
+              <li>Install, license, configure</li>
+              <li>Nine panels you never open</li>
+              <li>Enterprise-shaped by default</li>
+              <li>A learning curve before a first query</li>
+            </ul>
+          </div>
+          <div class="flex items-center justify-center py-2 text-2xl text-border-strong sm:px-2" aria-hidden="true">
+            <span class="sm:hidden">↓</span>
+            <span class="hidden sm:inline">→</span>
+          </div>
+          <div class="rounded-xl border border-accent/25 bg-accent/[0.04] p-7">
+            <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-accent">JustDB</p>
+            <ul class="mt-4 space-y-2 text-[14px] text-secondary">
+              <li>Download, paste a URL, connect</li>
+              <li>Tables, SQL, edits — that's the app</li>
+              <li>Developer-shaped by default</li>
+              <li>Rows on screen in under a minute</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Databases ─────────────────────────────────────────────────────── -->
+    <section id="databases" class="scroll-mt-20 border-t border-border">
+      <div class="mx-auto max-w-shell px-5 py-20 sm:px-8 sm:py-28">
+        <div class="max-w-2xl" data-reveal>
+          <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Supported databases</p>
+          <h2 class="mt-3 text-[clamp(2rem,4.4vw,3.25rem)] font-semibold leading-[1.08] tracking-[-0.025em] text-primary">
+            Works with your database.
+          </h2>
+          <p class="mt-5 text-[15px] leading-relaxed text-secondary">
+            Local files, containers, and hosted servers alike. If MySQL is what
+            you need, it is on the list — but it is not shipped yet, and this page
+            is not going to pretend otherwise.
+          </p>
+        </div>
+
+        <ul class="mt-12 grid gap-4 sm:grid-cols-3">
+          {supported.map(({ name, note, tint }) => (
+            <li
+              class="flex items-center gap-4 rounded-xl border border-border bg-bg-secondary/40 p-6 transition-[transform,border-color] duration-300 hover:-translate-y-1 hover:border-border-strong"
+              data-reveal
+            >
+              <svg
+                width="26"
+                height="26"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={`rgb(${tint})`}
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="shrink-0"
+                aria-hidden="true"
+              >
+                <ellipse cx="12" cy="6" rx="8" ry="3"></ellipse>
+                <path d="M4 6v12c0 1.66 3.58 3 8 3s8-1.34 8-3V6"></path>
+                <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"></path>
+              </svg>
+              <div class="min-w-0">
+                <p class="text-[15px] font-medium text-primary">{name}</p>
+                <p class="mt-0.5 text-[13px] text-muted">{note}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        <div class="mt-6 flex flex-wrap items-center gap-3" data-reveal>
+          <span class="text-[13px] text-muted">Planned:</span>
+          {planned.map(({ name }) => (
+            <span class="rounded-full border border-dashed border-border-strong px-3 py-1 text-[13px] text-muted">
+              {name}
+            </span>
+          ))}
+        </div>
+
+        <div class="mt-12 grid gap-4 sm:grid-cols-2" data-reveal>
+          {PLATFORMS.map(({ name, note }) => (
+            <div class="flex items-baseline gap-3 rounded-xl border border-border p-6">
+              <p class="text-[15px] font-medium text-primary">{name}</p>
+              <p class="text-[13px] text-muted">{note}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Audience ──────────────────────────────────────────────────────── -->
+    <section class="border-t border-border">
+      <div class="mx-auto max-w-shell px-5 py-20 sm:px-8 sm:py-28">
+        <div class="max-w-2xl" data-reveal>
+          <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Who it's for</p>
+          <h2 class="mt-3 text-[clamp(2rem,4.4vw,3.25rem)] font-semibold leading-[1.08] tracking-[-0.025em] text-primary">
+            Built for people who work with databases.
+          </h2>
+        </div>
+        <ul class="mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+          {AUDIENCE.map(({ title, body }) => (
+            <li class="border-t border-border pt-5" data-reveal>
+              <h3 class="text-[15px] font-medium text-primary">{title}</h3>
+              <p class="mt-2 text-[14px] leading-relaxed text-secondary">{body}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <!-- ── Brand ─────────────────────────────────────────────────────────── -->
+    <section class="relative overflow-hidden border-t border-border">
+      <div
+        class="pointer-events-none absolute left-1/2 top-1/2 h-[28rem] w-[52rem] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.13] blur-3xl"
+        style="background: radial-gradient(closest-side, rgb(var(--accent)), transparent);"
+        aria-hidden="true"
+      >
+      </div>
+      <div class="relative mx-auto max-w-3xl px-5 py-24 text-center sm:px-8 sm:py-32">
+        <h2
+          class="text-[clamp(2.2rem,5.6vw,4rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-primary"
+          data-reveal
+        >
+          Just your database.<br />No bullshit.
+        </h2>
+        <p class="mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-secondary" data-reveal>
+          JustDB is built around one idea: looking at your own data shouldn't
+          require a complicated application, a cloud account, or a dozen
+          configuration screens.
+        </p>
+        <div class="mt-9" data-reveal>
+          <Button size="lg" href={LAUNCH_URL} data-fallback={downloadUrl}>
+            Open JustDB
+            <span class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+          </Button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── FAQ ───────────────────────────────────────────────────────────── -->
+    <section id="faq" class="scroll-mt-20 border-t border-border">
+      <div class="mx-auto max-w-shell px-5 py-20 sm:px-8 sm:py-28">
+        <div class="grid gap-12 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
+          <div data-reveal>
+            <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">FAQ</p>
+            <h2 class="mt-3 text-[clamp(2rem,4.4vw,3rem)] font-semibold leading-[1.08] tracking-[-0.025em] text-primary">
+              Questions,<br class="hidden lg:block" /> answered plainly.
+            </h2>
+          </div>
+
+          <div class="divide-y divide-border border-y border-border" data-reveal>
+            {FAQ.map(({ q, a }) => (
+              <details class="group">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-6 py-5 text-[15px] font-medium text-primary transition-colors hover:text-accent [&::-webkit-details-marker]:hidden">
+                  {q}
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    class="shrink-0 text-muted transition-transform duration-200 group-open:rotate-45"
+                    aria-hidden="true"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </summary>
+                <p class="max-w-2xl pb-6 text-[14px] leading-relaxed text-secondary">{a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Final CTA ─────────────────────────────────────────────────────── -->
+    <section class="border-t border-border">
+      <div class="mx-auto max-w-shell px-5 py-24 text-center sm:px-8 sm:py-32">
+        <h2
+          class="mx-auto max-w-2xl text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-[1.06] tracking-[-0.03em] text-primary"
+          data-reveal
+        >
+          Ready to see your database differently?
+        </h2>
+        <p class="mx-auto mt-5 max-w-lg text-[16px] text-secondary" data-reveal>
+          Open JustDB and get straight to your data.
+        </p>
+        <div class="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row" data-reveal>
+          <Button size="lg" href={LAUNCH_URL} data-fallback={downloadUrl} class="w-full sm:w-auto">
+            Open JustDB
+            <span class="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+          </Button>
+          <Button size="lg" variant="secondary" href={downloadUrl} external class="w-full sm:w-auto">
+            Download desktop app
+          </Button>
+        </div>
+        <p class="mt-6 font-mono text-[12px] text-muted" data-reveal>No signup. Free to use.</p>
+      </div>
+    </section>
+  </main>
+
+  <Footer home />
 </Layout>
+
+<script>
+  // ── Download / launch CTAs ───────────────────────────────────────────────
+  //
+  // "Open JustDB" points at `justdb://open`, so a native click hands the URL to
+  // the OS and an installed app launches with no JS involved. If nothing is
+  // registered, the tab stays visible — after ~1.5s we send them to the best
+  // download we have. Mobile has no desktop app to launch, so the href is
+  // swapped up-front.
+  type OS = 'macos' | 'windows' | 'linux';
+
+  function detectOS(): OS | null {
+    // navigator.platform is frozen in modern browsers; prefer the UA-CH hint
+    // where available, then fall back to userAgent + platform sniffing.
+    const uaData = (navigator as any).userAgentData;
+    const hint = `${navigator.userAgent} ${uaData?.platform ?? navigator.platform ?? ''}`;
+    if (/Mac|iPhone|iPad|iPod/i.test(hint)) return 'macos';
+    if (/Win/i.test(hint)) return 'windows';
+    if (/Linux|X11|CrOS/i.test(hint)) return 'linux';
+    return null;
+  }
+
+  const os = detectOS();
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const osLabel: Record<OS, string> = {
+    macos: 'Download for macOS',
+    windows: 'Download for Windows',
+    linux: 'Download for Linux',
+  };
+
+  const download = document.getElementById('cta-download');
+  let osDownloadUrl: string | undefined;
+  if (download instanceof HTMLAnchorElement && os) {
+    osDownloadUrl = download.dataset[
+      os === 'macos' ? 'downloadMacos' : os === 'windows' ? 'downloadWindows' : 'downloadLinux'
+    ];
+    if (osDownloadUrl) {
+      download.href = osDownloadUrl;
+      download.textContent = osLabel[os];
+    }
+  }
+
+  for (const el of document.querySelectorAll<HTMLAnchorElement>('a[data-fallback]')) {
+    const fallback = osDownloadUrl ?? el.dataset.fallback;
+    if (!fallback) continue;
+    if (isMobile) {
+      el.href = fallback;
+      continue;
+    }
+    el.addEventListener('click', () => {
+      window.setTimeout(() => {
+        if (!document.hidden) window.location.href = fallback;
+      }, 1500);
+    });
+  }
+
+  // ── Scroll reveal ────────────────────────────────────────────────────────
+  const targets = document.querySelectorAll('[data-reveal]');
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    targets.forEach((el) => el.classList.add('is-visible'));
+  } else {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry, i) => {
+          if (!entry.isIntersecting) return;
+          // Stagger siblings that cross the threshold together so a grid
+          // cascades in rather than popping as one block.
+          (entry.target as HTMLElement).style.transitionDelay = `${Math.min(i, 6) * 55}ms`;
+          entry.target.classList.add('is-visible');
+          io.unobserve(entry.target);
+        });
+      },
+      { rootMargin: '0px 0px -8% 0px', threshold: 0.05 },
+    );
+    targets.forEach((el) => io.observe(el));
+  }
+</script>

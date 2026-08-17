@@ -5,6 +5,8 @@ import { dirname, resolve } from 'node:path';
 import { marked } from 'marked';
 
 import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
 
 // Read CHANGELOG.md from the repo root at build time. Resolved relative to
 // this file (not CWD) so it works equally well under `astro dev` and CI
@@ -32,8 +34,9 @@ const jsonLd = {
 ---
 
 <Layout title="Changelog — JustDB" description={description} jsonLd={jsonLd}>
+  <Nav />
   <div class="min-h-screen bg-bg">
-    <main class="container mx-auto px-6 sm:px-8 py-16 sm:py-24">
+    <main class="mx-auto max-w-shell px-5 sm:px-8 py-16 sm:py-24">
       <div class="max-w-2xl mx-auto">
         <header class="mb-12">
           <p class="text-xs font-mono uppercase tracking-wider text-muted mb-2">
@@ -41,7 +44,7 @@ const jsonLd = {
             <span class="opacity-50 mx-1">/</span>
             <span>changelog</span>
           </p>
-          <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-primary mb-4">
+          <h1 class="text-4xl sm:text-5xl font-semibold tracking-tight text-primary mb-4">
             Changelog
           </h1>
           <p class="text-base text-secondary leading-relaxed">
@@ -57,20 +60,19 @@ const jsonLd = {
 
         <article class="changelog-body" set:html={html} />
 
-        <footer class="mt-16 pt-6 border-t border-border text-sm text-muted">
-          <p>
-            Want to track upcoming work?
-            <a
-              href="https://github.com/codellyson/justdb"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-primary hover:text-accent transition-colors"
-            >Watch the repo on GitHub</a>.
-          </p>
-        </footer>
+        <p class="mt-16 pt-6 border-t border-border text-sm text-muted">
+          Want to track upcoming work?
+          <a
+            href="https://github.com/codellyson/justdb"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-primary hover:text-accent transition-colors"
+          >Watch the repo on GitHub</a>.
+        </p>
       </div>
     </main>
   </div>
+  <Footer />
 </Layout>
 
 <style is:global>

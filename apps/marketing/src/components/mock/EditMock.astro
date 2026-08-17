@@ -1,0 +1,74 @@
+---
+import MockShell from './MockShell.astro';
+
+const columns = ['id', 'email', 'name', 'is_active', 'bio'];
+const rows = [
+  ['1', 'ada@example.com', 'Ada Lovelace', '1', 'Mathematician'],
+  ['2', 'alan@example.com', 'Alan Turing', '1', 'Cryptanalyst'],
+  ['3', 'grace@example.com', 'Grace Hopper', '1', null],
+  ['4', 'linus@example.com', 'Linus Torvalds', '1', 'Kernel hacker'],
+  ['5', 'dormant@example.com', 'Dormant Account', '0', null],
+];
+// Row 3's `bio` is the cell under edit — the staged value sits in the popover.
+const editing = { row: 2, col: 4 };
+---
+
+<MockShell tabs={[
+  { badge: 'T', label: 'orders' },
+  { badge: 'T', label: 'users', active: true },
+]}>
+  <div class="relative flex min-h-0 flex-1 flex-col px-4 py-3">
+    <p class="font-mono text-[10px] text-muted">
+      justdb-test <span class="opacity-50">›</span> main <span class="opacity-50">›</span>
+      <span class="text-secondary">users</span>
+    </p>
+    <h3 class="mt-2 text-[17px] font-semibold tracking-tight text-primary">users</h3>
+
+    <div class="mock-grid mt-3 rounded-md border border-border">
+      <table class="w-full border-collapse text-left font-mono text-[10px]">
+        <thead>
+          <tr class="bg-bg-secondary/60">
+            <th class="w-7 border-b border-border px-2 py-1.5"></th>
+            {columns.map((c) => (
+              <th class="border-b border-border px-2 py-1.5 font-sans text-[10px] font-medium text-secondary">{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, r) => (
+            <tr class={`border-b border-border/60 ${r === editing.row ? 'bg-success/[0.07]' : ''}`}>
+              <td class="px-2 py-[7px] text-right text-[9px] text-muted/70">{r + 1}</td>
+              {row.map((cell, c) => {
+                const isTarget = r === editing.row && c === editing.col;
+                return (
+                  <td class={`whitespace-nowrap px-2 py-[7px] ${isTarget ? 'rounded-sm outline outline-1 outline-accent' : ''}`}>
+                    {isTarget ? (
+                      <span class="text-primary">Rear Admiral</span>
+                    ) : cell === null ? (
+                      <span class="italic text-muted/60">NULL</span>
+                    ) : (
+                      <span class="text-secondary">{cell}</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-3 flex items-center gap-2 text-[10px] text-muted">
+      <span>Showing 1–5 of 5 rows</span>
+    </div>
+
+    <!-- The real bar is fixed to the bottom of the window whenever a table has
+         staged edits; nothing is written until Save. -->
+    <div class="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-border bg-bg px-3 py-2 shadow-lg shadow-black/40">
+      <span class="whitespace-nowrap text-[11px] font-medium text-primary">1 change pending</span>
+      <span class="rounded-md border border-border px-2 py-1 text-[10px] text-secondary">Discard</span>
+      <span class="rounded-md border border-border px-2 py-1 text-[10px] text-secondary">Review SQL</span>
+      <span class="rounded-md bg-accent px-2 py-1 text-[10px] font-medium text-accent-text">Save</span>
+    </div>
+  </div>
+</MockShell>

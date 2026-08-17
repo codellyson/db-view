@@ -1,0 +1,19 @@
+---
+interface Props {
+  title?: string;
+  class?: string;
+}
+const { title = 'JustDB', class: className = '' } = Astro.props;
+---
+
+<div
+  class={`overflow-hidden rounded-xl border border-border bg-bg shadow-[0_40px_90px_-40px_rgb(0_0_0/0.9)] ${className}`}
+>
+  <div class="flex h-9 items-center gap-2 border-b border-border bg-bg-elevated px-3.5">
+    <span class="h-[10px] w-[10px] rounded-full bg-danger/60"></span>
+    <span class="h-[10px] w-[10px] rounded-full bg-warning/60"></span>
+    <span class="h-[10px] w-[10px] rounded-full bg-success/60"></span>
+    <span class="ml-2 select-none text-[11px] font-medium tracking-wide text-muted">{title}</span>
+  </div>
+  <slot />
+</div>

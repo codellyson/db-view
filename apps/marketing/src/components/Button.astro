@@ -1,10 +1,11 @@
 ---
-// Mirrors the variant API of app/components/ui/Button used on the Next.js
-// landing. Renders as <a> when `href` is provided, otherwise <button>.
-type Variant = 'primary' | 'secondary';
+// Renders as <a> when `href` is provided, otherwise <button>.
+type Variant = 'primary' | 'secondary' | 'ghost';
+type Size = 'md' | 'lg';
 
 interface Props {
   variant?: Variant;
+  size?: Size;
   href?: string;
   external?: boolean;
   class?: string;
@@ -14,15 +15,33 @@ interface Props {
   [key: `data-${string}`]: string | undefined;
 }
 
-const { variant = 'primary', href, external = false, class: className = '', id, ...rest } = Astro.props;
+const {
+  variant = 'primary',
+  size = 'md',
+  href,
+  external = false,
+  class: className = '',
+  id,
+  ...rest
+} = Astro.props;
 
-const base = 'inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg';
-const variants: Record<Variant, string> = {
-  primary: 'bg-accent hover:bg-accent-hover text-white',
-  secondary: 'border border-border text-primary hover:bg-bg-secondary',
+const base =
+  'group inline-flex items-center justify-center gap-2 font-medium rounded-lg whitespace-nowrap transition-[background-color,border-color,color,transform,box-shadow] duration-200 active:translate-y-px';
+
+const sizes: Record<Size, string> = {
+  md: 'px-4 py-2.5 text-sm',
+  lg: 'px-6 py-3.5 text-[15px]',
 };
 
-const classes = `${base} ${variants[variant]} ${className}`.trim();
+const variants: Record<Variant, string> = {
+  primary:
+    'bg-accent text-accent-text hover:bg-accent-hover shadow-[0_1px_0_0_rgb(255_255_255/0.15)_inset,0_8px_24px_-12px_rgb(var(--accent)/0.7)]',
+  secondary:
+    'border border-border-strong bg-bg-secondary/60 text-primary hover:bg-bg-elevated hover:border-muted',
+  ghost: 'text-secondary hover:text-primary hover:bg-bg-secondary',
+};
+
+const classes = `${base} ${sizes[size]} ${variants[variant]} ${className}`.trim();
 ---
 
 {href ? (
