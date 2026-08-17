@@ -4,6 +4,69 @@ All notable changes to JustDB are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-08-17
+
+### Added
+- **grid:** Keep rows on screen while sorting, filtering, and paging ([d73fe06](https://github.com/codellyson/justdb/commit/d73fe06463f95d8d3687cbe977cdfb518c495576))
+- **ui:** Single fixed toolbar over a grid that fills the pane ([c757a0a](https://github.com/codellyson/justdb/commit/c757a0a0818803bff50331ba6c56e6e583d01104))
+- **grid:** Make Add record stage a draft row ([1c7d64e](https://github.com/codellyson/justdb/commit/1c7d64ed1946a654089e02aa4056d0064fd6df9a))
+- **grid:** Context menu on the blank area below the rows ([cd4d777](https://github.com/codellyson/justdb/commit/cd4d7770093d7f593393b74e07d4dcaf18ef07bc))
+- **grid:** Surface the per-cell actions on hover ([f3bbe20](https://github.com/codellyson/justdb/commit/f3bbe20fe312be298f981b3e3a4f2fcbd2c474c2))
+
+
+### Build
+- Move the web app to Tailwind v4 and drop the v3 shim ([2a3cc35](https://github.com/codellyson/justdb/commit/2a3cc35037c36875ab3459c983ceda53842cdc32))
+- Drop the redundant @source for JustUI's dist ([864aa94](https://github.com/codellyson/justdb/commit/864aa94f64ba3e96fe886adff3c340194b5f99f7))
+- Take the design tokens from JustUI instead of a local copy ([e32c7c6](https://github.com/codellyson/justdb/commit/e32c7c63ca9e5977f03091ffdaa7b4d2fbdf9f03))
+- **changelog:** List style: commits as Changed ([9d0a548](https://github.com/codellyson/justdb/commit/9d0a548a4008f16f560ca569e0c21ffab1ab1eb4))
+
+
+### Changed
+- **dashboard:** Split state from actions and namespace the query cache ([9e9ed80](https://github.com/codellyson/justdb/commit/9e9ed807a5205ed9511df815808a5e91ab8ed71e))
+- Pin the type scale in px so text isn't 7% small everywhere ([10685d3](https://github.com/codellyson/justdb/commit/10685d3f1865cef17ceb25d4bbb0ce29522a1294))
+- **ui:** Build the table toolbar on @codellyson/justui ([449e84a](https://github.com/codellyson/justdb/commit/449e84a22a9caa694796269fe998dc010e52b24e))
+- **ui:** Back the shared primitives with JustUI ([49043bf](https://github.com/codellyson/justdb/commit/49043bfc8bdbfcbd91eab7791830f373a02933a4))
+- **toolbar:** Group the controls instead of lining them up flat ([2760b9e](https://github.com/codellyson/justdb/commit/2760b9ed3004c1d4a96f258ec56f257deb469783))
+- **grid:** Centre the empty state in the body ([53117a9](https://github.com/codellyson/justdb/commit/53117a9ea0e44db058da98d9894e0b46d138fb56))
+- **toolbar:** Drop the search field, outline the buttons ([7dc2539](https://github.com/codellyson/justdb/commit/7dc253967f2ef052aed1d546a99e4252a3fda940))
+- **toolbar:** Loosen the spacing now the buttons are outlined ([3b49eb8](https://github.com/codellyson/justdb/commit/3b49eb8c93ec5e1a60922a5305faa9f88d2e2c4c))
+- **ui:** Replace every hand-rolled icon with lucide ([d1d9e82](https://github.com/codellyson/justdb/commit/d1d9e82ce38f4cdc926204584f058512ae94362d))
+- **grid:** Give every column its own rule ([4f73267](https://github.com/codellyson/justdb/commit/4f7326745873d597174d18fe57bb7c82540e33a6))
+- **grid:** Lay row detail out like the grid it belongs to ([90d2813](https://github.com/codellyson/justdb/commit/90d2813e9def6bce2a21388cf5cebc9966414da1))
+- **fk:** Dock the related-row panel instead of overlaying it ([727f8a8](https://github.com/codellyson/justdb/commit/727f8a87db8cfc74e895f302e6b925c9e56dbce3))
+- **grid:** Drop the expand chevron from the row-number gutter ([c635675](https://github.com/codellyson/justdb/commit/c635675ba5002f6073e1eaa7a319c0180d44a702))
+- **grid:** Drop the row-number column ([b41ca4c](https://github.com/codellyson/justdb/commit/b41ca4c119531b5c41f3496d4bd6fbbdf03961cd))
+- **grid:** A draft row always owns its discard ([b4d773c](https://github.com/codellyson/justdb/commit/b4d773c715059fd76f881971f9d6946d4397719b))
+- **ui:** Upgrade to JustUI 1.0.0 and rebuild the primitives on it ([bc4fb45](https://github.com/codellyson/justdb/commit/bc4fb45cfee6fd8d235ab9feb8da5900dc558c24))
+- **ui:** Move every hand-rolled control onto JustUI ([9ece2f7](https://github.com/codellyson/justdb/commit/9ece2f70ac187b01c2dc62bf77443d74f476f51c))
+
+
+### Dependencies
+- **deps:** JustUI 1.0.1 ([633ff57](https://github.com/codellyson/justdb/commit/633ff57aceb784bf70e31f16bd85ea1e4e578dc2))
+- **deps:** JustUI 1.0.2 ([3afc4da](https://github.com/codellyson/justdb/commit/3afc4da32c57a819dea6087de801132ad578a93a))
+
+
+### Fixed
+- **pending:** Stop staged writes leaking across databases and repair undo ([6e2d0b9](https://github.com/codellyson/justdb/commit/6e2d0b9160cc4c6a9958eb66d6fd8d2eef19f8dd))
+- **state:** Share one store per persisted key instead of a copy per hook ([d87be11](https://github.com/codellyson/justdb/commit/d87be11a72d4553d89f95d39d09a92d53d4d3e92))
+- **url:** Apply back/forward against current state, not first render ([605f1aa](https://github.com/codellyson/justdb/commit/605f1aa4a8f354a4b96b49449fbb033008727ff3))
+- **ui:** Portal the toolbar dropdowns above the grid ([2695f3c](https://github.com/codellyson/justdb/commit/2695f3c7c5a2893b745d0e0ae8eb53a29167d11e))
+- **ui:** Bleed menu dividers to the panel edges ([64bef80](https://github.com/codellyson/justdb/commit/64bef805cc980418811c83780504b48a329ab34f))
+- **ui:** Let the toolbar menus open again ([48b8d47](https://github.com/codellyson/justdb/commit/48b8d47fe663dd98d0aa29ad1bdcc9ca992b7a71))
+- **grid:** Repair the cell actions and make row detail a table ([beed8c6](https://github.com/codellyson/justdb/commit/beed8c61ed3749787f54bf581949ae0f6615b2b9))
+- **grid:** Stop one long value making the row detail tall ([cc86644](https://github.com/codellyson/justdb/commit/cc866446a91f51b26deb33177f743fd4a9c15fe8))
+- **tabs:** Put the list key on the outer element ([9973eab](https://github.com/codellyson/justdb/commit/9973eab149bcc2e40f1f4a5e4930e0cae0cdf614))
+
+
+### Maintenance
+- Delete unreferenced modules ([0d534ef](https://github.com/codellyson/justdb/commit/0d534ef438a551c202d9f28bd628da445e54ce0f))
+
+
+### Performance
+- **toast:** Keep the toast list out of the app-wide context value ([64f3f96](https://github.com/codellyson/justdb/commit/64f3f962c903cf742a8a2167d5e189a418b80ff2))
+- **grid:** Stop putting the cell actions in every cell's DOM ([79c1ab9](https://github.com/codellyson/justdb/commit/79c1ab94ecd099889732e6a6f572ab04ebc7aed6))
+- **grid:** Don't mount the cell editor until a cell is edited ([8c35ab1](https://github.com/codellyson/justdb/commit/8c35ab15806d5c769420b2146f9c0c82c296ad4f))
+
 ## [0.2.2] - 2026-08-07
 
 ### CI
